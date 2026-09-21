@@ -1,0 +1,41 @@
+.route-loading{padding:32px;color:#334f5c}
+.practice-page a{color:#09675f}.practice-page .btn.primary{background:#08746d;color:#fff}
+.practice-page :is(button,.btn,select,summary){min-height:44px}
+.practice-page summary{cursor:pointer;align-content:center}
+.practice-page :is(input,select,textarea){font-size:16px}
+.practice-page :focus-visible,.portfolio-tab-select select:focus-visible{outline:3px solid #09675f;outline-offset:3px}
+.portfolio-overview>.portfolio-stats,.decision-stats{grid-template-columns:repeat(4,minmax(0,1fr))}
+.decision-stats a{display:block;font-size:14px;line-height:1.6}
+.resume-priority{border-left:5px solid #08746d!important;background:#eef8f3!important}
+.portfolio-extra{margin:12px 0;padding:12px;border:1px solid #d7e5e7;border-radius:12px;background:#fff}
+.portfolio-tab-select{display:none}
+.portfolio-tabs{scroll-snap-type:x mandatory}.portfolio-tabs a{scroll-snap-align:start}
+.question-card,.review-question{max-width:900px;min-width:0}
+.question-card .rich-content,.review-question>.rich-content{font-size:18px;line-height:1.65;overflow-wrap:anywhere}
+.rich-content table{display:block;max-width:100%;overflow-x:auto}
+.rich-content img,.question-image{max-width:100%;height:auto}
+.rich-content .katex-display{max-width:100%;overflow-x:auto;overflow-y:hidden;padding:6px 0}
+.review-metadata{margin-top:20px;border-top:1px solid #d7e5e7;color:#536e79;font-size:13px}
+.portfolio-activity li{padding-bottom:10px}
+@media(max-width:768px){
+ .portfolio-overview>.portfolio-stats,.decision-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .portfolio-focus .portfolio-signal:nth-child(n+3),.portfolio-activity li:nth-child(n+4){display:none}
+ .teacher-class-table table,.teacher-class-table tbody,.teacher-class-table tr,.teacher-class-table td{display:block;box-sizing:border-box;width:100%}
+ .teacher-class-table thead{display:none}.teacher-class-table tr{padding:14px;border-bottom:1px solid #d7e5e7}
+ .teacher-class-table td{border:0;padding:5px}.teacher-class-table td:nth-child(2)::before{content:'Lượt hoàn thành: '}
+ .teacher-class-table td:nth-child(3)::before{content:'Gần nhất: '}.teacher-class-table td:nth-child(4)::before{content:'Thành thạo: '}
+ .teacher-class-table td:nth-child(5)::before{content:'Thay đổi: '}.teacher-class-table td:nth-child(6)::before{content:'Độ tin cậy: '}
+ .student-home .learning-header{padding-bottom:8px}.student-home .practice-card{padding:18px}
+ .question-card .rich-content{font-size:18px}.question-card{padding:18px}
+}
+@media(max-width:479px){.portfolio-tab-select{display:block;margin-bottom:18px}.portfolio-tabs{display:none}}
+@media print{
+ .portfolio-tab-select,.portfolio-extra{display:none!important}
+ .portfolio-focus .portfolio-signal,.portfolio-activity li{display:block!important}
+ .portfolio-page details>summary{font-weight:bold}
+ .portfolio-page .practice-card,.portfolio-page .portfolio-signal{border:1px solid #aab8bc!important;box-shadow:none!important}
+}
+.app-nav-v4 .hamburger-btn{background:#08746d;color:#fff}
+.practice-page .check-label{min-height:44px;box-sizing:border-box}
+.practice-page a:not(.btn){min-height:44px;display:inline-flex;align-items:center}
+.app-nav-v4 .user-box>a{min-height:44px;box-sizing:border-box;color:#09675f}

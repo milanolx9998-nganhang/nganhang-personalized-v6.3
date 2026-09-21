@@ -1,0 +1,12 @@
+# Paired with official self-hosted/v0.8.1; requires Compose >= 2.24.4 (!reset).
+# Only Node/Caddy is exposed to users. No host port for DB, gateway or Studio.
+services:
+  api-gw:
+    ports: !reset []
+  supavisor:
+    ports: !reset []
+    profiles: [pooler]
+  realtime:
+    profiles: [optional-realtime]
+  functions:
+    profiles: [optional-functions]

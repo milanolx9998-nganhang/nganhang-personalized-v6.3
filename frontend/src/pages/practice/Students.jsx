@@ -1,0 +1,53 @@
+import {useEffect,useRef,useState} from 'react';
+import {Link,useSearchParams} from 'react-router-dom';
+import {api} from '../../api/client.js';
+import {useAuth} from '../../hooks/useAuth.js';
+import {base,useLoad,ErrorBox,Pending} from './shared.jsx';
+
+export default function Students(){
+ const {user}=useAuth(),readOnly=!user.capabilities?.['student.manage_basic'],admin=user.capabilities?.['student.transfer'];
+ const [params,setParams]=useSearchParams();
+ const classes=useLoad(base+'/classes'),[search,setSearch]=useState(''),[query,setQuery]=useState(''),[classId,setClassId]=useState(''),[status,setStatus]=useState(''),[offset,setOffset]=useState(0),[grade,setGrade]=useState(''),[year,setYear]=useState('');
+ const list=useLoad(base+'/students?'+new URLSearchParams({search:query,class_id:classId,status,offset,grade,year}));
+ const [panel,setPanel]=useState(null),[form,setForm]=useState({}),[error,setError]=useState(''),[message,setMessage]=useState(''),[credential,setCredential]=useState(null),[busy,setBusy]=useState(false);
+ const panelRef=useRef(null);
+ useEffect(()=>{const timer=setTimeout(()=>{setQuery(search);setOffset(0);},250);return()=>clearTimeout(timer);},[search]);
+ useEffect(()=>{if(panel)panelRef.current?.focus();},[panel?.mode,panel?.student?.id]);
+ useEffect(()=>{if(params.get('new')==='1'&&classes.data){open('create');setParams({}, {replace:true});}else if(params.get('student')&&['password','transfer'].includes(params.get('action'))){const action=params.get('action');api.get(base+'/students/'+params.get('student')+'/profile').then(s=>open(action,s)).catch(e=>setError(e.message));setParams({}, {replace:true});}},[params,classes.data]);
+ if(user.role==='student')return <section className="practice-page"><h1>Trang dành cho giáo viên</h1><Link to="/practice">Về trang học tập</Link></section>;
+ function open(mode,student=null){setError('');setMessage('');setCredential(null);setForm(mode==='create'?{student_code:'',full_name:'',email:'',class_id:classes.data?.[0]?.id||'',password:''}:mode==='password'?{new_password:''}:mode==='transfer'?{class_id:''}:{student_code:student.student_code,full_name:student.full_name,email:student.email||''});setPanel({mode,student});}
+ async function save(e){
+  e.preventDefault();setBusy(true);setError('');
+  try{
+   const id=panel.student?.id;let result;
+   if(panel.mode==='create'){const body={...form,class_id:Number(form.class_id)};if(!body.password)delete body.password;result=await api.post(base+'/students',body);setCredential({username:result.student_code,password:result.temporary_password});}
+   if(panel.mode==='edit')await api.put(base+'/students/'+id+'/profile',form);
+   if(panel.mode==='transfer')await api.post(base+'/students/'+id+'/transfer',{class_id:Number(form.class_id)});
+   if(panel.mode==='password'){result=await api.post(base+'/students/'+id+'/reset-password',form.new_password?form:{});setCredential({username:panel.student.student_code,password:result.temporary_password});}
+   setPanel(null);setMessage('Đã lưu thành công.');list.reload();
+  }catch(e){setError(e.message);}finally{setBusy(false);}
+ }
+ async function history(s){try{const detail=await api.get(base+'/students/'+s.id+'/profile');setPanel({mode:'history',student:detail});setCredential(null);}catch(e){setError(e.message);}}
+ async function toggle(s){if(!window.confirm((s.is_active?'Khóa':'Mở lại')+' tài khoản '+s.student_code+'? Lịch sử học tập được giữ nguyên.'))return;setBusy(true);try{await api.put(base+'/students/'+s.id+'/status',{is_active:!s.is_active});list.reload();setMessage('Đã cập nhật trạng thái tài khoản.');}catch(e){setError(e.message);}finally{setBusy(false);}}
+ const canEditStudent=s=>s.permissions?.manage_basic;
+ const title={create:'Thêm học sinh',edit:'Sửa thông tin học sinh',password:'Đặt lại mật khẩu',transfer:'Chuyển lớp',history:'Lịch sử lớp học'}[panel?.mode];
+ return <section className="practice-page students-page">
+  <header className="learning-header"><div><span className="eyebrow">QUẢN TRỊ HỌC TẬP</span><h1>Quản lý học sinh</h1><p>Tài khoản, lớp học và quyền truy cập — quản lý tại một nơi.</p></div>{!readOnly&&<button className="btn primary" onClick={()=>open('create')}>+ Thêm học sinh</button>}</header>
+  <ErrorBox error={error||list.error||classes.error}/>{message&&<p className="success-note" role="status">{message}</p>}
+  {credential&&<article className="credential-card" role="status"><h2>Tài khoản đã sẵn sàng</h2><p>Tên đăng nhập: <strong>{credential.username}</strong> · Mật khẩu tạm: <code>{credential.password}</code></p><p>Học sinh phải đổi mật khẩu khi đăng nhập. Chỉ giao thông tin này riêng cho em đó.</p><button className="btn" onClick={()=>setCredential(null)}>Ẩn mật khẩu</button></article>}
+  {panel&&<article ref={panelRef} tabIndex={-1} className="practice-card student-editor"><div className="section-heading"><h2>{title}{panel.student?' · '+panel.student.full_name:''}</h2><button className="btn" disabled={busy} onClick={()=>setPanel(null)}>Đóng</button></div>
+   {panel.mode==='history'?<ol className="membership-timeline">{panel.student.memberships.map(m=><li key={m.id}><strong>{m.class_name} · {m.school_year}</strong><p>Từ {new Date(m.valid_from).toLocaleDateString('vi-VN')} · {m.current?'Đang học':m.ended_at?'Kết thúc '+new Date(m.ended_at).toLocaleString('vi-VN'):m.valid_to?'Đến '+new Date(m.valid_to).toLocaleDateString('vi-VN'):'Đã kết thúc'}</p></li>)}</ol>:<form onSubmit={save}>
+    {['create','edit'].includes(panel.mode)&&<div className="practice-grid"><label>Mã học sinh / tên đăng nhập<input required maxLength={50} pattern="[a-zA-Z0-9_.-]+" value={form.student_code} onChange={e=>setForm({...form,student_code:e.target.value})}/></label><label>Họ và tên<input required maxLength={200} value={form.full_name} onChange={e=>setForm({...form,full_name:e.target.value})}/></label><label>Email (không bắt buộc)<input type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})}/></label></div>}
+    {['create','transfer'].includes(panel.mode)&&<label>Lớp học<select aria-label="Lớp học" required value={form.class_id} onChange={e=>setForm({...form,class_id:e.target.value})}><option value="">Chọn lớp</option>{classes.data?.map(c=><option key={c.id} value={c.id}>{c.name} · {c.school_year}</option>)}</select></label>}
+    {panel.mode==='create'&&<label>Mật khẩu tạm (trống = tạo ngẫu nhiên)<input type="password" autoComplete="new-password" minLength={12} maxLength={128} value={form.password} onChange={e=>setForm({...form,password:e.target.value})}/></label>}
+    {panel.mode==='password'&&<><p>Phiên đăng nhập cũ sẽ bị thu hồi. Học sinh phải đổi mật khẩu khi đăng nhập lại.</p><label>Mật khẩu tạm mới (trống = tạo ngẫu nhiên)<input type="password" autoComplete="new-password" minLength={12} maxLength={128} value={form.new_password} onChange={e=>setForm({...form,new_password:e.target.value})}/></label></>}
+    {panel.mode==='transfer'&&<p>Lớp hiện tại sẽ chuyển vào lịch sử. Bài làm và mức thành thạo không bị xóa; quyền xem lớp và bài được giao cập nhật theo lớp mới.</p>}
+    <button className="btn primary" disabled={busy}>{busy?'Đang lưu…':'Lưu thông tin'}</button>
+   </form>}
+  </article>}
+  <div className="student-toolbar"><label>Năm học<select value={year} onChange={e=>{setYear(e.target.value);setClassId("");setOffset(0);}}><option value="">Tất cả năm học</option>{[...new Set(classes.data?.map(c=>c.school_year)||[])].map(y=><option key={y}>{y}</option>)}</select></label><label>Khối<select value={grade} onChange={e=>{setGrade(e.target.value);setClassId("");setOffset(0);}}><option value="">Tất cả khối</option>{[...new Set(classes.data?.map(c=>c.grade)||[])].sort((a,b)=>a-b).map(g=><option key={g}>{g}</option>)}</select></label><label>Tìm học sinh<input type="search" placeholder="Nhập tên hoặc mã học sinh…" value={search} onChange={e=>setSearch(e.target.value)}/></label><label>Lọc lớp<select aria-label="Lọc lớp" value={classId} onChange={e=>{setClassId(e.target.value);setOffset(0);}}><option value="">Tất cả lớp được phép</option>{classes.data?.map(c=><option key={c.id} value={c.id}>{c.name} · {c.school_year}</option>)}</select></label><label>Trạng thái<select aria-label="Trạng thái" value={status} onChange={e=>{setStatus(e.target.value);setOffset(0);}}><option value="">Tất cả</option><option value="active">Đang hoạt động</option><option value="locked">Đã khóa</option></select></label></div>
+  <div className="section-heading"><p><strong>{list.data?.total||0}</strong> học sinh trong phạm vi đang lọc</p>{admin&&<Link to="/practice/admin">Nhập Excel / tạo lớp / phân quyền →</Link>}</div>
+  {!list.data?<Pending data={null} error={list.error}/>:!list.data.students.length?<div className="learning-empty"><h2>Chưa có học sinh phù hợp</h2><p>Thêm học sinh đầu tiên hoặc thay đổi điều kiện tìm kiếm.</p></div>:<div className="table-scroll student-table"><table><thead><tr><th>Học sinh</th><th>Lớp hiện tại</th><th>Tài khoản</th><th>Thao tác</th></tr></thead><tbody>{list.data.students.map(s=><tr key={s.id}><td><Link to={`/practice/students/${s.id}/portfolio`}><strong>{s.full_name}</strong></Link><small>{s.student_code}{s.email?' · '+s.email:''}</small></td><td>{s.classes.length?s.classes.map(c=><span className="soft-badge" key={c.id}>{c.name} · {c.year}</span>):'Chưa có lớp hiện tại'}</td><td><span className={'status-pill '+(s.is_active?'enabled':'disabled')}>{s.is_active?'Hoạt động':'Đã khóa'}</span>{s.must_change_password&&<small>Cần đổi mật khẩu</small>}<small>Đăng nhập: {s.last_login?new Date(s.last_login).toLocaleString("vi-VN"):"Chưa đăng nhập"}</small></td><td><div className="student-actions"><Link className="btn primary" to={`/practice/students/${s.id}/portfolio`}>Xem hồ sơ</Link><details><summary>Thao tác khác</summary>{canEditStudent(s)&&<button className="btn" onClick={()=>open('edit',s)}>Sửa</button>}{s.permissions?.reset_password&&<button className="btn" onClick={()=>open('password',s)}>Mật khẩu</button>}{s.permissions?.transfer&&<button className="btn" onClick={()=>open('transfer',s)}>Chuyển lớp</button>}{s.permissions?.disable&&<button className="btn" disabled={busy} onClick={()=>toggle(s)}>{s.is_active?'Khóa':'Mở khóa'}</button>}<button className="btn" onClick={()=>history(s)}>Lịch sử lớp</button></details></div></td></tr>)}</tbody></table></div>}
+  <div className="practice-actions"><button className="btn" disabled={offset===0} onClick={()=>setOffset(Math.max(0,offset-30))}>Trang trước</button><span>Trang {Math.floor(offset/30)+1}</span><button className="btn" disabled={offset+30>=(list.data?.total||0)} onClick={()=>setOffset(offset+30)}>Trang sau</button></div>
+ </section>;
+}

@@ -1,0 +1,6 @@
+import 'dotenv/config';import bcrypt from 'bcryptjs';import fs from 'node:fs';import {pool} from '../src/db/pool.js';
+if(process.env.DB_NAME!=='nganhang_personalized_v63')throw Error('Unexpected target DB');
+try{const user=(await pool.query("SELECT id,password_hash,must_change_password FROM users WHERE username='admin' AND role='admin' AND is_active")).rows[0];const weak=!!user&&await bcrypt.compare('admin',user.password_hash);
+ if(weak&&!user.must_change_password){const c=await pool.connect();try{await c.query('BEGIN');await c.query('UPDATE users SET must_change_password=true,token_version=token_version+1 WHERE id=$1',[user.id]);await c.query("INSERT INTO practice_audit(actor_id,action,entity_id,details) VALUES($1,'SESSION_REVOKED',$2,$3)",[user.id,String(user.id),{reason:'V6.5.2: tài khoản demo phải đổi mật khẩu riêng trước khi sử dụng'}]);await c.query('COMMIT');}catch(e){await c.query('ROLLBACK');throw e;}finally{c.release();}}
+ const report={at:new Date().toISOString(),demo_admin_detected:weak,must_change_password:weak,password_changed_by_agent:false};fs.writeFileSync('../artifacts/v652-demo-policy.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report));
+}finally{await pool.end();}

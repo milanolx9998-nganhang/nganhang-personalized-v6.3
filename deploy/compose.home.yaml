@@ -1,0 +1,41 @@
+name: nganhang-home-app
+services:
+  app:
+    build: ..
+    image: nganhang-home-app:6.5.3
+    restart: unless-stopped
+    init: true
+    env_file: .env.home
+    command: ["node", "src/server.js"]
+    networks: [default, supabase]
+    volumes:
+      - home_import_temp:/data/import-temp
+      - home_app_backups:/data/backups
+    shm_size: 256mb
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+  proxy:
+    image: caddy:2.10.2
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN}
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile.home:/etc/caddy/Caddyfile:ro
+      - home_caddy_data:/data
+      - home_caddy_config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+networks:
+  supabase:
+    external: true
+    name: nganhang-home-supabase_default
+volumes:
+  home_import_temp:
+  home_app_backups:
+  home_caddy_data:
+  home_caddy_config:

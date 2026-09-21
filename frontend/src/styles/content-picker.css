@@ -1,0 +1,11 @@
+.content-picker{min-width:0;background:#fff}
+.scope-modes,.scope-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.scope-modes .btn[aria-pressed=true]{background:#087d79;color:white;border-color:#087d79}
+.scope-toolbar{margin:14px 0}.scope-toolbar span{font-weight:600;color:#087d79;margin-right:auto}
+.scope-options{display:grid;gap:8px;max-height:390px;overflow-y:auto;padding:4px}
+.practice-page .scope-option{display:flex;gap:12px;align-items:flex-start;margin:0;padding:14px;border:1px solid #d4e3e6;border-radius:12px;cursor:pointer;min-height:52px;box-sizing:border-box}
+.scope-option.selected{border-color:#087d79;background:#edf8f5}
+.scope-option input{margin-top:4px;accent-color:#087d79}
+.scope-option span{min-width:0;overflow-wrap:anywhere}.scope-option small{display:block;color:#536b79;font-size:.85rem}
+.scope-empty{padding:16px;border-radius:10px;background:#f1f6f8}
+@media(max-width:680px){.scope-modes .btn{flex:1;white-space:normal}.scope-toolbar .btn{flex:1;white-space:normal}.scope-toolbar span{width:100%}.scope-options{max-height:420px}}

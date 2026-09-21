@@ -1,0 +1,25 @@
+import {Router} from 'express';
+import {z} from 'zod';
+import {pool,tx} from '../db/pool.js';
+import {can} from '../services/accessResolver.js';
+import {fail,log} from '../services/practice/config.js';
+import * as service from '../services/competency/service.js';
+const r=Router(),wrap=f=>async(req,res,next)=>{try{await f(req,res);}catch(e){next(e);}};
+r.get('/frameworks',wrap(async(req,res)=>res.json(await service.frameworks(req.user))));
+r.post('/frameworks',wrap(async(req,res)=>res.status(201).json(await service.createFramework(req.user,req.body))));
+r.put('/frameworks/:id/axes',wrap(async(req,res)=>res.json(await service.saveAxis(req.user,Number(req.params.id),req.body))));
+r.post('/frameworks/:id/publish',wrap(async(req,res)=>res.json(await service.publishFramework(req.user,Number(req.params.id),req.body))));
+r.post('/frameworks/:id/copy',wrap(async(req,res)=>res.status(201).json(await service.copyFramework(req.user,Number(req.params.id),req.body))));
+r.get('/mappings',wrap(async(req,res)=>res.json(await service.mappingCatalog(req.user,Number(req.query.subject_id),Number(req.query.grade)))));
+r.put('/mappings/:type/:id',wrap(async(req,res)=>res.json(await service.setMapping(req.user,req.params.type,req.params.id,req.body))));
+r.post('/rubrics',wrap(async(req,res)=>res.status(201).json(await service.enterRubric(req.user,req.body))));
+r.get('/config',wrap(async(req,res)=>{if(!await can(req.user,'system.config',{}))fail('Không có quyền cấu hình',403);res.json(await service.config());}));
+r.put('/config',wrap(async(req,res)=>{
+ if(!await can(req.user,'system.config',{}))fail('Không có quyền cấu hình',403);
+ const d=z.object({minimum_evidence:z.number().int().min(1).max(100),minimum_confidence:z.number().min(1).max(100),target_evidence:z.number().int().min(1).max(1000),target_active_days:z.number().int().min(3).max(5),recency:z.array(z.number().positive().max(1)).length(4),reliability:z.record(z.enum(['AUTO_GRADED_ITEM','MANUAL_GRADED_ITEM','PRACTICAL_TASK','PROJECT','TEACHER_RUBRIC','PRESENTATION','SELF_ASSESSMENT','PEER_ASSESSMENT']),z.number().positive().max(1))}).strict().parse(req.body);
+ if(d.target_evidence<d.minimum_evidence||d.recency.some((v,i)=>i>0&&v>d.recency[i-1]))fail('Ngưỡng hoặc trọng số thời gian không hợp lệ');
+ await tx(async c=>{const before=(await c.query('SELECT config FROM competency_product_config WHERE id=true FOR UPDATE')).rows[0].config;await c.query('UPDATE competency_product_config SET config=$1,updated_by=$2,updated_at=now() WHERE id=true',[d,req.user.id]);await log(c,req.user,'COMPETENCY_PRODUCT_CONFIG','config',{before,after:d});});res.json({ok:true});
+}));
+export const studentCompetencyRoutes=Router();
+for(const [path,fn]of [['competency-profile',service.profile],['knowledge-map',service.knowledge],['learning-habits',service.habits],['competency-recommendations',service.recommendations]])studentCompetencyRoutes.get('/students/:id/'+path,wrap(async(req,res)=>res.json(await fn(req.user,Number(req.params.id),req.query))));
+export default r;

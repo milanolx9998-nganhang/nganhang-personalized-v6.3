@@ -1,0 +1,13 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import {createRequire} from 'node:module';
+const require=createRequire(new URL('../backend/package.json',import.meta.url)),AdmZip=require('adm-zip');
+const folder=path.resolve('releases'),file=fs.readdirSync(folder).filter(n=>n.endsWith('.zip')).sort().at(-1);
+if(!file)throw new Error('No release package');
+const zip=new AdmZip(path.join(folder,file)),entries=zip.getEntries(),manifest=JSON.parse(zip.readAsText('RELEASE_MANIFEST.json'));
+const invalid=entries.filter(e=>{const n=e.entryName,parts=n.split('/'),base=parts.at(-1);return n.startsWith('/')||n.includes('\\')||parts.includes('..')||parts.some(p=>['node_modules','uploads','backups','artifacts','.git'].includes(p))||(base.startsWith('.env')&&!base.endsWith('.example'))||/secret|\.dump$/i.test(base);});
+if(invalid.length)throw new Error('Forbidden release entries: '+invalid.map(e=>e.entryName).join(','));
+for(const [name,hash] of Object.entries(manifest.files))if(crypto.createHash('sha256').update(zip.readFile(name)).digest('hex')!==hash)throw new Error('Release hash mismatch: '+name);
+const report={file:path.join(folder,file),version:manifest.version,files:Object.keys(manifest.files).length,manifest_hashes_match:true,excluded_sensitive_paths_verified:true,sha256:crypto.createHash('sha256').update(fs.readFileSync(path.join(folder,file))).digest('hex')};
+fs.writeFileSync('artifacts/v63-release-package.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report));

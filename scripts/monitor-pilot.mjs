@@ -1,0 +1,17 @@
+import fs from 'node:fs';
+import path from 'node:path';
+const origin=process.env.PILOT_ORIGIN||'http://127.0.0.1:3002';
+const token=process.env.PILOT_ADMIN_TOKEN;
+if(!token)throw new Error('Set PILOT_ADMIN_TOKEN privately; never pass a password on the command line.');
+const health=await fetch(origin+'/api/health',{signal:AbortSignal.timeout(10000)});
+const res=await fetch(origin+'/api/practice/operations',{headers:{Authorization:'Bearer '+token},signal:AbortSignal.timeout(10000)});
+if(!res.ok)throw new Error('Operations read failed: '+res.status);
+const data=await res.json(),alerts=[];
+if(!health.ok)alerts.push('Health unavailable');
+if(data.backup_age_hours==null||data.backup_age_hours>26)alerts.push('Backup missing or older than 26 hours');
+if(data.backup.last_error)alerts.push('Last backup failed');
+if(data.disk&&data.disk.available_bytes/data.disk.total_bytes<0.1)alerts.push('Disk below 10% free');
+const report={...data,health:health.status,alerts};
+fs.mkdirSync(path.resolve('artifacts'),{recursive:true});
+fs.writeFileSync(path.resolve('artifacts/v5-monitor.json'),JSON.stringify(report,null,2));
+console.log(JSON.stringify(report));if(alerts.length)process.exitCode=2;

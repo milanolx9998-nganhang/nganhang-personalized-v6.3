@@ -1,0 +1,19 @@
+{
+  "name": "nganhang-v4",
+  "version": "6.5.3",
+  "private": true,
+  "description": "Ngân hàng câu hỏi — V6.4.3 phạm vi bài–YCCĐ, cờ học sinh và duyệt phiên bản",
+  "scripts": {
+    "install:all": "cd backend && npm install && cd ../frontend && npm install && cd ..",
+    "build": "cd frontend && npm run build",
+    "start": "cd backend && npm run start",
+    "test": "cd backend && npm run test",
+    "db:migrate": "cd backend && npm run migrate",
+    "db:seed": "cd backend && npm run seed",
+    "db:seed-khtn9": "cd backend && npm run seed-khtn9",
+    "package:release": "node scripts/package-release.mjs",
+    "test:security": "node scripts/security-gate.mjs",
+    "pilot:monitor": "node scripts/monitor-pilot.mjs",
+    "pilot:load": "cd backend && node scripts/v5-load-test.mjs"
+  }
+}

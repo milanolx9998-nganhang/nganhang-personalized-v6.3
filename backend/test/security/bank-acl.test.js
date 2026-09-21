@@ -1,0 +1,4 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {access,org} from './fixtures.js';import {bankDecision} from '../../src/services/access/policy.js';
+test('V652 exploit: REVIEW kho không bao gồm WRITE',()=>{const a=access([]);a.memberships=[{bank_id:10,permission:'review'}];assert.equal(bankDecision(a,'write',org.banks[0]).allowed,false);assert.equal(bankDecision(a,'read',org.banks[0]).allowed,true);assert.equal(bankDecision(a,'review',org.banks[0]).allowed,true);});
+test('V652 exploit: DENY thắng chủ kho',()=>{const a=access([],[{capability:'bank.read',effect:'DENY',scope_type:'BANK',scope_payload:{bank_ids:[11]}}]);assert.equal(bankDecision(a,'read',org.banks[1]).allowed,false);});
+test('V652 exploit: khóa tài khoản cũng khóa quyền kho',()=>{const a=access([],[],{user:{id:2,role:'admin',is_active:false}});assert.equal(bankDecision(a,'read',org.banks[1]).allowed,false);});

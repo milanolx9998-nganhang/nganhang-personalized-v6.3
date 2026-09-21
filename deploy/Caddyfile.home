@@ -1,0 +1,5 @@
+{$DOMAIN} {
+    tls internal
+    encode gzip
+    reverse_proxy app:3001
+}

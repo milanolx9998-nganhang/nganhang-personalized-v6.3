@@ -1,0 +1,50 @@
+{
+  "name": "nganhang-v4-backend",
+  "version": "6.5.3",
+  "private": true,
+  "overrides": {
+    "qs": "6.16.0"
+  },
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "migrate": "node src/db/upgrade.js",
+    "seed": "node src/db/seed.js",
+    "seed-khtn9": "node src/db/seed-khtn9.js",
+    "seed-kntt": "node src/db/seed-kntt.js",
+    "seed-khoa-hoc": "node src/db/seed-khoa-hoc.js",
+    "test": "node test/matrixBalancer.test.js && node --test test/practice/*.test.js",
+    "test:integration": "node --test test/integration/*.test.js",
+    "test:security": "node --test test/security/*.test.js",
+    "mastery:recalculate": "node src/services/practice/recalculate.js"
+  },
+  "dependencies": {
+    "adm-zip": "0.6.1",
+    "archiver": "^7.0.1",
+    "bcryptjs": "2.4.3",
+    "cors": "2.8.5",
+    "docx": "8.5.0",
+    "dotenv": "16.4.5",
+    "express": "4.22.2",
+    "express-rate-limit": "^8.3.2",
+    "fast-xml-parser": "^5.7.1",
+    "he": "^1.2.0",
+    "helmet": "7.2.0",
+    "jsonwebtoken": "9.0.2",
+    "katex": "0.16.45",
+    "markdown-it": "14.3.1",
+    "morgan": "1.12.0",
+    "multer": "2.3.0",
+    "pg": "8.13.1",
+    "playwright": "1.58.2",
+    "sharp": "0.35.4",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
+    "zod": "3.23.8"
+  },
+  "devDependencies": {
+    "node-windows": "^1.0.0-beta.8",
+    "nodemon": "3.1.7"
+  }
+}

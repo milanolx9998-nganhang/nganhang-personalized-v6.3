@@ -1,0 +1,14 @@
+import fs from 'node:fs';import path from 'node:path';import crypto from 'node:crypto';import {fileURLToPath} from 'node:url';import {spawnSync} from 'node:child_process';
+const root=fileURLToPath(new URL('../',import.meta.url)),backend=path.join(root,'backend'),artifacts=path.join(root,'artifacts');fs.mkdirSync(artifacts,{recursive:true});
+function sourceHash(){const hash=crypto.createHash('sha256');function walk(dir){for(const entry of fs.readdirSync(path.join(root,dir),{withFileTypes:true}).sort((a,b)=>a.name.localeCompare(b.name))){if(entry.isSymbolicLink())throw Error('Source symlink not allowed');const rel=path.join(dir,entry.name);if(entry.isDirectory())walk(rel);else hash.update(rel).update(fs.readFileSync(path.join(root,rel)));}}
+for(const dir of ['backend/src','backend/test','frontend/src'])walk(dir);
+return hash.digest('hex');}
+const sourceAtStart=sourceHash();
+const buildFd=fs.openSync(path.join(artifacts,'v652-build.log'),'w');let build;try{build=spawnSync(process.execPath,['node_modules/vite/bin/vite.js','build'],{cwd:path.join(root,'frontend'),stdio:['ignore',buildFd,buildFd],windowsHide:true,timeout:120000});}finally{fs.closeSync(buildFd);}if(build.status!==0)throw Error('Build failed before security gate');
+const required=['answer-leak','bola-attempt','property-exposure','permission-escalation','bank-acl','auth-cookie-csrf','rate-limit','upload-security','media-auth'];
+for(const name of required)if(!fs.existsSync(path.join(backend,'test/security',name+'.test.js')))throw Error('Missing required security suite: '+name);
+// Separate fixture servers keep session-revocation and rate-limit state from leaking between generations.
+const suites=[['v651-security-unit.log',['test/matrixBalancer.test.js']],['v651-access-adversarial.log',['--test',...fs.readdirSync(path.join(backend,'test/security')).filter(n=>n.endsWith('.test.js')).map(n=>'test/security/'+n),...fs.readdirSync(path.join(backend,'test/practice')).filter(n=>n.endsWith('.test.js')).map(n=>'test/practice/'+n)]],['v651-security-integration.log',['--test','--test-skip-pattern=V66','test/integration/pilot.test.js','test/integration/v63.test.js']],['v66-integration.log',['--test','--test-name-pattern=V66','test/integration/v63.test.js']]];
+for(const[name,args]of suites){const fd=fs.openSync(path.join(artifacts,name),'w');let r;try{r=spawnSync(process.execPath,args,{cwd:backend,stdio:['ignore',fd,fd],windowsHide:true,timeout:300000});}finally{fs.closeSync(fd);}if(r.status!==0)throw Error('Security gate failed: '+name);console.log('PASS '+name);}
+if(sourceAtStart!==sourceHash())throw Error('Source changed during gate; rerun before release');
+fs.writeFileSync(path.join(artifacts,'v652-security-gate.json'),JSON.stringify({passed:true,completed_at:new Date().toISOString(),source_sha256:sourceAtStart,required_suites:required,integration_included:true},null,2));

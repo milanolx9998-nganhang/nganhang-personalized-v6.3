@@ -1,0 +1,85 @@
+name: ngan-hang-personalized-v63
+services:
+  db:
+    image: postgres:16-bookworm
+    restart: unless-stopped
+    logging:
+      options: {max-size: "10m", max-file: "5"}
+    environment:
+      POSTGRES_DB: nganhang_personalized_v63
+      POSTGRES_USER: nganhang
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL","pg_isready -U nganhang -d nganhang_personalized_v63"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+  app:
+    build: .
+    restart: unless-stopped
+    logging:
+      options: {max-size: "10m", max-file: "5"}
+    init: true
+    environment: &app_env
+      NODE_ENV: production
+      APP_PROFILE: local-lan
+      DATABASE_PROVIDER: postgres
+      STORAGE_PROVIDER: local
+      HOST: 0.0.0.0
+      PORT: 3001
+      DB_HOST: db
+      DB_NAME: nganhang_personalized_v63
+      DB_USER: nganhang
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
+      CORS_ORIGIN: https://${DOMAIN:?Set DOMAIN}
+      UPLOAD_DIR: /data/uploads
+      BACKUP_DIR: /data/backups
+      TRUST_PROXY: 1
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - uploads:/data/uploads
+      - backups:/data/backups
+    shm_size: 256mb
+    healthcheck:
+      test: ["CMD","node","-e","fetch('http://127.0.0.1:3001/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+  proxy:
+    image: caddy:2.10.2
+    restart: unless-stopped
+    logging:
+      options: {max-size: "10m", max-file: "5"}
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN}
+    ports: ["80:80","443:443"]
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [app]
+  backup:
+    build: .
+    restart: unless-stopped
+    logging:
+      options: {max-size: "10m", max-file: "5"}
+    init: true
+    command: ["node","../scripts/backup.mjs","--daemon"]
+    environment: *app_env
+    volumes:
+      - uploads:/data/uploads:ro
+      - backups:/data/backups
+    depends_on:
+      app:
+        condition: service_healthy
+volumes:
+  postgres_data:
+  uploads:
+  backups:
+  caddy_data:
+  caddy_config:
