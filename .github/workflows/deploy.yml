@@ -1,0 +1,15 @@
+name: Auto Deploy to Ubuntu Server
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: [self-hosted, linux]
+    steps:
+      - name: Deploy application
+        run: |
+          /home/hieu/nganhang-personalized-v6.3/scripts/deploy-server.sh
