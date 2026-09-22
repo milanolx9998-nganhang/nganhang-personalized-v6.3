@@ -6,6 +6,8 @@ import {can} from '../accessResolver.js';
 import {fail,log} from '../practice/config.js';
 import {curriculumImpact} from '../curriculumManagement.js';
 import {mapRows,validateRows,fields} from './importRules.js';
+import {detectTrustedProfile,assignOrdinals} from './trustedProfiles.js';
+import {canonicalKey} from '../questionCode.js';
 export async function permitted(actor,capability,version,c=pool){
  if(!await can(actor,capability,{subjectId:version.subject_id,grade:version.grade},c))fail('Không có quyền chương trình trong môn/khối này',403);
 }
@@ -92,7 +94,11 @@ export async function upload(actor,versionId,file){
  const job=(await c.query('INSERT INTO curriculum_import_jobs(version_id,filename,checksum,workbook,created_by) VALUES($1,$2,$3,$4,$5) RETURNING id,filename,revision',[v.id,file.originalname,crypto.createHash('sha256').update(file.buffer).digest('hex'),workbook,actor.id])).rows[0];await audit(c,actor,v,'IMPORT_UPLOADED',null,{job:job.id,checksum:crypto.createHash('sha256').update(file.buffer).digest('hex')},'Tải nguồn vào staging');return {...job,sheets:workbook.sheets};});
 }
 async function getJob(actor,id,c,lock=false){const j=(await c.query('SELECT * FROM curriculum_import_jobs WHERE id=$1'+(lock?' FOR UPDATE':''),[id])).rows[0];if(!j)fail('Không tìm thấy import',404);const v=await getVersion(c,j.version_id,lock);await permitted(actor,'curriculum.import',v,c);return {j,v};}
-export async function preview(actor,id){const {j,v}=await getJob(actor,id,pool);return {job:{id:j.id,version_id:v.id,filename:j.filename,revision:j.revision,status:j.status,mapping:j.mapping},sheets:j.workbook.sheets,rows:(await pool.query('SELECT * FROM curriculum_import_rows WHERE import_job_id=$1 ORDER BY source_row',[id])).rows};}
+export async function preview(actor,id){const {j,v}=await getJob(actor,id,pool);
+ // Bộ 4 workbook KHTN chính thức được nhận diện sẵn để không phải map cột lại mỗi lần (§27).
+ const detected=detectTrustedProfile(j.workbook);
+ const trusted=detected?{...detected,sheets:detected.sheets.map(s=>({...s,grade_matches_version:s.grade===v.grade}))}:null;
+ return {job:{id:j.id,version_id:v.id,filename:j.filename,revision:j.revision,status:j.status,mapping:j.mapping},trusted,sheets:j.workbook.sheets,rows:(await pool.query('SELECT * FROM curriculum_import_rows WHERE import_job_id=$1 ORDER BY source_row',[id])).rows};}
 export async function mapImport(actor,id,raw){
  const d=z.object({sheet:z.string(),header_row:z.number().int().min(1).max(5000),columns:z.record(z.enum(fields),z.number().int().min(0).max(49)),topic_as_outcome:z.boolean().default(false),revision:z.number().int()}).strict().parse(raw);
  return tx(async c=>{const {j,v}=await getJob(actor,id,c,true);draft(v);if(j.status==='COMMITTED'||j.revision!==d.revision)fail('Import đã thay đổi hoặc đã commit',409);
@@ -115,12 +121,22 @@ export async function commitImport(actor,id,raw){
  return tx(async c=>{const {j,v}=await getJob(actor,id,c,true);draft(v);await permitted(actor,'curriculum.edit_draft',v,c);if(j.status!=='MAPPED'||j.revision!==d.revision)fail('Import đã thay đổi hoặc đã commit',409);
  const rows=(await c.query("SELECT * FROM curriculum_import_rows WHERE import_job_id=$1 AND row_status<>'IGNORED' ORDER BY source_row",[id])).rows;
  if(!rows.length||rows.some(r=>['BLOCKED','DUPLICATE'].includes(r.row_status)))fail('Xử lý dòng bị chặn/trùng trước khi commit');
- for(const r of rows){const m=r.mapped_payload,key=m.outcome_code||'O-'+crypto.createHash('sha256').update(m.domain+'|'+m.outcome_title).digest('hex').slice(0,12);
- let o=(await c.query('SELECT * FROM curriculum_outcomes WHERE curriculum_version_id=$1 AND domain_code=$2 AND code=$3',[v.id,m.domain,key])).rows[0];
- if(o&&o.title!==m.outcome_title)fail('Mã Outcome đã có nội dung khác',409);
- if(!o)o=(await c.query("INSERT INTO curriculum_outcomes(subject_id,grade,domain_code,code,title,curriculum_version,source_document,source_locator,status,curriculum_version_id,order_index) VALUES($1,$2,$3,$4,$5,$6,$7,$8,'DRAFT',$9,$10) RETURNING *",[v.subject_id,v.grade,m.domain,key,m.outcome_title,v.version_code,j.filename,m.page,v.id,m.order])).rows[0];
+ const subject=(await c.query('SELECT code FROM subjects WHERE id=$1',[v.subject_id])).rows[0];
+ // Số thứ tự Outcome trong phân môn và YCCĐ trong Outcome lấy theo thứ tự xuất hiện của văn bản nguồn —
+ // đó chính là nghĩa của "Outcome số 2 của phân môn Vật lí" trong mã câu hiện hành.
+ const ordered=assignOrdinals(rows.map(r=>r.mapped_payload));
+ let unchanged=0;
+ for(let i=0;i<rows.length;i++){const r=rows[i],m=ordered[i];
+ const key=m.outcome_code||'O-'+crypto.createHash('sha256').update(m.domain+'|'+m.outcome_title).digest('hex').slice(0,12);
+ const outcomeKey=m.branch_code?canonicalKey({subject_code:subject.code,grade:v.grade,branch_code:m.branch_code,outcome_number:m.outcome_ordinal}):null;
+ let o=(await c.query('SELECT * FROM curriculum_outcomes WHERE curriculum_version_id=$1 AND ((canonical_key IS NOT NULL AND canonical_key=$4) OR (domain_code=$2 AND code=$3))',[v.id,m.domain,key,outcomeKey])).rows[0];
+ if(o&&o.title!==m.outcome_title)fail('Mã Outcome đã có nội dung khác',409,{canonical_key:outcomeKey,existing:o.title,incoming:m.outcome_title});
+ if(!o)o=(await c.query("INSERT INTO curriculum_outcomes(subject_id,grade,domain_code,code,title,curriculum_version,source_document,source_locator,status,curriculum_version_id,order_index,source_branch_code,source_ordinal,canonical_key,source_text) VALUES($1,$2,$3,$4,$5,$6,$7,$8,'DRAFT',$9,$10,$11,$12,$13,$14) RETURNING *",[v.subject_id,v.grade,m.domain,key,m.outcome_title,v.version_code,j.filename,m.page,v.id,m.order,m.branch_code,m.branch_code?m.outcome_ordinal:null,outcomeKey,m.outcome_title])).rows[0];
  const code=m.code||'Y-'+crypto.randomUUID().slice(0,12);
- if((await c.query('SELECT 1 FROM curriculum_yccds WHERE outcome_id=$1 AND (code=$2 OR text=$3)',[o.id,code,m.text])).rowCount)fail('YCCĐ đã tồn tại trong bản nháp; sửa hoặc bỏ qua dòng',409);
- await c.query("INSERT INTO curriculum_yccds(outcome_id,code,text,source_locator,source_row,order_index,status,curriculum_version_id) VALUES($1,$2,$3,$4,$5,$6,'DRAFT',$7)",[o.id,code,m.text,m.page,r.source_row,m.order,v.id]);}
- await c.query("UPDATE curriculum_import_jobs SET status='COMMITTED',revision=revision+1 WHERE id=$1",[id]);await audit(c,actor,v,'IMPORT_COMMITTED',null,{job:id,count:rows.length},d.reason);return {ok:true,count:rows.length};});
+ const yccdKey=outcomeKey?outcomeKey+':'+m.yccd_ordinal:null;
+ const existing=(await c.query('SELECT * FROM curriculum_yccds WHERE outcome_id=$1 AND ((canonical_key IS NOT NULL AND canonical_key=$4) OR code=$2 OR text=$3)',[o.id,code,m.text,yccdKey])).rows[0];
+ // Nạp lại đúng bộ nguồn phải là idempotent: cùng khóa, cùng nội dung thì bỏ qua thay vì báo lỗi.
+ if(existing){if(existing.text===m.text){unchanged++;continue;}fail('YCCĐ cùng khóa nhưng khác nội dung; đối chiếu rồi sửa staging',409,{canonical_key:yccdKey,existing:existing.text,incoming:m.text});}
+ await c.query("INSERT INTO curriculum_yccds(outcome_id,code,text,source_locator,source_row,order_index,status,curriculum_version_id,source_ordinal,canonical_key,source_text,source_page) VALUES($1,$2,$3,$4,$5,$6,'DRAFT',$7,$8,$9,$10,$11)",[o.id,code,m.text,m.page,r.source_row,m.order,v.id,m.branch_code?m.yccd_ordinal:null,yccdKey,m.text,m.page]);}
+ await c.query("UPDATE curriculum_import_jobs SET status='COMMITTED',revision=revision+1 WHERE id=$1",[id]);await audit(c,actor,v,'IMPORT_COMMITTED',null,{job:id,count:rows.length,unchanged},d.reason);return {ok:true,count:rows.length,unchanged,imported:rows.length-unchanged};});
 }

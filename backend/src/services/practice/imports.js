@@ -1,6 +1,7 @@
 import {storage,sourceKey} from '../storage/index.js';
 import {getEffectiveAccess,contentFilterSQL} from '../accessResolver.js';
 import {enrichMetadata,validateDraft} from '../smartMetadata.js';
+import {resolveQuestionFromCode,applyResolution} from '../curriculumResolver.js';
 import crypto from 'node:crypto';
 import {bankFilter} from '../../middleware/bankScope.js';
 import {duplicateSignals} from './duplicates.js';
@@ -18,9 +19,55 @@ async function enrich(client,draft,bulk={}){
  let q=normalizeQuestion({...draft,...Object.fromEntries(Object.entries(bulk).filter(([,v])=>v!==''&&v!=null))});
  if(!q.subject_id&&q.subject_text)q.subject_id=(await client.query('SELECT id FROM subjects WHERE name=$1 OR code=$1',[q.subject_text])).rows[0]?.id;
  if(!q.topic_id&&q.subject_id&&q.sub_topic){const found=(await client.query('SELECT id FROM topics WHERE subject_id=$1 AND grade=$2 AND name=$3',[q.subject_id,q.grade,q.sub_topic])).rows;if(found.length===1)q.topic_id=found[0].id;}
+ // V6.6.5 — mã câu quyết định Outcome/YCCĐ trong ngữ cảnh Môn + Khối của phiên nhập; Bài đến sau,
+ // qua topic_yccd_map. Chạy trước enrichMetadata để mã tường minh thắng gợi ý theo từ khóa.
+ const rawCode=q.display_code||draft.display_code||draft.question_code||'';
+ let resolution=null,conflicts=[];
+ if(rawCode&&q.subject_id&&q.grade){
+  resolution=await resolveQuestionFromCode(client,rawCode,{subject_id:q.subject_id,grade:q.grade});
+  if(resolution.ok){const applied=applyResolution(q,resolution);q=normalizeQuestion(applied.draft);conflicts=applied.conflicts;}
+ }
  const profile=q.subject_id?(await client.query('SELECT config FROM subject_profiles WHERE subject_id=$1',[q.subject_id])).rows[0]?.config||{}:{};
- q=await enrichMetadata(client,q);const validation=validateDraft(q,profile);validation.warnings.push(...q.parser_warnings||[]);if(validation.warnings.length&&validation.status==='VALID')validation.status='WARNING';
+ q=await enrichMetadata(client,q);const validation=validateDraft(q,profile);validation.warnings.push(...q.parser_warnings||[]);
+ if(resolution)Object.assign(validation,resolutionOutcome(resolution,conflicts,validation));
+ if(validation.warnings.length&&validation.status==='VALID')validation.status='WARNING';
  return {q,validation};
+}
+// Chuyển kết quả resolve thành trạng thái dòng staging.
+// Chặn khi mã đọc được nhưng chuẩn chương trình không tồn tại — tuyệt đối không tự tạo Outcome/YCCĐ.
+// Mã không đọc được chỉ là "cần xem": nhiều tệp cũ chưa theo quy ước mã hiện hành.
+function resolutionOutcome(resolution,conflicts,validation){
+ const errors=[...validation.errors],warnings=[...validation.warnings];
+ for(const w of resolution.warnings||[])warnings.push(w.message);
+ if(!resolution.ok){
+  if(resolution.stage==='CURRICULUM'){errors.push(resolution.message);return {errors,warnings,status:'ERROR',resolution:{state:'BLOCKED',error:resolution.error}};}
+  warnings.push(resolution.message);
+  return {errors,warnings,status:errors.length?'ERROR':'NEEDS_REVIEW',resolution:{state:'CODE_UNREADABLE',error:resolution.error}};
+ }
+ for(const c of conflicts)warnings.push(`Mã câu và metadata không khớp ở ${c.field}: theo mã #${c.by_code}, theo metadata #${c.by_metadata}`);
+ const lesson=resolution.lesson;
+ if(lesson.status==='AMBIGUOUS')warnings.push(`YCCĐ ${resolution.curriculum.yccd.label} được dùng ở ${lesson.candidates.length} bài; cần chọn Bài`);
+ if(lesson.status==='UNMAPPED')warnings.push(`YCCĐ ${resolution.curriculum.yccd.label} chưa gắn Bài; câu vẫn được nhập kho`);
+ const state=errors.length?'BLOCKED':conflicts.length||lesson.status==='AMBIGUOUS'?'NEEDS_REVIEW':'RESOLVED';
+ return {
+  errors,warnings,
+  status:errors.length?'ERROR':state==='NEEDS_REVIEW'?'NEEDS_REVIEW':validation.status,
+  resolution:{
+   state,
+   branch:resolution.curriculum.branch?.name||null,
+   outcome:resolution.curriculum.outcome.label,
+   outcome_title:resolution.curriculum.outcome.title,
+   yccd:resolution.curriculum.yccd.label,
+   yccd_text:resolution.curriculum.yccd.text,
+   level:resolution.code.declared_level,
+   form:resolution.code.question_form,
+   content_number:resolution.code.content_number,
+   lesson_status:lesson.status,
+   lesson:lesson.topic?{id:lesson.topic.id,name:lesson.topic.name}:null,
+   lesson_candidates:lesson.candidates.map(t=>({id:t.id,name:t.name,chapter:t.chapter})),
+   conflicts,
+  },
+ };
 }
 async function findDuplicates(client,user,q){
  const params=[q.subject_id||null,q.stem,q.display_code||null];const scope=bankFilter(user,'q',params),subjectScope=await contentFilterSQL(user,'q',params,'content.read',client);

@@ -8,6 +8,164 @@
   margin: .75rem 0;
 }
 
+/* --- Vỏ chung cho Kho / Nhập / Duyệt --- */
+
+.workspace-header {
+  border-bottom: 1px solid rgba(128, 128, 128, .3);
+  margin-bottom: .75rem;
+}
+
+.workspace-header h1 {
+  margin-bottom: .35rem;
+}
+
+.workspace-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .25rem;
+}
+
+.workspace-tab {
+  padding: .4rem .9rem;
+  border-radius: .4rem .4rem 0 0;
+  text-decoration: none;
+  color: inherit;
+  border: 1px solid transparent;
+  border-bottom: 0;
+}
+
+.workspace-tab:hover { background: rgba(37, 99, 235, .08); }
+
+.workspace-tab.active {
+  background: rgba(37, 99, 235, .14);
+  border-color: rgba(128, 128, 128, .3);
+  font-weight: 600;
+}
+
+.workspace-subhead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .75rem;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: .5rem;
+}
+
+/* --- Thanh lọc đơn giản --- */
+
+.filter-bar { margin-bottom: .75rem; }
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  align-items: center;
+}
+
+.filter-row label { margin: 0; }
+.filter-row .filter-search { flex: 1 1 16rem; min-width: 12rem; }
+.filter-row .filter-search input { width: 100%; }
+
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem;
+  margin-top: .5rem;
+}
+
+.filter-chip {
+  border: 1px solid rgba(128, 128, 128, .45);
+  border-radius: 1rem;
+  padding: .1rem .6rem;
+  font-size: .82rem;
+  background: rgba(37, 99, 235, .08);
+  cursor: pointer;
+}
+
+.filter-advanced { margin-top: .6rem; }
+
+/* --- Trạng thái dạng pill --- */
+
+.status-pill {
+  display: inline-block;
+  padding: 0 .5rem;
+  border-radius: .75rem;
+  font-size: .78rem;
+  white-space: nowrap;
+  border: 1px solid currentColor;
+}
+
+.tone-ok { color: #15803d; }
+.tone-info { color: #1d4ed8; }
+.tone-warn { color: #b45309; }
+.tone-danger { color: #b91c1c; font-weight: 600; }
+.tone-muted { opacity: .7; }
+
+/* --- Ba bước nhập --- */
+
+.import-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .75rem;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 .75rem;
+  font-size: .9rem;
+}
+
+.import-steps li { opacity: .55; }
+.import-steps li.active { opacity: 1; font-weight: 600; }
+.import-steps li.done { opacity: .8; }
+
+.import-summary { font-size: 1rem; }
+
+.recent-jobs { list-style: none; padding: 0; margin: 0; }
+
+.recent-jobs li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: .3rem 0;
+  border-bottom: 1px solid rgba(128, 128, 128, .2);
+}
+
+.select-actions { align-items: center; gap: .5rem; flex-wrap: wrap; }
+
+.review-counter { margin: 0 0 .25rem; font-weight: 600; }
+
+.queue-meta {
+  margin: .75rem 0 0;
+  font-size: .85rem;
+  border-top: 1px solid rgba(128, 128, 128, .25);
+  padding-top: .5rem;
+}
+
+.queue-meta > div { display: flex; gap: .5rem; }
+.queue-meta dt { flex: 0 0 6rem; opacity: .7; }
+.queue-meta dd { margin: 0; }
+
+.queue-code { white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+.lesson-group {
+  border-top: 1px solid rgba(128, 128, 128, .25);
+  padding-top: .5rem;
+  margin-top: .5rem;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .queue-hint {
   font-size: .85rem;
   opacity: .75;

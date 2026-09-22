@@ -3,11 +3,13 @@ import {useSearchParams} from 'react-router-dom';
 import {api, downloadFile} from '../../api/client.js';
 import {useAuth} from '../../hooks/useAuth.js';
 import {base, useLoad, ErrorBox} from './shared.jsx';
-import BankScopeFilters from './BankScopeFilters.jsx';
 import QuestionQuality from './QuestionQuality.jsx';
 import QuestionReviewPanel from './QuestionReviewPanel.jsx';
 import BulkQuestionToolbar from './queue/BulkQuestionToolbar.jsx';
-import {useQueue, useSelection, QuestionQueueTable, QuestionPreviewPane, QueueExtraFilters} from './queue/QuestionQueue.jsx';
+import {useQueue, useSelection, QuestionQueueTable, QuestionPreviewPane} from './queue/QuestionQueue.jsx';
+import WorkspaceShell from './workspace/WorkspaceShell.jsx';
+import SimpleFilterBar from './workspace/SimpleFilterBar.jsx';
+import LessonAssignDialog from './workspace/LessonAssignDialog.jsx';
 import {QuestionEditor} from './Teacher.jsx';
 
 const NEW_DRAFT = params => ({
@@ -33,18 +35,15 @@ export default function Banks() {
   const [activeId, setActiveId] = useState(null);
   const [deepId, setDeepId] = useState(null);
   const [editor, setEditor] = useState(null);
-  const [versions, setVersions] = useState(null);
+  const [assigning, setAssigning] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
   const selection = useSelection();
   const banks = useLoad(base + '/banks');
   const catalog = useLoad(base + '/catalog');
 
-  const search = useMemo(() => {
-    const next = new URLSearchParams(params);
-    next.delete('tab');
-    return next;
-  }, [params]);
+  const search = useMemo(() => new URLSearchParams(params), [params]);
   const listSearch = useMemo(() => {
     const next = new URLSearchParams(search);
     next.set('limit', String(pageSize));
@@ -57,11 +56,7 @@ export default function Banks() {
   const total = queue.data?.total || 0;
   useEffect(() => { setOffset(0); }, [search.toString(), pageSize]);
   const active = rows.find(r => r.id === activeId) || null;
-  const authors = useMemo(() => {
-    const seen = new Map();
-    for (const r of rows) if (r.creator_id && r.author_name) seen.set(r.creator_id, {id: r.creator_id, full_name: r.author_name});
-    return [...seen.values()];
-  }, [rows]);
+  const unassigned = rows.filter(r => !r.topic_name).length;
 
   const bulkActions = useMemo(() => {
     const out = [];
@@ -72,7 +67,6 @@ export default function Banks() {
     return out.length ? out : ['submit'];
   }, [user]);
 
-  // The editor needs the full version (answers included); the queue payload deliberately omits it.
   const openEditor = useCallback(async row => {
     setError('');
     try {
@@ -114,67 +108,75 @@ export default function Banks() {
   const singleActions = active && !readOnly && (
     <div className="practice-actions">
       <button className="btn" disabled={busy} onClick={() => openEditor(active)}>Sửa</button>
-      <button className="btn" disabled={busy} onClick={async () => {
-        try { await api.post(`${base}/questions/${active.id}/copy`, {}); queue.reload(); }
-        catch (e) { setError(e.message); }
-      }}>Sao chép về kho cá nhân</button>
       {active.review_status === 'DRAFT' && <button className="btn primary" disabled={busy} onClick={() => single(active, 'submit')}>Gửi duyệt</button>}
       {active.review_status === 'PENDING_REVIEW' && user.capabilities?.['content.approve'] &&
         <button className="btn primary" disabled={busy} onClick={() => single(active, 'approve')}>Duyệt</button>}
       {active.review_status === 'PENDING_REVIEW' && user.capabilities?.['content.review'] &&
-        <button className="btn" disabled={busy} onClick={() => single(active, 'request_changes')}>Yêu cầu sửa</button>}
-      {active.lifecycle === 'approved' && user.capabilities?.['content.approve'] &&
-        <button className="btn" disabled={busy} onClick={() => single(active, 'activate')}>Đưa vào luyện</button>}
+        <button className="btn" disabled={busy} onClick={() => single(active, 'request_changes')}>Trả sửa</button>}
       <button className="btn" disabled={busy} onClick={async () => {
-        try { setVersions(await api.get(`${base}/questions/${active.id}/versions`)); }
+        try { await api.post(`${base}/questions/${active.id}/copy`, {}); queue.reload(); }
         catch (e) { setError(e.message); }
-      }}>Lịch sử phiên bản</button>
+      }}>Sao chép</button>
     </div>
   );
 
   return (
-    <section className="practice-page">
-      <h1>Kho câu hỏi</h1>
-      <BankScopeFilters params={params} setParams={setParams} catalog={catalog.data}/>
-      <QueueExtraFilters params={params} setParams={setParams} authors={authors}/>
-      {params.get('yccd_id') &&
-        <p className="ok-box">Đang lọc theo ô ma trận: YCCĐ #{params.get('yccd_id')} · {params.get('cognitive_level')} · {params.get('q_type')}. Câu mới sẽ được điền phạm vi này.</p>}
-      <div className="practice-actions">
-        <button className="btn" onClick={() => downloadFile(base + '/questions-export?' + search.toString(), 'cau-hoi-advanced.xlsx').catch(e => setError(e.message))}>
-          Xuất Excel nâng cao · bộ lọc hiện tại
-        </button>
+    <WorkspaceShell
+      actions={<>
+        <button className="btn" onClick={() => downloadFile(base + '/questions-export?' + search.toString(), 'cau-hoi.xlsx').catch(e => setError(e.message))}>Xuất Excel</button>
         {!readOnly && <button className="btn primary" onClick={() => setEditor({draft: NEW_DRAFT(params)})}>Thêm câu hỏi</button>}
-      </div>
-      <QuestionQuality query={search.toString()}/>
+      </>}>
+      <SimpleFilterBar params={params} setParams={setParams} catalog={catalog.data}/>
+      {params.get('import_job_id') &&
+        <p className="ok-box">Đang xem nhóm câu vừa nhập. Phạm vi môn, khối và kho vẫn áp dụng như bình thường.</p>}
       <ErrorBox error={error || queue.error}/>
+      {message && <p className="ok-box" role="status">{message}</p>}
+
+      {unassigned > 0 && !params.get('lesson_status') && (
+        <p className="warn-box">
+          {unassigned} câu trong trang này chưa gắn Bài.{' '}
+          <button className="btn" onClick={() => { const next = new URLSearchParams(params); next.set('lesson_status', 'UNASSIGNED'); setParams(next); }}>
+            Chỉ hiện câu chưa gắn Bài
+          </button>
+        </p>
+      )}
+
       {editor && <article className="practice-card">
         <QuestionEditor value={editor.draft} catalog={catalog.data} onChange={draft => setEditor({...editor, draft})}/>
         <div className="practice-actions">
-          <button className="btn primary" disabled={busy} onClick={save}>Lưu phiên bản</button>
+          <button className="btn primary" disabled={busy} onClick={save}>Lưu</button>
           <button className="btn" onClick={() => setEditor(null)}>Đóng</button>
         </div>
       </article>}
-      <div className="practice-actions">
-        <button className="btn" onClick={() => selection.setRows(rows, true)}>Chọn tất cả trang này ({rows.length})</button>
+
+      <div className="practice-actions select-actions">
+        <button className="btn" onClick={() => selection.setRows(rows, true)}>Chọn trang này ({rows.length})</button>
         <button className="btn" onClick={() => selection.selectFiltered(search.toString()).catch(e => setError(e.message))}>
-          Chọn tất cả theo bộ lọc ({total})
+          Chọn tất cả kết quả ({total})
         </button>
       </div>
-      {!readOnly && <BulkQuestionToolbar selection={selection} actions={bulkActions} banks={banks.data || []}
-                                         onDone={() => { queue.reload(); setActiveId(null); }}/>}
+
+      {/* Không chọn câu nào thì không có thanh thao tác hàng loạt. */}
+      {!readOnly && selection.count > 0 && <>
+        <div className="practice-actions">
+          <button className="btn" onClick={() => setAssigning(true)}>Gán Bài cho {selection.count} câu</button>
+        </div>
+        <BulkQuestionToolbar selection={selection} actions={bulkActions} banks={banks.data || []}
+                             onDone={() => { queue.reload(); setActiveId(null); }}/>
+      </>}
+      {assigning && <LessonAssignDialog ids={selection.ids} onClose={() => setAssigning(false)}
+                                        onDone={result => { setMessage(`Đã gắn Bài cho ${result.assigned} câu.`); selection.clear(); queue.reload(); }}/>}
+
       <div className="queue-layout">
         <QuestionQueueTable rows={rows} selection={selection} activeId={activeId} onActivate={row => setActiveId(row.id)}
                             pageSize={pageSize} onPageSize={setPageSize} total={total} offset={offset} onOffset={setOffset}/>
         <QuestionPreviewPane row={active} onDeepReview={row => setDeepId(row.id)} actions={singleActions}/>
       </div>
       {deepId && <QuestionReviewPanel id={deepId} onClose={() => setDeepId(null)} onChanged={queue.reload}/>}
-      {versions && <article className="practice-card">
-        <header className="section-heading"><h2>Lịch sử bất biến</h2><button className="btn" onClick={() => setVersions(null)}>Đóng</button></header>
-        {versions.map(v => <details key={v.id}>
-          <summary>v{v.version_number} · {new Date(v.created_at).toLocaleString('vi-VN')}</summary>
-          <p>{v.content?.stem || v.content?.stem_text}</p>
-        </details>)}
-      </article>}
-    </section>
+      <details className="practice-card">
+        <summary>Chất lượng và mức sử dụng câu hỏi</summary>
+        <QuestionQuality query={search.toString()}/>
+      </details>
+    </WorkspaceShell>
   );
 }

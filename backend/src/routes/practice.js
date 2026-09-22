@@ -26,7 +26,8 @@ import {studentAssignment} from '../services/practice/studentDto.js';
 import {attemptMedia} from '../services/practice/privateMedia.js';
 import {saveAssignment,listAssignments} from '../services/practice/assignments.js';
 import {questionList,persistQuestion,transition,personalBank} from '../services/practice/questions.js';
-import {questionQueue,selectionIds} from '../services/practice/questionQueue.js';
+import {questionQueue,selectionIds,authorOptions} from '../services/practice/questionQueue.js';
+import {lessonOptions,bulkAssignLesson} from '../services/practice/lessonAssignment.js';
 import {bulkPreflight,bulkWorkflow,BULK_ACTIONS,MAX_BULK_IDS} from '../services/practice/bulkWorkflow.js';
 import {parseJob,getJob,editJob,confirmJob,listJobs} from '../services/practice/imports.js';
 import {studentList,studentProfile,createStudent,updateStudent,transferStudent,studentStatus,setStudentPassword} from '../services/practice/students.js';
@@ -125,6 +126,14 @@ const bulkBody=z.object({
 }).strict();
 r.get('/questions/queue',wrap(async(req,res)=>res.json(await questionQueue(req.user,req.query))));
 r.get('/questions/selection-ids',wrap(async(req,res)=>res.json(await selectionIds(req.user,req.query))));
+r.get('/questions/author-options',wrap(async(req,res)=>res.json(await authorOptions(req.user,req.query))));
+const idList=z.object({ids:z.array(z.number().int().positive()).min(1).max(MAX_BULK_IDS)}).strict();
+r.post('/questions/lesson-options',wrap(async(req,res)=>res.json(await lessonOptions(req.user,idList.parse(req.body).ids))));
+r.post('/questions/assign-lesson',wrap(async(req,res)=>res.json(await bulkAssignLesson(req.user,z.object({
+ assignments:z.array(z.object({question_ids:z.array(z.number().int().positive()).min(1),topic_id:z.number().int().positive()}).strict()).min(1).max(100),
+ reason:z.string().trim().max(1000).optional().default(''),
+ allow_unlinked:z.boolean().optional().default(false),
+}).strict().parse(req.body)))));
 r.post('/questions/bulk-preflight',wrap(async(req,res)=>res.json(await bulkPreflight(req.user,bulkBody.parse(req.body)))));
 r.post('/questions/bulk-workflow',wrap(async(req,res)=>res.json(await bulkWorkflow(req.user,bulkBody.parse(req.body)))));
 r.post('/questions',wrap(async(req,res)=>res.status(201).json(await tx(c=>persistQuestion(c,req.user,req.body,{bankId:req.body.bank_id})))));

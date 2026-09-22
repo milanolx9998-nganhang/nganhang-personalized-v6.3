@@ -1,5 +1,41 @@
 # AI Work Log
 
+## 2026-09-22 — V6.6.5: Question Workspace + Curriculum Auto Resolver
+
+**Yêu cầu:** thực thi `V6_6_5_FULL_QUESTION_WORKSPACE_CURRICULUM_CODE_RESOLVER_PROMPT` trên HEAD
+`d01b801` (V6.6.4 đã được người dùng commit/push).
+
+**Quyết định thiết kế đáng nhớ:**
+- **Mã câu quyết định Outcome/YCCĐ, không quyết định Bài.** Bài chỉ đến từ `topic_yccd_map`.
+  "Bài 2" và "Outcome 2" là hai hệ đánh số độc lập — có ca kiểm thử chứng minh Outcome 2 nằm ở cả
+  Bài 2 lẫn Bài 3.
+- **Khối là ngữ cảnh phiên nhập, không nằm trong mã.** Khóa tra cứu luôn là
+  môn+khối+phân môn+số Outcome+số YCCĐ. Khóa máy `KHTN:G9:L:2:1` chỉ dùng nội bộ.
+- **Không tự chọn hộ.** Mã lệch metadata (YCCĐ/hình thức/mức) thì báo và giữ nguyên giá trị người
+  dùng khai; YCCĐ thuộc nhiều Bài thì để trống.
+- Gán Bài đi qua `persistQuestion` thay vì UPDATE thẳng, để giữ phân loại thay đổi + nhật ký.
+
+**File đổi:** xem `docs/V6_6_5_CHANGES.md` mục B (5 file backend mới, 4 file frontend mới, 1 migration,
+2 file test mới).
+
+**Migration:** `migration-v665-curriculum-code.sql`, additive tuyệt đối, đã áp lên DB local; backfill
+canonical key cho 30 Outcome + 97 YCCĐ có sẵn nên resolver chạy được ngay trên dữ liệu cũ.
+
+**Kiểm chứng:** 171 pass / 3 fail (cả 3 fail có sẵn từ trước, đã đo baseline).
+
+**Bẫy đã gặp, tránh lặp lại:**
+- `label` bọc ngoài `select` không cho tên truy cập ổn định cho Playwright `getByLabel`. Phải gắn
+  `aria-label` tường minh.
+- Fixture import phải có `explanation`, nếu không `validateDraft` trả WARNING ("Chưa có lời giải")
+  và trạng thái không còn là VALID.
+- Bản nháp chưa duyệt sửa tại chỗ (đã ghi ở mục V6.6.4) — vẫn đúng khi viết test resolver.
+
+**Sai lệch có chủ ý:** §26 xếp "không parse được mã" vào nhóm chặn; em làm thành "cần xem" để không
+phá luồng nhập tệp cũ. Trường hợp nguy hiểm thật (mã hợp lệ nhưng chuẩn không tồn tại) vẫn bị chặn.
+
+**Việc tiếp theo:** thu hồi token GitHub (vẫn chưa làm); nạp thật 4 workbook KHTN chính thức; nối
+`inferNumberingMode` vào đường ghi; điều tra 3 test lỗi có sẵn.
+
 ## 2026-09-22 — V6.6.4: Question Power Workflow + Safe Auto-Deploy
 
 **Yêu cầu:** thực thi trực tiếp `V6_6_4_QUESTION_IMPORT_REVIEW_POWER_WORKFLOW_SAFE_DEPLOY_MASTER_PROMPT`

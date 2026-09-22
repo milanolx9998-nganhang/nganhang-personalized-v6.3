@@ -3,20 +3,19 @@ import {useSearchParams} from 'react-router-dom';
 import {api} from '../../api/client.js';
 import {useAuth, hasAnyCapability} from '../../hooks/useAuth.js';
 import {base, useLoad, ErrorBox} from './shared.jsx';
-import BankScopeFilters from './BankScopeFilters.jsx';
 import QuestionReviewPanel from './QuestionReviewPanel.jsx';
 import ReviewCaseQueue from './ReviewQueue.jsx';
 import BulkQuestionToolbar from './queue/BulkQuestionToolbar.jsx';
-import {useQueue, useSelection, QuestionQueueTable, QuestionPreviewPane, QueueExtraFilters} from './queue/QuestionQueue.jsx';
+import {useQueue, useSelection, QuestionQueueTable, QuestionPreviewPane} from './queue/QuestionQueue.jsx';
+import WorkspaceShell from './workspace/WorkspaceShell.jsx';
+import SimpleFilterBar from './workspace/SimpleFilterBar.jsx';
 
 const TABS = [
-  {id: 'author', label: 'Cần gửi duyệt', capabilities: ['content.write']},
+  {id: 'author', label: 'Bản nháp của tôi', capabilities: ['content.write']},
   {id: 'pending', label: 'Chờ duyệt', capabilities: ['content.review', 'content.approve']},
-  {id: 'cases', label: 'Hồ sơ sự cố', capabilities: ['content.review', 'content.approve']},
+  {id: 'cases', label: 'Cần xem kỹ', capabilities: ['content.review', 'content.approve']},
 ];
 
-// Tab A is the author's own drafts; tab B is everything waiting on a reviewer. Keeping them as
-// separate server-side filters is what makes "select all matching the filter" safe to bulk-act on.
 const TAB_QUERY = {
   author: {lifecycle: 'draft', review_status: 'DRAFT'},
   pending: {review_status: 'PENDING_REVIEW'},
@@ -41,7 +40,6 @@ function QuestionTab({tab, params, setParams, user}) {
     const next = new URLSearchParams(params);
     next.delete('tab');
     for (const [key, value] of Object.entries(TAB_QUERY[tab])) next.set(key, value);
-    // An author without review rights only ever acts on their own drafts.
     if (tab === 'author' && !hasAnyCapability(user, ['content.review', 'content.approve'])) {
       next.set('created_by', String(user.id));
     }
@@ -59,37 +57,32 @@ function QuestionTab({tab, params, setParams, user}) {
   const rows = queue.data?.items || [];
   const total = queue.data?.total || 0;
   useEffect(() => { setOffset(0); }, [search.toString(), pageSize]);
-  const active = rows.find(r => r.id === activeId) || null;
-  const authors = useMemo(() => {
-    const seen = new Map();
-    for (const r of rows) if (r.creator_id && r.author_name) seen.set(r.creator_id, {id: r.creator_id, full_name: r.author_name});
-    return [...seen.values()];
-  }, [rows]);
+  const index = rows.findIndex(r => r.id === activeId);
+  const active = index >= 0 ? rows[index] : null;
 
   const move = useCallback(step => {
     if (!rows.length) return;
-    const index = rows.findIndex(r => r.id === activeId);
-    const next = index < 0 ? 0 : Math.min(rows.length - 1, Math.max(0, index + step));
+    const current = rows.findIndex(r => r.id === activeId);
+    const next = current < 0 ? 0 : Math.min(rows.length - 1, Math.max(0, current + step));
     setActiveId(rows[next].id);
   }, [rows, activeId]);
 
-  // Fast single review goes through the same bulk endpoint as a batch, so one question and five
-  // hundred obey identical policy, audit and stale-version rules.
+  // Một câu và năm trăm câu đi qua cùng một endpoint, nên chính sách và nhật ký không thể lệch nhau.
   const single = useCallback(async (row, action) => {
     if (!row) return;
     let reason = '';
     if (action === 'request_changes') {
-      reason = window.prompt('Lý do yêu cầu sửa') || '';
+      reason = window.prompt('Lý do trả sửa') || '';
       if (!reason.trim()) return;
     }
     setBusy(true); setError('');
-    const index = rows.findIndex(r => r.id === row.id);
+    const at = rows.findIndex(r => r.id === row.id);
     try {
       await api.post(base + '/questions/bulk-workflow', {
         ids: [row.id], action, reason: reason.trim(),
         expected_versions: {[String(row.id)]: row.current_version_id},
       });
-      const next = rows[index + 1];
+      const next = rows[at + 1];
       setActiveId(next ? next.id : null);
       queue.reload();
     } catch (e) {
@@ -114,34 +107,40 @@ function QuestionTab({tab, params, setParams, user}) {
   }, [move, active, tab, single, selection]);
 
   const singleActions = active && (
-    <div className="practice-actions">
-      {TAB_ACTIONS[tab].includes('submit') && <button className="btn primary" disabled={busy} onClick={() => single(active, 'submit')}>Gửi duyệt câu này</button>}
-      {TAB_ACTIONS[tab].includes('approve') && <button className="btn primary" disabled={busy} onClick={() => single(active, 'approve')}>Duyệt (A)</button>}
-      {TAB_ACTIONS[tab].includes('request_changes') && <button className="btn" disabled={busy} onClick={() => single(active, 'request_changes')}>Yêu cầu sửa (R)</button>}
+    <div className="review-actions">
+      <p className="review-counter">Câu {index + 1} / {rows.length}{total > rows.length ? ` (trang này, tổng ${total})` : ''}</p>
+      <div className="practice-actions">
+        <button className="btn" disabled={busy || index <= 0} onClick={() => move(-1)} aria-label="Câu trước">←</button>
+        {TAB_ACTIONS[tab].includes('submit') && <button className="btn primary" disabled={busy} onClick={() => single(active, 'submit')}>Gửi duyệt</button>}
+        {TAB_ACTIONS[tab].includes('request_changes') && <button className="btn" disabled={busy} onClick={() => single(active, 'request_changes')}>Trả sửa</button>}
+        {TAB_ACTIONS[tab].includes('approve') && <button className="btn primary" disabled={busy} onClick={() => single(active, 'approve')}>Duyệt</button>}
+        <button className="btn" disabled={busy || index >= rows.length - 1} onClick={() => move(1)} aria-label="Câu sau">→</button>
+      </div>
     </div>
   );
 
   return (
     <>
-      <BankScopeFilters params={params} setParams={setParams} catalog={catalog.data}/>
-      <QueueExtraFilters params={params} setParams={setParams} authors={authors}/>
+      <SimpleFilterBar params={params} setParams={setParams} catalog={catalog.data} hideKeys={['lifecycle', 'review_status']}/>
       {params.get('import_job_id') &&
-        <p className="ok-box">Đang lọc theo đợt nhập <code>{params.get('import_job_id')}</code>. Phạm vi môn, khối và kho vẫn áp dụng như bình thường.</p>}
+        <p className="ok-box">Đang xem nhóm câu vừa nhập. Phạm vi môn, khối và kho vẫn áp dụng như bình thường.</p>}
       <ErrorBox error={error || queue.error}/>
-      <div className="practice-actions">
-        <button className="btn" onClick={() => selection.setRows(rows, true)}>Chọn tất cả trang này ({rows.length})</button>
+      <div className="practice-actions select-actions">
+        <button className="btn" onClick={() => selection.setRows(rows, true)}>Chọn trang này ({rows.length})</button>
         <button className="btn" onClick={() => selection.selectFiltered(search.toString()).catch(e => setError(e.message))}>
-          Chọn tất cả theo bộ lọc ({total})
+          Chọn tất cả kết quả ({total})
         </button>
       </div>
-      <BulkQuestionToolbar selection={selection} actions={TAB_ACTIONS[tab]} banks={banks.data || []}
-                           onDone={() => { queue.reload(); setActiveId(null); }}/>
-      <p className="queue-hint">Phím tắt: J/K chuyển câu · Space chọn · A duyệt · R yêu cầu sửa. Phím tắt không chạy khi con trỏ đang ở ô nhập liệu.</p>
+      {selection.count > 0 &&
+        <BulkQuestionToolbar selection={selection} actions={TAB_ACTIONS[tab]} banks={banks.data || []}
+                             onDone={() => { queue.reload(); setActiveId(null); }}/>}
+      <p className="queue-hint">Phím tắt: J/K chuyển câu · Space chọn · A duyệt · R trả sửa. Không chạy khi con trỏ đang ở ô nhập liệu.</p>
       <div className="queue-layout">
         <QuestionQueueTable rows={rows} selection={selection} activeId={activeId} onActivate={row => setActiveId(row.id)}
                             pageSize={pageSize} onPageSize={setPageSize} total={total} offset={offset} onOffset={setOffset}/>
         <QuestionPreviewPane row={active} onDeepReview={row => setDeepId(row.id)} actions={singleActions}/>
       </div>
+      {/* Panel rà soát sâu chỉ mở khi người dùng bấm "Xem kỹ" hoặc khi câu có rủi ro. */}
       {deepId && <QuestionReviewPanel id={deepId} onClose={() => setDeepId(null)} onChanged={queue.reload}/>}
     </>
   );
@@ -152,17 +151,19 @@ export default function ReviewWorkspace() {
   const [params, setParams] = useSearchParams();
   const allowed = TABS.filter(t => hasAnyCapability(user, t.capabilities));
   const requested = params.get('tab');
-  const tab = allowed.some(t => t.id === requested) ? requested : allowed[0]?.id;
+  // Người duyệt mở thẳng "Chờ duyệt"; người chỉ biên soạn mở "Bản nháp của tôi".
+  const preferred = hasAnyCapability(user, ['content.review', 'content.approve']) ? 'pending' : 'author';
+  const tab = allowed.some(t => t.id === requested) ? requested : (allowed.find(t => t.id === preferred)?.id || allowed[0]?.id);
   const setTab = id => {
     const next = new URLSearchParams(params);
     next.set('tab', id);
     setParams(next);
   };
-  if (!tab) return <section className="practice-page"><h1>Duyệt câu hỏi</h1><p>Tài khoản chưa được giao quyền biên soạn hoặc duyệt nội dung.</p></section>;
+  if (!tab) {
+    return <WorkspaceShell title="Duyệt câu"><p>Tài khoản chưa được giao quyền biên soạn hoặc duyệt nội dung.</p></WorkspaceShell>;
+  }
   return (
-    <section className="practice-page">
-      <h1>Duyệt câu hỏi</h1>
-      <p>Gửi duyệt, duyệt phiên bản và hồ sơ sự cố nằm cùng một nơi. Mọi thao tác vẫn đi qua phân quyền, quy trình phiên bản và nhật ký như duyệt từng câu.</p>
+    <WorkspaceShell>
       <nav className="queue-tabs" aria-label="Khu vực duyệt">
         {allowed.map(t => (
           <button key={t.id} className={'btn' + (t.id === tab ? ' primary' : '')} aria-current={t.id === tab}
@@ -172,6 +173,6 @@ export default function ReviewWorkspace() {
       {tab === 'cases'
         ? <ReviewCaseQueue/>
         : <QuestionTab key={tab} tab={tab} params={params} setParams={setParams} user={user}/>}
-    </section>
+    </WorkspaceShell>
   );
 }

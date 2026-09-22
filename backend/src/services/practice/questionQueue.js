@@ -9,7 +9,7 @@ import {fail} from './config.js';
 // content.view_answer.
 const SUMMARY_COLUMNS = `q.id,q.question_code,q.current_version_id,q.active_version_id,q.subject_id,q.grade,q.branch_id,
  q.topic_id,q.outcome_id,q.yccd_id,q.cognitive_level,q.q_type,q.lifecycle,q.bank_id,q.quarantined,q.metadata_status,
- q.created_at,q.updated_at,q.creator_id,
+ q.created_at,q.updated_at,q.creator_id,q.lesson_status,q.content_number,q.numbering_mode,
  left(COALESCE(q.stem_text,q.normalized_content->>'stem',''),180) AS stem_excerpt,
  COALESCE(q.normalized_content->>'display_code',q.question_code) AS display_code,
  v.review_status,v.version_number,b.name AS bank_name,s.name AS subject_name,t.name AS topic_name,br.name AS branch_name,
@@ -46,6 +46,9 @@ function summaryDto(row, withAuthor) {
     yccd_code: row.yccd_code,
     cognitive_level: row.cognitive_level,
     q_type: row.q_type,
+    content_number: row.content_number,
+    numbering_mode: row.numbering_mode,
+    lesson_status: row.topic_id ? (row.lesson_status || 'MANUAL') : (row.lesson_status || 'UNMAPPED'),
     lifecycle: row.lifecycle,
     review_status: row.review_status,
     bank_id: row.bank_id,
@@ -81,6 +84,18 @@ export async function questionQueue(user, query) {
     offset,
     items: rows.map(r => summaryDto(r, withAuthor)),
   };
+}
+
+// Danh sách người biên soạn phải lấy từ toàn bộ tập dữ liệu trong phạm vi, không phải từ các dòng
+// tình cờ đang hiển thị — nếu không, bộ lọc sẽ bỏ sót người mà người dùng đang muốn tìm.
+export async function authorOptions(user, query) {
+  if (user.role === 'student') fail('Không đủ quyền', 403);
+  const {where, params} = await questionScope(user, query);
+  const clauses = [...where, 'q.creator_id IS NOT NULL'];
+  const rows = (await pool.query(
+    `SELECT DISTINCT q.creator_id AS id,u.full_name ${QUESTION_FROM} LEFT JOIN users u ON u.id=q.creator_id
+     WHERE ${clauses.join(' AND ')} ORDER BY u.full_name LIMIT 200`, params)).rows;
+  return rows.filter(r => r.id && r.full_name);
 }
 
 // §23 — "select all matching the filter" must mean the filter, resolved by the server under the same

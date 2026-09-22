@@ -2,6 +2,7 @@ import {useEffect, useMemo, useState} from 'react';
 import {api} from '../../../api/client.js';
 import {base, ErrorBox} from '../shared.jsx';
 import {Rich} from '../Rich.jsx';
+import {questionStatus, lessonAndCurriculum, curriculumLabel, levelLabel, formLabel, LESSON_STATUS} from '../workspace/labels.js';
 
 export const LIFECYCLE = {draft: 'Bản nháp', pending_review: 'Chờ duyệt', approved: 'Đã duyệt', active: 'Đang dùng', archived: 'Lưu trữ'};
 export const REVIEW_STATUS = {DRAFT: 'Nháp', PENDING_REVIEW: 'Chờ duyệt', APPROVED: 'Đã duyệt', REJECTED: 'Từ chối', SUPERSEDED: 'Đã thay'};
@@ -53,15 +54,12 @@ export function useSelection() {
   };
 }
 
-function RiskBadges({row}) {
-  const badges = [];
-  if (row.risk?.quarantined) badges.push(['Cách ly', 'risk-high']);
-  if (row.risk?.open_case_severity) badges.push([`Hồ sơ ${row.risk.open_case_severity}`, row.risk.open_case_severity === 'P0' ? 'risk-high' : 'risk-mid']);
-  if (row.risk?.needs_curriculum_review) badges.push(['Cần xem phân loại', 'risk-mid']);
-  if (!badges.length) return <span className="risk-badge risk-ok">Sạch</span>;
-  return <>{badges.map(([label, cls]) => <span key={label} className={'risk-badge ' + cls}>{label}</span>)}</>;
+export function StatusPill({row}) {
+  const status = questionStatus(row);
+  return <span className={'status-pill tone-' + status.tone}>{status.label}</span>;
 }
 
+// Mặc định chỉ sáu cột. Mọi metadata khác nằm trong preview, không nhồi vào dòng.
 export function QuestionQueueTable({rows, selection, activeId, onActivate, pageSize, onPageSize, total, offset, onOffset}) {
   const allOnPage = rows.length > 0 && rows.every(r => selection.has(r.id));
   return (
@@ -75,14 +73,9 @@ export function QuestionQueueTable({rows, selection, activeId, onActivate, pageS
             </th>
             <th scope="col">Mã</th>
             <th scope="col">Nội dung</th>
-            <th scope="col">Môn · Khối</th>
-            <th scope="col">Bài</th>
-            <th scope="col">Outcome · YCCĐ</th>
+            <th scope="col">Bài · YCCĐ</th>
             <th scope="col">Mức</th>
-            <th scope="col">Dạng</th>
-            <th scope="col">Vòng đời</th>
-            <th scope="col">Duyệt</th>
-            <th scope="col">Rủi ro</th>
+            <th scope="col">Trạng thái</th>
           </tr>
         </thead>
         <tbody>
@@ -94,16 +87,11 @@ export function QuestionQueueTable({rows, selection, activeId, onActivate, pageS
                        checked={selection.has(row.id)}
                        onChange={() => selection.toggle(row.id, row.current_version_id)}/>
               </td>
-              <td data-label="Mã">{row.display_code}{row.version_number ? ' · v' + row.version_number : ''}</td>
+              <td data-label="Mã" className="queue-code">{row.display_code}</td>
               <td data-label="Nội dung" className="queue-stem">{row.stem_excerpt}</td>
-              <td data-label="Môn · Khối">{row.subject_name || '—'} · {row.grade || '—'}</td>
-              <td data-label="Bài">{row.topic_name || '—'}</td>
-              <td data-label="Outcome · YCCĐ">{[row.outcome_code, row.yccd_code].filter(Boolean).join(' · ') || '—'}</td>
-              <td data-label="Mức">{LEVELS[row.cognitive_level] || '—'}</td>
-              <td data-label="Dạng">{Q_TYPES[row.q_type] || '—'}</td>
-              <td data-label="Vòng đời">{LIFECYCLE[row.lifecycle] || row.lifecycle}</td>
-              <td data-label="Duyệt">{REVIEW_STATUS[row.review_status] || '—'}</td>
-              <td data-label="Rủi ro"><RiskBadges row={row}/></td>
+              <td data-label="Bài · YCCĐ">{lessonAndCurriculum(row)}</td>
+              <td data-label="Mức">{levelLabel(row)}</td>
+              <td data-label="Trạng thái"><StatusPill row={row}/></td>
             </tr>
           ))}
         </tbody>
@@ -143,57 +131,42 @@ export function QuestionPreviewPane({row, onDeepReview, actions}) {
   return (
     <aside className="queue-preview" aria-live="polite">
       <header className="section-heading">
-        <h3>{row.display_code}{row.version_number ? ' · v' + row.version_number : ''}</h3>
-        <RiskBadges row={row}/>
+        <h3>{row.display_code}</h3>
+        <StatusPill row={row}/>
       </header>
-      <p>{row.subject_name || '—'} · Khối {row.grade || '—'} · {row.topic_name || 'Chưa gán bài'}</p>
-      <p>{[row.outcome_code, row.yccd_code].filter(Boolean).join(' · ') || 'Chưa gán Outcome/YCCĐ'} · {LEVELS[row.cognitive_level] || '—'} · {Q_TYPES[row.q_type] || '—'}</p>
-      <p>{LIFECYCLE[row.lifecycle]} · {REVIEW_STATUS[row.review_status] || '—'} · {row.bank_name}{row.author_name ? ' · ' + row.author_name : ''}</p>
       {actions}
       {error && <div className="warn-box"><p>Không mở được nội dung đầy đủ: {error}</p><p>{row.stem_excerpt}</p></div>}
       {!detail && !error && <p role="status">Đang tải nội dung…</p>}
+      {/* Nội dung trước, phân loại sau: preview để đọc câu hỏi, không phải để tra metadata. */}
       {content && <div className="queue-preview-body">
         <Rich text={content.stem || content.stem_text}/>
         {(content.type === 'true_false' ? content.statements : content.options)?.map(o => (
           <p key={o.id}><strong>{o.id}.</strong> {o.text}</p>
         ))}
-        {content.answer && <details><summary>Đáp án và quy tắc chấm</summary>
-          <pre className="queue-answer">{JSON.stringify(content.answer, null, 1)}</pre>
-        </details>}
+        {content.answer && <p className="queue-answer"><strong>Đáp án:</strong> {answerText(content.answer)}</p>}
         {content.explanation && <details><summary>Lời giải</summary><Rich text={content.explanation}/></details>}
       </div>}
-      <button className="btn" onClick={() => onDeepReview(row)}>Mở rà soát chi tiết</button>
+      <dl className="queue-meta">
+        <div><dt>Bài</dt><dd>{row.topic_name || LESSON_STATUS[row.lesson_status] || 'Chưa gắn Bài'}</dd></div>
+        <div><dt>Chuẩn</dt><dd>{curriculumLabel(row)}</dd></div>
+        <div><dt>Mức · Dạng</dt><dd>{levelLabel(row)} · {formLabel(row)}</dd></div>
+        <div><dt>Kho</dt><dd>{row.bank_name}{row.author_name ? ' · ' + row.author_name : ''}</dd></div>
+      </dl>
+      <button className="btn" onClick={() => onDeepReview(row)}>Xem kỹ</button>
     </aside>
   );
 }
 
-export function QueueExtraFilters({params, setParams, authors}) {
-  const set = (key, value) => {
-    const next = new URLSearchParams(params);
-    if (value) next.set(key, value); else next.delete(key);
-    next.delete('offset');
-    setParams(next);
-  };
-  return (
-    <div className="practice-grid queue-extra-filters">
-      <label>Người biên soạn
-        <select value={params.get('created_by') || ''} onChange={e => set('created_by', e.target.value)}>
-          <option value="">Tất cả</option>
-          {authors.map(a => <option key={a.id} value={a.id}>{a.full_name}</option>)}
-        </select>
-      </label>
-      <label>Đợt nhập
-        <input type="text" placeholder="Mã lần nhập" value={params.get('import_job_id') || ''}
-               onChange={e => set('import_job_id', e.target.value.trim())}/>
-      </label>
-      <label>Vòng đời
-        <select value={params.get('lifecycle') || ''} onChange={e => set('lifecycle', e.target.value)}>
-          <option value="">Tất cả</option>
-          {Object.entries(LIFECYCLE).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-        </select>
-      </label>
-    </div>
-  );
+// Đáp án hiển thị dạng người đọc được, không phải JSON thô.
+function answerText(answer) {
+  if (!answer || typeof answer !== 'object') return String(answer ?? '');
+  if (answer.correct) return answer.correct;
+  if (answer.values) return Object.entries(answer.values).map(([k, v]) => `${k} — ${v ? 'Đúng' : 'Sai'}`).join(' · ');
+  if (answer.pairs) return Object.entries(answer.pairs).map(([k, v]) => `${k} → ${v}`).join(' · ');
+  if (answer.aliases?.length) return answer.aliases.join(' / ');
+  if (answer.numeric !== undefined) return `${answer.numeric}${answer.unit ? ' ' + answer.unit : ''}`;
+  if (answer.reference) return answer.reference;
+  return '—';
 }
 
 export {ErrorBox};
