@@ -20,18 +20,18 @@ Ngày 21/09/2026. Sửa trực tiếp nganhang-personalized-v6.3, không nhân b
 
 ## Còn thiếu — không coi là đã hoàn thành
 
-- Giao diện quản trị mapping năng lực và nhập rubric; API đã có nhưng chưa đủ luồng UI.
+- Giao diện quản trị mapping năng lực theo khối/YCCĐ (trọng số, xác nhận, lịch sử) và nhập rubric giáo viên trong hồ sơ học sinh đã có; API kiểm tra BOLA sai học sinh và giáo viên không có quyền quản lý đều đạt.
 - Quản lý indicator, nhập khung năng lực, copy indicator, báo cáo so sánh phiên bản khung.
 - Dashboard lớp, xuất báo cáo có phạm vi, so sánh thời gian và quy trình rebuild minh chứng.
 - Hoàn thiện quyền ngoại lệ ở menu quản trị: backend đã kiểm quyền, menu hiện vẫn theo curriculum.manage cũ.
-- Khôi phục job staging sau reload; impact cần bổ sung tham chiếu năng lực. Đã chặn commit khi form staging còn sửa chưa lưu.
-- Kiểm thử chuyên sâu ưu tiên mapping/snapshot, rubric, release policy cho số sửa sai, phạm vi môn/lớp của capability mới.
+- Khôi phục job staging sau reload; impact đã bổ sung số tham chiếu competency mapping; đã chặn commit khi form staging còn sửa chưa lưu.
+- Kiểm thử chuyên sâu mapping/snapshot, rubric, release policy cho số sửa sai và phạm vi môn/lớp đã có ca V66; cần mở rộng với nhiều giáo viên/lớp thật.
 - Nghiệm thu Ubuntu/Supabase/Cloudflare/Tailscale trên máy thật; chưa có đích máy chủ được cấu hình trong phiên này. Không công bố production, không đổi credential hoặc tạo release chính thức.
 
 ## Kiểm chứng
 
 - 5/5 unit test mới (năng lực, thói quen, import) đạt.
-- Hồi quy cuối 21/09/2026 10:47:31 UTC: 80/80 tích hợp hiện hữu, 4/4 tích hợp V66 (gồm hồ sơ năng lực/thói quen mobile), 101/101 logic và bảo mật đạt. artifacts/v652-security-gate.json ghi passed=true và hash source.
+- Hồi quy cuối: 80/80 tích hợp hiện hữu, 4/4 tích hợp V66 (gồm hồ sơ năng lực/thói quen mobile, mapping giao diện, rubric và khôi phục import), 101/101 logic và bảo mật đạt. artifacts/v652-security-gate.json ghi passed=true và hash source.
 - Tách máy chủ fixture V66 khỏi các ca thu hồi session/hạn mức cũ, không tắt bảo vệ ứng dụng. Sửa middleware tránh đếm hạn mức hai lần cho API hồ sơ mới.
 - artifacts/v663-preservation.json: cả 8 bảng dữ liệu cũ khớp số lượng và hash với backup nền; chỉ bỏ cột mới competency_snapshot khỏi phép so sánh cột lịch sử.
 - Frontend production build đạt. Không dùng build thành công thay cho nghiệm thu người dùng.

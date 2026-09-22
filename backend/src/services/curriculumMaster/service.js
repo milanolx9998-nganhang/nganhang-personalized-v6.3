@@ -33,6 +33,10 @@ export async function detail(actor,id,c=pool){
  const history=(await c.query('SELECT action,reason,created_at FROM curriculum_change_log WHERE version_id=$1 ORDER BY id DESC LIMIT 100',[id])).rows;
  return {version:v,outcomes,yccds,history};
 }
+export async function listImports(actor,id){
+ const v=await getVersion(pool,id);await permitted(actor,'curriculum.import',v);
+ return (await pool.query('SELECT id,filename,status,revision FROM curriculum_import_jobs WHERE version_id=$1 ORDER BY created_at DESC,id DESC',[id])).rows;
+}
 const itemInput=z.object({version_id:z.number().int().positive(),code:z.string().trim().min(1).max(120),text:z.string().min(1).max(10000),domain_code:z.string().max(80).default(''),outcome_id:z.number().int().positive().nullable().default(null),source_page:z.string().max(300).default(''),order_index:z.number().int().min(0).default(0),reason:z.string().trim().min(3).max(1000),revision:z.number().int().positive()}).strict();
 export async function saveItem(actor,type,id,raw){
  if(!['outcome','yccd'].includes(type))fail('Loại chuẩn không hợp lệ');const d=itemInput.parse(raw);
@@ -88,7 +92,7 @@ export async function upload(actor,versionId,file){
  const job=(await c.query('INSERT INTO curriculum_import_jobs(version_id,filename,checksum,workbook,created_by) VALUES($1,$2,$3,$4,$5) RETURNING id,filename,revision',[v.id,file.originalname,crypto.createHash('sha256').update(file.buffer).digest('hex'),workbook,actor.id])).rows[0];await audit(c,actor,v,'IMPORT_UPLOADED',null,{job:job.id,checksum:crypto.createHash('sha256').update(file.buffer).digest('hex')},'Tải nguồn vào staging');return {...job,sheets:workbook.sheets};});
 }
 async function getJob(actor,id,c,lock=false){const j=(await c.query('SELECT * FROM curriculum_import_jobs WHERE id=$1'+(lock?' FOR UPDATE':''),[id])).rows[0];if(!j)fail('Không tìm thấy import',404);const v=await getVersion(c,j.version_id,lock);await permitted(actor,'curriculum.import',v,c);return {j,v};}
-export async function preview(actor,id){const {j,v}=await getJob(actor,id,pool);return {job:{id:j.id,version_id:v.id,filename:j.filename,revision:j.revision,status:j.status},sheets:j.workbook.sheets,rows:(await pool.query('SELECT * FROM curriculum_import_rows WHERE import_job_id=$1 ORDER BY source_row',[id])).rows};}
+export async function preview(actor,id){const {j,v}=await getJob(actor,id,pool);return {job:{id:j.id,version_id:v.id,filename:j.filename,revision:j.revision,status:j.status,mapping:j.mapping},sheets:j.workbook.sheets,rows:(await pool.query('SELECT * FROM curriculum_import_rows WHERE import_job_id=$1 ORDER BY source_row',[id])).rows};}
 export async function mapImport(actor,id,raw){
  const d=z.object({sheet:z.string(),header_row:z.number().int().min(1).max(5000),columns:z.record(z.enum(fields),z.number().int().min(0).max(49)),topic_as_outcome:z.boolean().default(false),revision:z.number().int()}).strict().parse(raw);
  return tx(async c=>{const {j,v}=await getJob(actor,id,c,true);draft(v);if(j.status==='COMMITTED'||j.revision!==d.revision)fail('Import đã thay đổi hoặc đã commit',409);

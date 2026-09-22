@@ -14,6 +14,15 @@ export function registerV66(context){
   assert.equal((await req('GET',url,undefined,'other')).status,403);
   r=await req('GET',`/practice/students/${users.student}/learning-habits?subject_id=${master.subject_id}&grade=7`,undefined,'student');assert.equal(r.status,200,JSON.stringify(r.data));
   assert.equal((await req('POST','/competency/rubrics',{student_id:users.student},'student')).status,403);
+  const mapping={entries:[{axis_id:axes[0].id,weight:.8},{axis_id:axes[2].id,weight:.2}],normalize:true,confirmed:true,reason:'Ánh xạ minh chứng kiểm thử'};
+  assert.equal((await req('PUT','/competency/mappings/yccd/'+master.yccd_id,mapping,'teacher')).status,403);
+  r=await req('PUT','/competency/mappings/yccd/'+master.yccd_id,mapping);assert.equal(r.status,200,JSON.stringify(r.data));
+  r=await req('GET',`/competency/mappings?subject_id=${master.subject_id}&grade=7`);assert.equal(r.status,200);assert.deepEqual(r.data.mappings.find(m=>m.target_type==='yccd'&&String(m.target_id)===String(master.yccd_id)).entries.map(e=>e.weight),[.8,.2]);
+  const rubric={student_id:users.student,subject_id:master.subject_id,grade:7,axis_id:axes[1].id,evidence_type:'PRACTICAL_TASK',activity:'Đo và ghi số liệu cá nhân',performance:.75,notes:'Minh chứng test riêng',occurred_at:new Date(Date.now()-1000).toISOString(),reason:'Quan sát thực hành'};
+  r=await req('POST','/competency/rubrics',rubric,'teacher');assert.equal(r.status,201,JSON.stringify(r.data));
+  assert.equal((await req('POST','/competency/rubrics',{...rubric,student_id:users.other},'teacher')).status,403);
+  r=await req('POST','/competency/rubrics',rubric);assert.equal(r.status,201,JSON.stringify(r.data));
+  r=await req('GET',url,undefined,'student');assert.equal(r.status,200);const axis=r.data.axes.find(a=>a.axis_id===axes[1].id);assert.equal(axis.evidence_count,2);assert.equal(axis.performance_score,75);assert.equal(axis.sufficient,false);
  });
  let version,outcome,yccd,copied;
  test('V66: CRUD nháp, publish bất biến, copy lineage và diff',async()=>{
@@ -38,6 +47,8 @@ export function registerV66(context){
   assert.equal((await req('GET','/curriculum/import/'+id+'/preview',undefined,'teacher')).status,403);
   assert.equal((await req('PUT','/curriculum/import/'+id+'/map',{sheet,header_row:1,columns:{outcome_title:0,text:1,code:2},revision:1})).status,200);
   r=await req('GET','/curriculum/import/'+id+'/preview');assert.equal(r.data.rows.length,1);assert.equal(r.data.rows[0].row_status,'READY');
+  const jobs=await req('GET','/curriculum/versions/'+copied+'/imports');assert.equal(jobs.status,200);assert(jobs.data.some(j=>j.id===id));assert.equal(r.data.job.mapping.header_row,1);
+  assert.equal((await req('GET','/curriculum/versions/'+copied+'/imports',undefined,'teacher')).status,403);
   const commit={revision:r.data.job.revision,confirmed:true,reason:'Nhập dữ liệu kiểm thử CSV'};
   r=await req('POST','/curriculum/import/'+id+'/commit',commit);assert.equal(r.status,200,JSON.stringify(r.data));
   assert.equal((await req('POST','/curriculum/import/'+id+'/commit',commit)).status,409);
@@ -53,6 +64,14 @@ export function registerV66(context){
    await page.screenshot({path:path.resolve('../artifacts/v66-curriculum-diff.png'),fullPage:true});
    await page.setViewportSize({width:390,height:844});await page.screenshot({path:path.resolve('../artifacts/v66-curriculum-mobile.png'),fullPage:true,animations:'disabled'});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));assert.deepEqual(errors,[]);
    await page.getByRole('button',{name:'Khung năng lực',exact:true}).click();await page.getByRole('heading',{name:'Khung năng lực theo môn'}).waitFor();
+   const frames=(await context().req('GET','/competency/frameworks')).data.frameworks,frame=frames.find(f=>f.code==='TEST-KHTN');
+   await page.locator('select').filter({has:page.locator('option[value="'+frame.id+'"]')}).last().selectOption(String(frame.id));
+   await page.getByText('Gán trục năng lực cho YCCĐ',{exact:true}).click();await page.getByRole('button',{name:'Tải danh mục YCCĐ'}).click();await page.getByLabel('YCCĐ ánh xạ',{exact:true}).selectOption(String(context().master.yccd_id));
+   await page.getByLabel('Trọng số KHTN-C1',{exact:true}).fill('0.6');await page.getByLabel('Lý do mapping',{exact:true}).fill('Rà soát ánh xạ qua giao diện');await page.getByLabel('Xác nhận ánh xạ và trọng số đã được rà soát').check();await page.getByRole('button',{name:'Lưu mapping phiên bản'}).click();await page.getByText('Đã lưu phiên bản ánh xạ. Bài làm cũ giữ nguyên.').waitFor();
+   await page.screenshot({path:path.resolve('../artifacts/v66-mapping-mobile.png'),fullPage:true});
+   await page.goto('http://127.0.0.1:3103/practice/students/'+context().users.student+'/portfolio?tab=competency');await page.getByLabel('Môn học',{exact:true}).selectOption(String(context().master.subject_id));await page.getByText('Nhập minh chứng rubric giáo viên',{exact:true}).click();
+   await page.getByLabel('Trục minh chứng',{exact:true}).selectOption(String(frame.axes[1].id));await page.getByLabel('Hoạt động / sản phẩm',{exact:true}).fill('Quan sát thí nghiệm qua giao diện');await page.getByLabel('Mức đạt quan sát (%)',{exact:true}).fill('80');await page.getByLabel('Thời điểm quan sát',{exact:true}).fill('2026-01-01T09:00');await page.getByLabel('Căn cứ / lý do',{exact:true}).fill('Rubric quan sát cá nhân');await page.getByLabel('Tôi xác nhận minh chứng cá nhân và mức đạt đã được kiểm tra').check();
+   await page.getByRole('button',{name:'Ghi minh chứng',exact:true}).click();await page.getByText('Tìm hiểu tự nhiên — xem minh chứng',{exact:true}).click();await page.getByText('Quan sát thí nghiệm qua giao diện',{exact:true}).waitFor();
    const studentPage=await browser.newPage({viewport:{width:390,height:844}});studentPage.on('pageerror',e=>errors.push(e.message));
    await studentPage.goto('http://127.0.0.1:3103/login');await studentPage.getByPlaceholder('admin').fill('v63_student');await studentPage.locator('input[type=password]').fill(pw);await studentPage.getByRole('button',{name:'Đăng nhập',exact:true}).click();await studentPage.waitForURL('http://127.0.0.1:3103/practice');
    await studentPage.goto('http://127.0.0.1:3103/practice/portfolio?tab=competency');await studentPage.getByRole('heading',{name:'Năng lực theo minh chứng'}).waitFor();await studentPage.getByLabel('Môn học',{exact:true}).selectOption(String(context().master.subject_id));await studentPage.getByText('Chưa đủ dữ liệu để vẽ radar đầy đủ.',{exact:false}).waitFor();

@@ -18,7 +18,7 @@ export const SUPER_HIGH_RISK=new Set(['staff.manage','system.config','content.ex
 export const HIGH_RISK=new Set(['content.approve','content.export','content.export_answers','content.download_source','matrix.approve','matrix.lock','curriculum.publish','staff.manage','system.config','student.reset_password','student.transfer','student.disable','bank.manage','analytics.export','competency.manage_framework','competency.export']);
 export const SCHOOL_LEVELS=Object.freeze({THCS:[6,7,8,9],THPT:[10,11,12]});
 export const POSITION_LABELS=Object.freeze({SUBJECT_TEACHER:'Giáo viên bộ môn',HOMEROOM:'Giáo viên chủ nhiệm',DEPT_LEADER:'Tổ trưởng chuyên môn',GRADE_LEADER:'Khối trưởng',BOARD:'BGH giám sát',BOARD_PROFESSIONAL:'BGH chuyên môn',VIEWER:'Người xem',ADMIN:'Quản trị hệ thống'});
-const teaching=['competency.read','competency.view_student','student.read','learning.read','learning.read_attempt','learning.read_subject','content.read','content.write','content.create_version','content.view_answer','assignment.create','assignment.manage','assignment.read','matrix.read','matrix.create','exam.read','exam.create','exam.generate','bank.read','bank.write','curriculum.read','analytics.read'];
+const teaching=['competency.read','competency.view_student','competency.enter_rubric','student.read','learning.read','learning.read_attempt','learning.read_subject','content.read','content.write','content.create_version','content.view_answer','assignment.create','assignment.manage','assignment.read','matrix.read','matrix.create','exam.read','exam.create','exam.generate','bank.read','bank.write','curriculum.read','analytics.read'];
 const learning=['competency.read','competency.view_student','student.read','learning.read','learning.read_attempt','learning.read_all_subjects','assignment.read','analytics.read'];
 const read=['competency.read','competency.view_student','student.read','learning.read','learning.read_attempt','content.read','assignment.read','matrix.read','exam.read','bank.read','curriculum.read','analytics.read'];
 export const PRESETS=Object.freeze({
@@ -39,3 +39,4 @@ export const BUNDLES=Object.freeze({
  PROFESSIONAL_MANAGER:PRESETS.DEPT_LEADER,
  FULL_SCOPE:CAPABILITIES.filter(k=>!NON_DELEGABLE.has(k))
 });
+

@@ -14,6 +14,7 @@ r.get('/catalog',wrap(async(req,res)=>{
 r.get('/versions',wrap(async(req,res)=>res.json(await master.listVersions(req.user))));
 r.post('/versions',wrap(async(req,res)=>res.status(201).json(await master.createVersion(req.user,req.body))));
 r.get('/versions/:id',wrap(async(req,res)=>res.json(await master.detail(req.user,Number(req.params.id)))));
+r.get('/versions/:id/imports',wrap(async(req,res)=>res.json(await master.listImports(req.user,Number(req.params.id)))));
 r.post('/versions/:id/copy',wrap(async(req,res)=>res.status(201).json(await master.copyVersion(req.user,Number(req.params.id),req.body))));
 r.post('/versions/:id/publish',wrap(async(req,res)=>res.json(await master.publishVersion(req.user,Number(req.params.id),req.body))));
 r.get('/versions/:a/diff/:b',wrap(async(req,res)=>res.json(await master.diffVersions(req.user,Number(req.params.a),Number(req.params.b)))));

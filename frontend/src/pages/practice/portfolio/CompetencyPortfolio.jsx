@@ -2,6 +2,7 @@ import {useState} from 'react';
 import {Link} from 'react-router-dom';
 import {RadarChart,Radar,PolarGrid,PolarAngleAxis,PolarRadiusAxis,ResponsiveContainer} from 'recharts';
 import {base} from '../shared.jsx';
+import RubricForm from './RubricForm.jsx';
 import {usePortfolio,LoadState,date} from './common.jsx';
 
 const percent=value=>value==null?'Chưa có dữ liệu':`${value}%`;
@@ -27,7 +28,7 @@ function ProfileContent({id,subject,grade,mode,self}){
   {chartReady?<div style={{width:'100%',height:320}} role="img" aria-label="Biểu đồ năng lực; số liệu chi tiết ở bảng bên dưới"><ResponsiveContainer><RadarChart data={d.axes}><PolarGrid/><PolarAngleAxis dataKey="code"/><PolarRadiusAxis domain={[0,100]}/><Radar dataKey="performance_score" stroke="#087e79" fill="#087e79" fillOpacity={0.2}/></RadarChart></ResponsiveContainer></div>:<p role="status">Chưa đủ dữ liệu để vẽ radar đầy đủ. Không thay dữ liệu thiếu bằng điểm 0.</p>}
   <div style={{overflowX:'auto'}}><table className="table"><caption>Điểm quan sát và độ tin cậy là hai chỉ số riêng</caption><thead><tr><th scope="col">Trục năng lực</th><th scope="col">Điểm quan sát</th><th scope="col">Độ tin cậy</th><th scope="col">Minh chứng</th></tr></thead><tbody>{d.axes.map(a=><tr key={a.axis_id}><th scope="row">{a.name}</th><td>{a.sufficient?percent(a.performance_score):'Chưa đủ dữ liệu'}</td><td>{a.confidence_score}%</td><td>{a.evidence_count}</td></tr>)}</tbody></table></div>
   {d.axes.map(a=><details className="practice-card" key={a.axis_id}><summary>{a.name} — xem minh chứng</summary><p>Gần nhất: {date(a.last_evidence_at)} · {a.recent_evidence_count} minh chứng trong 30 ngày · {a.mapped_yccd_count} YCCĐ.</p>{!a.evidence.length?<p>Chưa có minh chứng phù hợp.</p>:a.evidence.map(e=><article key={e.evidence_ref}><p>{types[e.evidence_type]||e.evidence_type} · {date(e.occurred_at)} · {Math.round(e.performance*100)}%</p>{e.activity&&<p>{e.activity}</p>}{e.notes&&<p>{e.notes}</p>}{e.attempt_id&&<Link to={self?`/practice/review/${e.attempt_id}`:`/practice/students/${id}/attempts/${e.attempt_id}`}>Xem lượt làm</Link>}</article>)}</details>)}
- </>}<p>{d.unmapped_items} câu lịch sử chưa có ánh xạ năng lực; không suy ngược sang khung mới.</p><Recommendations id={id} subject={subject} grade={grade} self={self}/></>;
+ </>}<p>{d.unmapped_items} câu lịch sử chưa có ánh xạ năng lực; không suy ngược sang khung mới.</p>{!self&&d.framework&&<RubricForm id={id} subject={subject} grade={grade} axes={d.axes} onSaved={load.reload}/>}<Recommendations id={id} subject={subject} grade={grade} self={self}/></>;
 }
 function Recommendations({id,subject,grade,self}){
  const load=usePortfolio(`${base}/students/${id}/competency-recommendations?subject_id=${subject}&grade=${grade}`);

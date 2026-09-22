@@ -44,6 +44,7 @@ export async function curriculumImpact(client,type,id){
  counts.assignments=assignments.filter(a=>a.kind==='fixed'?a.fixed_hit:affected(a.config)).length;
  const matrices=(await client.query(`SELECT mt.id,mt.workflow_status,mt.content_scope_v2,EXISTS(SELECT 1 FROM matrix_cells mc WHERE mc.template_id=mt.id AND mc.${column}=$1) cell_hit FROM matrix_templates mt WHERE mt.subject_id=$2`,[id,entity.subject_id])).rows;
  for(const [key,statuses] of [['draft_matrices',['draft','pending_review']],['approved_matrices',['approved','locked']]])counts[key]=matrices.filter(m=>statuses.includes(m.workflow_status)&&(m.cell_hit||m.content_scope_v2&&affected(m.content_scope_v2))).length;
+ if(type==='outcome'||type==='yccd')counts.competency_mappings=(await client.query('SELECT count(*)::int count FROM competency_mapping_versions WHERE target_type=$1 AND target_id=$2',[type,String(id)])).rows[0].count;
  const fingerprint=crypto.createHash('sha256').update(JSON.stringify({entity,counts,targets})).digest('hex');
  return {entity,counts,fingerprint,note:'Không đổi phiên bản/bài làm/đề cũ. Phạm vi bài giao và ma trận được đối chiếu theo ID chuẩn có kiểu, không tìm chuỗi gần giống.'};
 }
