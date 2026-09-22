@@ -44,11 +44,30 @@ export async function parseJob(user,file,bulk){
  });
 }
 export async function getJob(user,id,client=pool){const job=(await client.query('SELECT * FROM import_jobs WHERE id=$1',[id])).rows[0];if(!job||job.created_by!==user.id&&user.role!=='admin')fail('Không có quyền với lần nhập này',403);job.items=(await client.query('SELECT * FROM import_items WHERE job_id=$1 ORDER BY sequence',[id])).rows;return job;}
+// §30 — reloading the browser must not lose a staging job. Visibility matches getJob(): a teacher
+// only ever sees their own jobs, so the list cannot be used to discover someone else's batch.
+export async function listJobs(user,query={}){
+ staff(user);const params=[],where=[];
+ if(user.role!=='admin'){params.push(user.id);where.push('j.created_by=$'+params.length);}
+ else if(query.created_by){params.push(Number(query.created_by));where.push('j.created_by=$'+params.length);}
+ if(query.status){params.push(query.status);where.push('j.status=$'+params.length);}
+ params.push(Math.min(50,Math.max(1,Number(query.limit)||20)));
+ return (await pool.query(`SELECT j.id,j.source_name,j.parser_type,j.status,j.created_at,j.confirmed_at,j.created_by,
+  count(i.id)::int AS item_count,
+  count(i.id) FILTER(WHERE i.validation->>'status'='ERROR')::int AS error_count,
+  count(i.result_question_id)::int AS imported_count
+  FROM import_jobs j LEFT JOIN import_items i ON i.job_id=j.id
+  ${where.length?'WHERE '+where.join(' AND '):''}
+  GROUP BY j.id ORDER BY j.created_at DESC LIMIT $${params.length}`,params)).rows;
+}
 export async function editJob(user,id,changes){staff(user);return tx(async client=>{await client.query('SELECT id FROM import_jobs WHERE id=$1 FOR UPDATE',[id]);const job=await getJob(user,id,client);if(job.status!=='preview')fail('Lần nhập đã xác nhận');for(const item of job.items){const change=changes.items?.find(i=>i.id===item.id);const {q,validation}=await enrich(client,{...item.draft,...change?.draft},!changes.bulk_ids||changes.bulk_ids.includes(item.id)?changes.bulk||{}:{});const duplicates=await findDuplicates(client,user,q);const decision=change?.decision||item.decision;if(!['import','skip','version','replace'].includes(decision))fail('Lựa chọn xử lý trùng không hợp lệ');await client.query('UPDATE import_items SET draft=$1,validation=$2,decision=$3,duplicate_candidates=$5 WHERE id=$4',[JSON.stringify(q),JSON.stringify(validation),decision,item.id,JSON.stringify(duplicates)]);}return {ok:true};});}
 export async function confirmJob(user,id,ids,bankId){staff(user);return tx(async client=>{
- await client.query('SELECT id FROM import_jobs WHERE id=$1 FOR UPDATE',[id]);const job=await getJob(user,id,client);if(job.status==='confirmed')return {ok:true,imported:job.items.filter(i=>i.result_question_id).length};
+ await client.query('SELECT id FROM import_jobs WHERE id=$1 FOR UPDATE',[id]);const job=await getJob(user,id,client);
+ // §31 — the caller needs the batch back, not just a count, so the UI can open exactly what was imported.
+ if(job.status==='confirmed'){const done=job.items.filter(i=>i.result_question_id);return {ok:true,job_id:id,imported:done.length,question_ids:done.map(i=>i.result_question_id)};}
  const checksum=crypto.createHash('sha256').update(await storage.get(sourceKey(job.source_path))).digest('hex');
  const items=job.items.filter(i=>ids.includes(i.id)&&i.decision!=='skip');if(!items.length)fail('Chọn ít nhất một câu hợp lệ');
- for(const item of items){const {q,validation}=await enrich(client,item.draft);if(validation.errors.length)fail(`Câu ${item.sequence}: ${validation.errors.join('; ')}`);if(q.subject_id)await subjectAccess(user,q.subject_id);const duplicateAction=['version','replace'].includes(item.decision);const isUpdate=q.record_action==='UPDATE';const duplicateId=isUpdate?Number(q.question_id):duplicateAction?item.duplicate_candidates[0]?.id:null;if(isUpdate&&(!duplicateId||!q.question_version_id))fail('UPDATE cần question_id và question_version_id');if(duplicateAction&&!duplicateId)fail('Không có bản gốc để tạo version');const result=await persistQuestion(client,user,q,{id:duplicateId,bankId,source:{type:job.parser_type,path:job.source_path,locator:q.source_locator,checksum}});await client.query('UPDATE import_items SET result_question_id=$1 WHERE id=$2',[result.id,item.id]);await log(client,user,'IMPORT_DUPLICATE_DECISION',item.id,{decision:item.decision,candidates:item.duplicate_candidates.map(c=>c.id)});}
- await client.query("UPDATE import_jobs SET status='confirmed',confirmed_at=now() WHERE id=$1",[id]);await log(client,user,'IMPORT_CONFIRM',id,{count:items.length});return {ok:true,imported:items.length};
+ const questionIds=[];
+ for(const item of items){const {q,validation}=await enrich(client,item.draft);if(validation.errors.length)fail(`Câu ${item.sequence}: ${validation.errors.join('; ')}`);if(q.subject_id)await subjectAccess(user,q.subject_id);const duplicateAction=['version','replace'].includes(item.decision);const isUpdate=q.record_action==='UPDATE';const duplicateId=isUpdate?Number(q.question_id):duplicateAction?item.duplicate_candidates[0]?.id:null;if(isUpdate&&(!duplicateId||!q.question_version_id))fail('UPDATE cần question_id và question_version_id');if(duplicateAction&&!duplicateId)fail('Không có bản gốc để tạo version');const result=await persistQuestion(client,user,q,{id:duplicateId,bankId,source:{type:job.parser_type,path:job.source_path,locator:q.source_locator,checksum}});await client.query('UPDATE import_items SET result_question_id=$1 WHERE id=$2',[result.id,item.id]);questionIds.push(result.id);await log(client,user,'IMPORT_DUPLICATE_DECISION',item.id,{decision:item.decision,candidates:item.duplicate_candidates.map(c=>c.id)});}
+ await client.query("UPDATE import_jobs SET status='confirmed',confirmed_at=now() WHERE id=$1",[id]);await log(client,user,'IMPORT_CONFIRM',id,{count:items.length});return {ok:true,job_id:id,imported:items.length,question_ids:questionIds};
  });}

@@ -40,3 +40,16 @@ export async function tx(callback) {
     client.release();
   }
 }
+
+// Runs the real mutation path and always rolls back. Used by bulk preflight so the preview is
+// produced by the same domain code as execution instead of a re-implemented rule set.
+export async function dryRun(callback) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    return await callback(client);
+  } finally {
+    await client.query('ROLLBACK').catch(() => {});
+    client.release();
+  }
+}

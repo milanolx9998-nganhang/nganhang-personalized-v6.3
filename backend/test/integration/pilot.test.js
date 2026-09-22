@@ -152,8 +152,10 @@ test('Trình duyệt GV: nhập mẫu, xem kho, giao bài và theo dõi lớp',{
  try{
   const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(origin+'/login');await page.getByPlaceholder('admin').fill('pilot_test_teacher');await page.locator('input[type=password]').fill(pw);await page.getByRole('button',{name:'Đăng nhập',exact:true}).click();await page.waitForURL(origin+'/');
-  await page.goto(origin+'/practice/import');await page.getByRole('heading',{name:'Nhập Word · Excel · QTI'}).waitFor();await page.locator('input[type=file]').setInputFiles(path.resolve('../templates/question-import-khtn.docx'));await page.getByRole('button',{name:'Phân tích và xem trước',exact:true}).click();await page.getByRole('heading',{name:/question-import-khtn.docx/}).waitFor();assert.equal(await page.locator('article.practice-card').count(),5);
-  await page.goto(origin+'/practice/banks');await page.getByRole('heading',{name:'Kho câu hỏi và duyệt nội dung'}).waitFor();
+  await page.goto(origin+'/practice/import');await page.getByRole('heading',{name:'Nhập Word · Excel · QTI'}).waitFor();await page.locator('input[type=file]').setInputFiles(path.resolve('../templates/question-import-khtn.docx'));await page.getByRole('button',{name:'Phân tích và xem trước',exact:true}).click();await page.getByRole('heading',{name:/question-import-khtn.docx/}).waitFor();
+  // V6.6.4: staging is a scannable grid. One row per question, and no per-row editor mounted.
+  assert.equal(await page.locator('.queue-table tbody tr').count(),5);assert.equal(await page.locator('.queue-table tbody textarea').count(),0);
+  await page.goto(origin+'/practice/banks');await page.getByRole('heading',{name:'Kho câu hỏi',exact:true}).waitFor();
   await page.goto(origin+'/practice/assignments');await page.getByRole('button',{name:'Tạo bài giao',exact:true}).click();await page.getByText('Hoặc chọn từng học sinh',{exact:true}).waitFor();
   await page.goto(origin+'/practice');await page.getByLabel('Năm học · Lớp').selectOption(String(classId));await page.getByText('pilot_test_student · pilot_test_student',{exact:true}).waitFor();await page.screenshot({path:path.join(artifacts,'teacher-dashboard.png'),fullPage:true});assert.deepEqual(errors,[]);
  }finally{await browser.close();}

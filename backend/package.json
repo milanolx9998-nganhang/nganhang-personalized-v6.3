@@ -1,6 +1,6 @@
 {
   "name": "nganhang-v4-backend",
-  "version": "6.5.3",
+  "version": "6.6.4",
   "private": true,
   "overrides": {
     "qs": "6.16.0"

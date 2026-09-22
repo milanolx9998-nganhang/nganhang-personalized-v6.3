@@ -1,8 +1,8 @@
 {
   "name": "nganhang-v4",
-  "version": "6.5.3",
+  "version": "6.6.4",
   "private": true,
-  "description": "Ngân hàng câu hỏi — V6.4.3 phạm vi bài–YCCĐ, cờ học sinh và duyệt phiên bản",
+  "description": "Ngân hàng câu hỏi — V6.6 chuẩn chương trình và khung năng lực, quy trình nhập/duyệt câu hỏi hàng loạt, auto-deploy an toàn",
   "scripts": {
     "install:all": "cd backend && npm install && cd ../frontend && npm install && cd ..",
     "build": "cd frontend && npm run build",

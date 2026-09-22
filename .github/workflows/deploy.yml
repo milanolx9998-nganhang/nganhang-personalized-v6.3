@@ -1,15 +1,62 @@
-name: Auto Deploy to Ubuntu Server
+name: Verify & Deploy
 
 on:
   push:
     branches:
       - main
+  workflow_dispatch:
+
+# Two pushes must never deploy on top of each other. Queue instead of cancelling, so a
+# half-applied deploy is never abandoned mid-flight.
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
 
 jobs:
+  verify:
+    name: Verify
+    runs-on: [self-hosted, linux]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Tests below are pure in-process units (access policy, matrix balancer, grading,
+      # competency rules, security DTO/permission checks). They never open a database
+      # connection, so verification cannot touch the production Supabase instance.
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci --no-audit --fund=false
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci --no-audit --fund=false
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Unit tests
+        working-directory: backend
+        run: npm test
+
+      - name: Security tests
+        working-directory: backend
+        run: npm run test:security
+
+      - name: Migration safety gate
+        run: |
+          CHANGED=$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" -- 'backend/src/db/*.sql' 2>/dev/null || true)
+          if [ -n "$CHANGED" ]; then
+            echo "Migration thay đổi: $CHANGED"
+            node scripts/migration-safety.mjs $CHANGED
+          else
+            echo "Không có migration mới."
+          fi
+
   deploy:
-    name: Build & Deploy
+    name: Deploy
+    needs: verify
     runs-on: [self-hosted, linux]
     steps:
       - name: Deploy application
-        run: |
-          /home/hieu/nganhang-personalized-v6.3/scripts/deploy-server.sh
+        run: /home/hieu/nganhang-personalized-v6.3/scripts/deploy-server.sh

@@ -49,7 +49,11 @@ export async function persistQuestion(client,user,raw,{id=null,bankId=null,sourc
  for(const media of q.media||[])await client.query('INSERT INTO question_media_links(question_version_id,media_id,location,order_index) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING',[result.current_version_id,media.id,media.location||'stem',media.order||0]);
  await log(client,user,id?'QUESTION_VERSION':'QUESTION_CREATE',result.id,{version:result.current_version_id});return result;
 }
-export async function questionList(user,query,capability='content.read'){
+// Every question listing (list, review queue, selection ids, bulk selection) resolves its scope
+// here so one change to access rules reaches all of them. Consumers MUST use QUESTION_FROM, since
+// the filters below reference both `q` and `v`.
+export const QUESTION_FROM='FROM questions q JOIN banks b ON b.id=q.bank_id LEFT JOIN question_versions v ON v.id=q.current_version_id';
+export async function questionScope(user,query,capability='content.read'){
  const a=await getEffectiveAccess(user),params=[a.org.banks.filter(b=>bankDecision(a,'read',b).allowed).map(b=>b.id)],where=['q.bank_id=ANY($1::int[])'];
  if(user.role==='admin'){where.length=0;params.length=0;}
  const scope=await getSubjectFilterSQL(user,'q',params.length+1,capability);if(scope.clause){params.push(...scope.params);params.push(user.id);where.push(`(${scope.clause} OR (q.subject_id IS NULL AND q.creator_id=$${params.length}))`);}
@@ -61,9 +65,17 @@ export async function questionList(user,query,capability='content.read'){
  if(query.metadata_status){params.push(query.metadata_status);where.push('q.metadata_status=$'+params.length);}
  if(query.tag_id){params.push(query.tag_id);where.push('EXISTS(SELECT 1 FROM question_tags qt WHERE qt.question_id=q.id AND qt.tag_id=$'+params.length+')');}
  if(query.outcome_ids?.length){params.push(query.outcome_ids.map(Number));where.push('q.outcome_id=ANY($'+params.length+'::int[])');}
- if(query.search){params.push('%'+query.search+'%');where.push(`q.stem_text ILIKE $${params.length}`);}
+ if(query.review_status){params.push(query.review_status);where.push('v.review_status=$'+params.length);}
+ if(query.created_by){params.push(Number(query.created_by));where.push('q.creator_id=$'+params.length);}
+ // Knowing a job id grants nothing on its own: the scope clauses above still apply.
+ if(query.import_job_id){params.push(query.import_job_id);where.push('EXISTS(SELECT 1 FROM import_items ii WHERE ii.result_question_id=q.id AND ii.job_id=$'+params.length+')');}
+ if(query.search){params.push('%'+query.search+'%');where.push(`(q.stem_text ILIKE $${params.length} OR q.question_code ILIKE $${params.length} OR q.normalized_content->>'display_code' ILIKE $${params.length})`);}
+ return {where,params};
+}
+export async function questionList(user,query,capability='content.read'){
+ const {where,params}=await questionScope(user,query,capability);
  const limit=Math.min(100,Math.max(1,Number(query.limit)||30)),offset=Math.max(0,Number(query.offset)||0);params.push(limit,offset);
- const rows=(await pool.query(`SELECT q.*,COALESCE(q.normalized_content,v.content) AS content,v.version_number,v.review_status,b.name AS bank_name,count(*) OVER()::int AS total FROM questions q JOIN banks b ON b.id=q.bank_id LEFT JOIN question_versions v ON v.id=q.current_version_id ${where.length?'WHERE '+where.join(' AND '):''} ORDER BY q.id DESC LIMIT $${params.length-1} OFFSET $${params.length}`,params)).rows;
+ const rows=(await pool.query(`SELECT q.*,COALESCE(q.normalized_content,v.content) AS content,v.version_number,v.review_status,b.name AS bank_name,count(*) OVER()::int AS total ${QUESTION_FROM} ${where.length?'WHERE '+where.join(' AND '):''} ORDER BY q.id DESC LIMIT $${params.length-1} OFFSET $${params.length}`,params)).rows;
  return Promise.all(rows.map(q=>visibleQuestion(user,q)));
 }
 export async function transition(client,user,id,next,{targetBankId=null,reason=''}={}){

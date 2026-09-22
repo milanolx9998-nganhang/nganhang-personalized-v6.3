@@ -1,4 +1,4 @@
-const ReviewQueue=lazy(()=>import('./pages/practice/ReviewQueue.jsx'));
+const ReviewWorkspace=lazy(()=>import('./pages/practice/ReviewWorkspace.jsx'));
 const FlaggedReview=lazy(()=>import('./pages/practice/FlaggedReview.jsx'));
 const CurriculumAdmin=lazy(()=>import('./pages/practice/CurriculumAdmin.jsx'));
 import {lazy,Suspense,useEffect} from 'react';
@@ -13,8 +13,8 @@ const Player=lazy(()=>import('./pages/practice/Player.jsx'));
 const Assignments=lazy(()=>import('./pages/practice/Assignments.jsx'));
 const SharedAssignment=lazy(()=>import('./pages/practice/Assignments.jsx').then(m=>({default:m.SharedAssignment})));
 const TeacherDashboard=lazy(()=>import('./pages/practice/Teacher.jsx').then(m=>({default:m.TeacherDashboard})));
-const ImportCenter=lazy(()=>import('./pages/practice/Teacher.jsx').then(m=>({default:m.ImportCenter})));
-const Banks=lazy(()=>import('./pages/practice/Teacher.jsx').then(m=>({default:m.Banks})));
+const ImportCenter=lazy(()=>import('./pages/practice/ImportCenter.jsx'));
+const Banks=lazy(()=>import('./pages/practice/Banks.jsx'));
 const AdminHub=lazy(()=>import('./pages/AdminHub.jsx'));
 const Password=lazy(()=>import('./pages/practice/Password.jsx'));
 import './styles/practice.css';
@@ -22,6 +22,7 @@ import './styles/learning.css';
 import './styles/content-picker.css';
 import './styles/portfolio.css';
 import './styles/v5-polish.css';
+import './styles/question-queue.css';
 import { useAuth } from './hooks/useAuth.js';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import Layout from './components/Layout.jsx';
@@ -69,7 +70,7 @@ export default function App() {
           <Route path="practice/students/:studentId/portfolio" element={<StudentPortfolio/>}/>
           <Route path="practice/students/:studentId/attempts/:attemptId" element={<AttemptReview/>}/>
           <Route path="practice/review/:attemptId" element={<AttemptReview/>}/>
-          <Route path="practice/reviews" element={<ReviewQueue/>}/>
+          <Route path="practice/reviews" element={<ReviewWorkspace/>}/>
           <Route path="practice/curriculum" element={<CurriculumAdmin/>}/>
           <Route path="practice/admin" element={<Navigate to="/admin/school" replace/>}/>
           <Route path="admin/:section" element={<AdminHub/>}/>

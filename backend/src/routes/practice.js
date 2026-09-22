@@ -26,7 +26,9 @@ import {studentAssignment} from '../services/practice/studentDto.js';
 import {attemptMedia} from '../services/practice/privateMedia.js';
 import {saveAssignment,listAssignments} from '../services/practice/assignments.js';
 import {questionList,persistQuestion,transition,personalBank} from '../services/practice/questions.js';
-import {parseJob,getJob,editJob,confirmJob} from '../services/practice/imports.js';
+import {questionQueue,selectionIds} from '../services/practice/questionQueue.js';
+import {bulkPreflight,bulkWorkflow,BULK_ACTIONS,MAX_BULK_IDS} from '../services/practice/bulkWorkflow.js';
+import {parseJob,getJob,editJob,confirmJob,listJobs} from '../services/practice/imports.js';
 import {studentList,studentProfile,createStudent,updateStudent,transferStudent,studentStatus,setStudentPassword} from '../services/practice/students.js';
 import {importRoster,previewRoster,confirmRoster} from '../services/practice/roster.js';
 import {buildWorksheet} from '../services/practice/worksheetExport.js';
@@ -112,12 +114,26 @@ r.get('/banks',wrap(async(req,res)=>{if(req.user.role==='student')fail('Không �
 r.post('/banks',wrap(async(req,res)=>{admin(req.user);const d=z.object({name:z.string().min(1),kind:z.enum(['department','school']),department_id:z.number().int().nullable().default(null)}).parse(req.body);res.json((await pool.query('INSERT INTO banks(name,kind,department_id) VALUES($1,$2,$3) RETURNING *',[d.name,d.kind,d.department_id])).rows[0]);}));
 r.post('/bank-permissions',wrap(async(req,res)=>{admin(req.user);const d=z.object({bank_id:z.number().int().positive(),user_id:z.number().int().positive(),permission:z.enum(['read','write','review'])}).strict().parse(req.body);res.json(await saveBankAccess(req.user,d.user_id,d.bank_id,{permission:d.permission,reason:'Cấp quyền kho qua API tương thích'}));}));
 r.get('/questions',wrap(async(req,res)=>{if(req.user.role==='student')fail('Không đủ quyền',403);res.json(await questionList(req.user,req.query));}));
+// Canonical bulk surface. The legacy /api/questions/bulk-review path stays for old clients only;
+// everything new goes through here so preflight and execution share one domain path.
+const bulkBody=z.object({
+ ids:z.array(z.number().int().positive()).min(1).max(MAX_BULK_IDS),
+ action:z.enum(BULK_ACTIONS),
+ reason:z.string().trim().max(1000).optional().default(''),
+ target_bank_id:z.number().int().positive().nullable().optional().default(null),
+ expected_versions:z.record(z.string()).nullable().optional().default(null),
+}).strict();
+r.get('/questions/queue',wrap(async(req,res)=>res.json(await questionQueue(req.user,req.query))));
+r.get('/questions/selection-ids',wrap(async(req,res)=>res.json(await selectionIds(req.user,req.query))));
+r.post('/questions/bulk-preflight',wrap(async(req,res)=>res.json(await bulkPreflight(req.user,bulkBody.parse(req.body)))));
+r.post('/questions/bulk-workflow',wrap(async(req,res)=>res.json(await bulkWorkflow(req.user,bulkBody.parse(req.body)))));
 r.post('/questions',wrap(async(req,res)=>res.status(201).json(await tx(c=>persistQuestion(c,req.user,req.body,{bankId:req.body.bank_id})))));
 r.put('/questions/:id',wrap(async(req,res)=>res.json(await tx(c=>persistQuestion(c,req.user,req.body,{id:Number(req.params.id)})))));
 r.post('/questions/:id/workflow',wrap(async(req,res)=>res.json(await tx(c=>transition(c,req.user,Number(req.params.id),req.body.status,req.body)))));
 r.post('/questions/:id/copy',wrap(async(req,res)=>res.json(await tx(async c=>{const q=(await c.query('SELECT * FROM questions WHERE id=$1',[req.params.id])).rows[0];if(!q)fail('Không tìm thấy câu hỏi',404);await bankAccess(req.user,q.bank_id,'read',c);const version=(await c.query('SELECT * FROM question_versions WHERE id=$1',[q.current_version_id])).rows[0];return persistQuestion(c,req.user,version);} ))));
 r.get('/questions/:id/versions',wrap(async(req,res)=>{const q=(await pool.query('SELECT * FROM questions WHERE id=$1',[req.params.id])).rows[0];if(!q||req.user.role==='student')fail('Không đủ quyền',403);if(q.subject_id&&!await contentCapability(req.user,'read',q.subject_id,pool,{grade:q.grade,bankId:q.bank_id}))fail('Môn ngoài phạm vi',403);await bankAccess(req.user,q.bank_id);if(!await can(req.user,'content.view_answer',{subjectId:q.subject_id,grade:q.grade,bankId:q.bank_id}))fail('Không có quyền xem đáp án phiên bản',403);res.json((await pool.query('SELECT * FROM question_versions WHERE question_id=$1 ORDER BY version_number DESC',[req.params.id])).rows.map(v=>staffQuestionDto(v,true)));}));
 r.post('/imports',uploadPermission('content.write'),upload.single('file'),wrap(async(req,res)=>res.status(201).json(await parseJob(req.user,req.file,req.body.metadata?JSON.parse(req.body.metadata):{}))));
+r.get('/imports',wrap(async(req,res)=>res.json(await listJobs(req.user,req.query))));
 r.get('/imports/:id',wrap(async(req,res)=>res.json(await getJob(req.user,req.params.id))));
 r.put('/imports/:id',wrap(async(req,res)=>res.json(await editJob(req.user,req.params.id,req.body))));
 r.post('/imports/:id/confirm',wrap(async(req,res)=>{const d=z.object({ids:z.array(z.string().uuid()).min(1),bank_id:z.number().int().optional()}).parse(req.body);res.json(await confirmJob(req.user,req.params.id,d.ids,d.bank_id));}));
