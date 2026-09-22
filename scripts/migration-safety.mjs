@@ -2,6 +2,7 @@
 // migrations. Anything that can destroy or rewrite existing rows must stop the pipeline and be
 // applied by an operator with a verified backup in hand.
 import fs from 'node:fs';
+import { execSync } from 'node:child_process';
 
 // Patterns are data-destructive only. DROP/CREATE OR REPLACE of triggers, functions and views is
 // how every migration in this repo evolves behaviour, so those stay allowed.
@@ -28,9 +29,22 @@ export function scanSql(sql) {
   return DESTRUCTIVE.filter(([re]) => re.test(body)).map(([, label]) => label);
 }
 
+function readFileContent(file) {
+  if (fs.existsSync(file)) {
+    return fs.readFileSync(file, 'utf8');
+  }
+  // If file does not exist on disk (e.g. newly added migration before git checkout), read from git
+  for (const ref of ['origin/main', 'HEAD']) {
+    try {
+      return execSync(`git show "${ref}:${file}"`, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] });
+    } catch {}
+  }
+  return '';
+}
+
 export function scanFiles(files) {
   return files
-    .map(file => ({file, findings: scanSql(fs.readFileSync(file, 'utf8'))}))
+    .map(file => ({file, findings: scanSql(readFileContent(file))}))
     .filter(r => r.findings.length);
 }
 
