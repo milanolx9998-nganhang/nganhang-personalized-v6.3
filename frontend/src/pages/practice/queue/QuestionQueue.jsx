@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useState} from 'react';
+import {useEffect, useMemo, useRef, useState} from 'react';
 import {api} from '../../../api/client.js';
 import {base, ErrorBox} from '../shared.jsx';
 import {Rich} from '../Rich.jsx';
@@ -29,16 +29,35 @@ export function useQueue(search) {
 export function useSelection() {
   const [map, setMap] = useState({});
   const [scope, setScope] = useState(null);
+  // Mốc neo cho chọn khoảng: tick một dòng rồi Shift+tick dòng khác để chọn cả đoạn giữa.
+  const anchor = useRef(null);
   const ids = useMemo(() => Object.keys(map).map(Number), [map]);
   return {
     map, ids, scope,
     count: ids.length,
     has: id => String(id) in map,
-    toggle: (id, version) => setMap(m => {
-      const next = {...m};
-      if (String(id) in next) delete next[String(id)]; else next[String(id)] = version;
-      return next;
-    }),
+    toggle: (id, version) => {
+      anchor.current = id;
+      setMap(m => {
+        const next = {...m};
+        if (String(id) in next) delete next[String(id)]; else next[String(id)] = version;
+        return next;
+      });
+    },
+    // rows = các dòng đang hiển thị, theo đúng thứ tự trên màn hình.
+    selectRange: (rows, id, version) => {
+      const to = rows.findIndex(r => r.id === id);
+      const from = rows.findIndex(r => r.id === anchor.current);
+      if (to < 0) return;
+      if (from < 0) { anchor.current = id; setMap(m => ({...m, [String(id)]: version})); return; }
+      const [lo, hi] = from <= to ? [from, to] : [to, from];
+      setMap(m => {
+        const next = {...m};
+        for (const row of rows.slice(lo, hi + 1)) next[String(row.id)] = row.current_version_id;
+        return next;
+      });
+      anchor.current = id;
+    },
     setRows: (rows, on) => setMap(m => {
       const next = {...m};
       for (const r of rows) { if (on) next[String(r.id)] = r.current_version_id; else delete next[String(r.id)]; }
@@ -50,7 +69,7 @@ export function useSelection() {
       setScope({total: result.total, truncated: result.truncated, limit: result.limit});
       return result;
     },
-    clear: () => { setMap({}); setScope(null); },
+    clear: () => { setMap({}); setScope(null); anchor.current = null; },
   };
 }
 
@@ -83,9 +102,11 @@ export function QuestionQueueTable({rows, selection, activeId, onActivate, pageS
             <tr key={row.id} className={row.id === activeId ? 'queue-row active' : 'queue-row'}
                 aria-selected={row.id === activeId} onClick={() => onActivate(row)}>
               <td className="queue-check" data-label="Chọn" onClick={e => e.stopPropagation()}>
+                {/* Shift+tick chọn cả đoạn từ dòng đã tick gần nhất tới dòng này. */}
                 <input type="checkbox" aria-label={'Chọn câu ' + row.display_code}
                        checked={selection.has(row.id)}
-                       onChange={() => selection.toggle(row.id, row.current_version_id)}/>
+                       onClick={e => { if (e.shiftKey) { e.preventDefault(); selection.selectRange(rows, row.id, row.current_version_id); } }}
+                       onChange={e => { if (!e.nativeEvent.shiftKey) selection.toggle(row.id, row.current_version_id); }}/>
               </td>
               <td data-label="Mã" className="queue-code">{row.display_code}</td>
               <td data-label="Nội dung" className="queue-stem">{row.stem_excerpt}</td>

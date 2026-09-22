@@ -15,6 +15,7 @@
     "seed-khtn9": "node src/db/seed-khtn9.js",
     "seed-kntt": "node src/db/seed-kntt.js",
     "seed-khoa-hoc": "node src/db/seed-khoa-hoc.js",
+    "seed:khtn7-lessons": "node src/db/seed-khtn7-vatli-lessons.js",
     "test": "node test/matrixBalancer.test.js && node --test test/practice/*.test.js",
     "test:integration": "node --test test/integration/*.test.js",
     "test:security": "node --test test/security/*.test.js",

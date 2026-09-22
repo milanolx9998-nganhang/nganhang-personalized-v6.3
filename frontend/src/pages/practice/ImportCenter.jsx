@@ -230,6 +230,19 @@ export default function ImportCenter() {
           </button>
         )}
 
+        {/* Kiểm cách đánh số của cả lô: chỉ cảnh báo, không tự sửa mã người soạn đã đặt. */}
+        {job.numbering?.issues?.length > 0 && (
+          <details className="warn-box">
+            <summary>
+              {job.numbering.mode === 'CONTENT_UNIT_5_FORMS' ? 'Bộ theo YCCĐ (4 đơn vị × 5 dạng)'
+                : job.numbering.mode === 'INDEPENDENT_10' ? 'Bộ 10 câu độc lập' : 'Cách đánh số tự do'}
+              {' · '}{job.numbering.issues.length} điểm cần xem
+            </summary>
+            <ul>{job.numbering.issues.map((issue, i) => <li key={i}>{issue.message}</li>)}</ul>
+            <p>Đây là cảnh báo về cách đánh số, không chặn nhập. Hệ thống không tự sửa mã câu.</p>
+          </details>
+        )}
+
         <div className="practice-actions select-actions">
           <button className="btn" onClick={() => setSelected(items.filter(i => i.validation.status !== 'ERROR').map(i => i.id))}>Chọn tất cả hợp lệ</button>
           <button className="btn" onClick={() => setSelected(visible.filter(i => i.validation.status !== 'ERROR').map(i => i.id))}>Chọn theo bộ lọc</button>

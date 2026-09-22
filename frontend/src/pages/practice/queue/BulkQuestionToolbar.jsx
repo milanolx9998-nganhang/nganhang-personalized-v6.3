@@ -1,13 +1,14 @@
 import {useState} from 'react';
 import {api} from '../../../api/client.js';
 import {base, ErrorBox} from '../shared.jsx';
+import RejectReasonPopover from '../workspace/RejectReasonPopover.jsx';
 
 export const ACTION_LABELS = {
-  submit: 'Gửi duyệt', approve: 'Duyệt', request_changes: 'Yêu cầu sửa',
+  submit: 'Gửi duyệt', approve: 'Duyệt', request_changes: 'Trả sửa',
   reject: 'Từ chối', archive: 'Lưu trữ', activate: 'Đưa vào luyện',
 };
 const NEEDS_REASON = new Set(['request_changes', 'reject']);
-// §21 — one checklist per batch, not four ticks per clean question. Deep review still asks per item.
+// §21 — một checklist cho cả lô, không bắt tick bốn mục cho từng câu sạch.
 const CHECKLIST = [
   'Nội dung / dữ kiện đúng, không mơ hồ',
   'Đáp án và quy tắc chấm khớp dạng câu',
@@ -24,7 +25,7 @@ function PlanReport({plan, onRetryEligible}) {
   ].filter(([, rows]) => rows?.length);
   return (
     <div className="bulk-plan">
-      <p role="status">Đã kiểm tra {plan.requested} câu: {plan.eligible.length} đủ điều kiện · {plan.requires_deep_review.length} cần rà soát · {plan.blocked.length} bị chặn.</p>
+      <p role="status">Đã kiểm {plan.requested} câu: {plan.eligible.length} đủ điều kiện · {plan.requires_deep_review.length} cần rà soát · {plan.blocked.length} bị chặn.</p>
       {groups.map(([label, rows, cls]) => (
         <details key={label} className={cls} open={cls !== 'ok-box'}>
           <summary>{label} ({rows.length})</summary>
@@ -40,9 +41,11 @@ function PlanReport({plan, onRetryEligible}) {
   );
 }
 
-export default function BulkQuestionToolbar({selection, actions, banks = [], onDone, extraNote}) {
-  const [action, setAction] = useState(actions[0]);
+export default function BulkQuestionToolbar({selection, actions, banks = [], onDone, extraActions}) {
+  // Thanh luôn gọn: chọn một thao tác mới mở panel chứa checklist, lý do và kết quả kiểm tra.
+  const [action, setAction] = useState(null);
   const [reason, setReason] = useState('');
+  const [reasonCodes, setReasonCodes] = useState([]);
   const [targetBank, setTargetBank] = useState('');
   const [checked, setChecked] = useState([]);
   const [plan, setPlan] = useState(null);
@@ -50,6 +53,7 @@ export default function BulkQuestionToolbar({selection, actions, banks = [], onD
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
+  const close = () => { setAction(null); setPlan(null); setChecked([]); setReason(''); setReasonCodes([]); };
   const checklistDone = action !== 'approve' || checked.length === CHECKLIST.length;
   const reasonDone = !NEEDS_REASON.has(action) || reason.trim().length > 0;
   const ready = selection.count > 0 && checklistDone && reasonDone;
@@ -73,63 +77,81 @@ export default function BulkQuestionToolbar({selection, actions, banks = [], onD
     setBusy(true); setError(''); setMessage('');
     try {
       const result = await api.post(base + '/questions/bulk-workflow', body(ids));
-      setMessage(`${ACTION_LABELS[action]}: đã áp dụng cho ${result.applied} câu (lô ${result.batch_id.slice(0, 8)}).`);
-      setPlan(null); setChecked([]); setReason(''); selection.clear(); onDone?.(result);
+      setMessage(`${ACTION_LABELS[action]}: đã áp dụng cho ${result.applied} câu.`);
+      selection.clear(); close(); onDone?.(result);
     } catch (e) {
       setError(e.message);
-      // 409 from an atomic batch carries the same shape preflight returns, so the operator sees
-      // exactly which questions stopped the whole run.
       if (e.details?.eligible) setPlan(e.details);
     } finally { setBusy(false); }
   }
 
   return (
-    <section className="bulk-toolbar practice-card" aria-label="Thao tác hàng loạt">
-      <p><strong>{selection.count}</strong> câu đang chọn
-        {selection.scope && ` · chọn theo bộ lọc: ${selection.scope.total} câu khớp${selection.scope.truncated ? `, giới hạn ${selection.scope.limit} câu mỗi lô` : ''}`}
-        {selection.count > 0 && <> · <button className="btn" onClick={() => { selection.clear(); setPlan(null); }}>Bỏ chọn</button></>}
-      </p>
-      {selection.scope?.truncated &&
-        <p className="warn-box">Bộ lọc khớp {selection.scope.total} câu, vượt giới hạn {selection.scope.limit} câu mỗi lô. Hãy thu hẹp bộ lọc và xử lý thành nhiều lô.</p>}
-      {extraNote}
-      <div className="practice-grid">
-        <label>Thao tác
-          <select value={action} onChange={e => { setAction(e.target.value); setPlan(null); setChecked([]); }}>
-            {actions.map(a => <option key={a} value={a}>{ACTION_LABELS[a]}</option>)}
-          </select>
-        </label>
-        {banks.length > 0 && <label>Kho đích (tùy chọn)
-          <select value={targetBank} onChange={e => setTargetBank(e.target.value)}>
-            <option value="">Giữ kho hiện tại</option>
-            {banks.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-          </select>
-        </label>}
+    <>
+      <div className="bulk-bar" role="region" aria-label="Thao tác hàng loạt">
+        <span><strong>{selection.count}</strong> câu đã chọn
+          {selection.scope?.truncated && ` · bộ lọc khớp ${selection.scope.total}, giới hạn ${selection.scope.limit} câu mỗi lô`}
+        </span>
+        <div className="bulk-bar-actions">
+          {actions.map(a => (
+            <button key={a} className={'btn' + (a === action ? ' primary' : '')}
+                    onClick={() => { setAction(a === action ? null : a); setPlan(null); setChecked([]); }}>
+              {ACTION_LABELS[a]}
+            </button>
+          ))}
+          {extraActions}
+          <button className="btn" onClick={() => { selection.clear(); close(); }}>Bỏ chọn</button>
+        </div>
       </div>
-      <label>Lý do {NEEDS_REASON.has(action) ? '(bắt buộc)' : '(tùy chọn)'}
-        <textarea rows={2} value={reason} onChange={e => setReason(e.target.value)}
-                  placeholder="Nêu căn cứ cho thao tác này…"/>
-      </label>
-      {action === 'approve' && <fieldset>
-        <legend>Xác nhận trước khi duyệt cả lô</legend>
-        {CHECKLIST.map((item, i) => (
-          <label className="scope-v2-tick" key={item}>
-            <input type="checkbox" checked={checked.includes(i)}
-                   onChange={e => setChecked(e.target.checked ? [...checked, i] : checked.filter(n => n !== i))}/>
-            {item}
-          </label>
-        ))}
-        <p>Câu có rủi ro (cách ly, hồ sơ P0/P1, sai phân loại, lỗi kiểm tra) vẫn bị tách sang rà soát chi tiết, không duyệt nhanh.</p>
-      </fieldset>}
-      <ErrorBox error={error}/>
       {message && <p className="ok-box" role="status">{message}</p>}
-      <div className="practice-actions">
-        <button className="btn" disabled={busy || !ready} onClick={preflight}>Kiểm tra trước</button>
-        <button className="btn primary" disabled={busy || !ready || !plan || !plan.eligible.length || plan.blocked.length > 0 || plan.requires_deep_review.length > 0}
-                onClick={() => execute()}>
-          {ACTION_LABELS[action]} {plan?.eligible.length || selection.count} câu
-        </button>
-      </div>
-      <PlanReport plan={plan} onRetryEligible={() => execute(plan.eligible.map(e => e.question_id))}/>
-    </section>
+
+      {action && (
+        <section className="practice-card bulk-sheet" aria-label={ACTION_LABELS[action] + ' hàng loạt'}>
+          <header className="section-heading">
+            <h3>{ACTION_LABELS[action]} {selection.count} câu</h3>
+            <button className="btn" onClick={close}>Đóng</button>
+          </header>
+          <ErrorBox error={error}/>
+
+          {NEEDS_REASON.has(action)
+            ? <RejectReasonPopover count={selection.count} busy={busy}
+                                   submitLabel={`Kiểm tra trước khi ${ACTION_LABELS[action].toLowerCase()}`}
+                                   onCancel={close}
+                                   onSubmit={({codes, reason: text}) => { setReasonCodes(codes); setReason(text); setPlan(null); }}/>
+            : <>
+                {banks.length > 0 && <label>Kho đích (tùy chọn)
+                  <select value={targetBank} onChange={e => setTargetBank(e.target.value)}>
+                    <option value="">Giữ kho hiện tại</option>
+                    {banks.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                  </select>
+                </label>}
+                {action === 'approve' && <fieldset>
+                  <legend>Xác nhận trước khi duyệt cả lô</legend>
+                  {CHECKLIST.map((item, i) => (
+                    <label className="scope-v2-tick" key={item}>
+                      <input type="checkbox" checked={checked.includes(i)}
+                             onChange={e => setChecked(e.target.checked ? [...checked, i] : checked.filter(n => n !== i))}/>
+                      {item}
+                    </label>
+                  ))}
+                  <p>Câu có rủi ro vẫn bị tách sang rà soát chi tiết, không duyệt nhanh.</p>
+                </fieldset>}
+              </>}
+
+          {reason && NEEDS_REASON.has(action) && (
+            <p className="ok-box">Lý do: {reason}{reasonCodes.length ? ` (${reasonCodes.join(', ')})` : ''}</p>
+          )}
+
+          <div className="practice-actions">
+            <button className="btn" disabled={busy || !ready} onClick={preflight}>Kiểm tra trước</button>
+            <button className="btn primary"
+                    disabled={busy || !ready || !plan || !plan.eligible.length || plan.blocked.length > 0 || plan.requires_deep_review.length > 0}
+                    onClick={() => execute()}>
+              {ACTION_LABELS[action]} {plan?.eligible.length || selection.count} câu
+            </button>
+          </div>
+          <PlanReport plan={plan} onRetryEligible={() => execute(plan.eligible.map(e => e.question_id))}/>
+        </section>
+      )}
+    </>
   );
 }

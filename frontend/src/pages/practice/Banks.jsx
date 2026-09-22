@@ -10,6 +10,7 @@ import {useQueue, useSelection, QuestionQueueTable, QuestionPreviewPane} from '.
 import WorkspaceShell from './workspace/WorkspaceShell.jsx';
 import SimpleFilterBar from './workspace/SimpleFilterBar.jsx';
 import LessonAssignDialog from './workspace/LessonAssignDialog.jsx';
+import RejectReasonPopover from './workspace/RejectReasonPopover.jsx';
 import {QuestionEditor} from './Teacher.jsx';
 
 const NEW_DRAFT = params => ({
@@ -36,6 +37,7 @@ export default function Banks() {
   const [deepId, setDeepId] = useState(null);
   const [editor, setEditor] = useState(null);
   const [assigning, setAssigning] = useState(false);
+  const [rejecting, setRejecting] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
@@ -86,18 +88,15 @@ export default function Banks() {
     finally { setBusy(false); }
   }
 
-  const single = useCallback(async (row, action) => {
-    let reason = '';
-    if (action === 'request_changes') {
-      reason = window.prompt('Lý do yêu cầu sửa') || '';
-      if (!reason.trim()) return;
-    }
+  const single = useCallback(async (row, action, reason = '') => {
+    if (action === 'request_changes' && !reason.trim()) { setRejecting(row.id); return; }
     setBusy(true); setError('');
     try {
       await api.post(base + '/questions/bulk-workflow', {
         ids: [row.id], action, reason: reason.trim(),
         expected_versions: {[String(row.id)]: row.current_version_id},
       });
+      setRejecting(null);
       queue.reload();
     } catch (e) {
       const stopper = e.details?.requires_deep_review?.[0] || e.details?.blocked?.[0];
@@ -112,11 +111,15 @@ export default function Banks() {
       {active.review_status === 'PENDING_REVIEW' && user.capabilities?.['content.approve'] &&
         <button className="btn primary" disabled={busy} onClick={() => single(active, 'approve')}>Duyệt</button>}
       {active.review_status === 'PENDING_REVIEW' && user.capabilities?.['content.review'] &&
-        <button className="btn" disabled={busy} onClick={() => single(active, 'request_changes')}>Trả sửa</button>}
+        <button className="btn" disabled={busy} onClick={() => setRejecting(active.id)}>Trả sửa</button>}
       <button className="btn" disabled={busy} onClick={async () => {
         try { await api.post(`${base}/questions/${active.id}/copy`, {}); queue.reload(); }
         catch (e) { setError(e.message); }
       }}>Sao chép</button>
+      {rejecting === active.id && (
+        <RejectReasonPopover busy={busy} onCancel={() => setRejecting(null)}
+                             onSubmit={({reason}) => single(active, 'request_changes', reason)}/>
+      )}
     </div>
   );
 
@@ -157,13 +160,10 @@ export default function Banks() {
       </div>
 
       {/* Không chọn câu nào thì không có thanh thao tác hàng loạt. */}
-      {!readOnly && selection.count > 0 && <>
-        <div className="practice-actions">
-          <button className="btn" onClick={() => setAssigning(true)}>Gán Bài cho {selection.count} câu</button>
-        </div>
+      {!readOnly && selection.count > 0 &&
         <BulkQuestionToolbar selection={selection} actions={bulkActions} banks={banks.data || []}
-                             onDone={() => { queue.reload(); setActiveId(null); }}/>
-      </>}
+                             onDone={() => { queue.reload(); setActiveId(null); }}
+                             extraActions={<button className="btn" onClick={() => setAssigning(true)}>Gán Bài</button>}/>}
       {assigning && <LessonAssignDialog ids={selection.ids} onClose={() => setAssigning(false)}
                                         onDone={result => { setMessage(`Đã gắn Bài cho ${result.assigned} câu.`); selection.clear(); queue.reload(); }}/>}
 

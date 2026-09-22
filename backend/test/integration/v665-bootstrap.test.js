@@ -268,6 +268,65 @@ test('V665 bootstrap: resolver bám phiên bản đang hiệu lực, không tr�
     'Resolver không được trả bản chương trình cũ khi đã có bản công bố mới');
 });
 
+test('V665 bootstrap: máy chủ tự kiểm hồ sơ nguồn, không tin client', {skip}, async () => {
+  // Phiên bản khối 8 nhưng nạp workbook khối 7: phải bị chặn ở máy chủ, dù client khai đúng hồ sơ.
+  const version = await req('POST', '/curriculum/versions', {
+    subject_id: subjectId, grade: 8, version_code: 'GDPT2018-K8-SAI', title: 'Kiểm thử lệch khối',
+    source_name: 'Outcome_YCCD_KHTN_7.xlsx', source_ref: 'Chương trình GDPT 2018',
+  });
+  expect(version, 201);
+  const job = await uploadWorkbook(7, version.data.id);
+  const preview = await req('GET', '/curriculum/import/' + job.id + '/preview');
+  expect(preview, 200);
+  const sheet7 = preview.data.trusted.sheets.find(s => s.grade === 7);
+  assert.equal(sheet7.grade_matches_version, false, 'Khối sheet phải khác khối phiên bản');
+
+  const mismatched = await req('PUT', '/curriculum/import/' + job.id + '/map', {
+    sheet: sheet7.sheet, header_row: sheet7.header_row, columns: sheet7.columns,
+    topic_as_outcome: true, source_profile: 'KHTN_OUTCOME_YCCD_OFFICIAL_V1', revision: job.revision,
+  });
+  expect(mismatched, 409);
+  assert.equal(mismatched.data.details.code, 'TRUSTED_SOURCE_GRADE_MISMATCH');
+  assert.equal(mismatched.data.details.sheet_grade, 7);
+  assert.equal(mismatched.data.details.version_grade, 8);
+  assert.equal((await db.query('SELECT count(*)::int n FROM curriculum_import_rows WHERE import_job_id=$1', [job.id])).rows[0].n, 0,
+    'Bị chặn thì không được dàn dựng dòng nào');
+
+  // Client khai sheet không có trong hồ sơ nguồn cũng bị từ chối.
+  const unknown = await req('PUT', '/curriculum/import/' + job.id + '/map', {
+    sheet: sheet7.sheet, header_row: 1, columns: sheet7.columns,
+    topic_as_outcome: true, source_profile: 'KHTN_OUTCOME_YCCD_OFFICIAL_V1', revision: job.revision,
+  });
+  expect(unknown, 409);
+  assert.equal(unknown.data.details.code, 'TRUSTED_SOURCE_GRADE_MISMATCH');
+});
+
+test('V665 bootstrap: máy chủ dùng ánh xạ tự suy ra, bỏ qua header/cột sai do client gửi', {skip}, async () => {
+  const version = await req('POST', '/curriculum/versions', {
+    subject_id: subjectId, grade: 9, version_code: 'GDPT2018-K9-SERVERMAP', title: 'Kiểm thử ánh xạ máy chủ',
+    source_name: 'Outcome_YCCD_KHTN_9.xlsx', source_ref: 'Chương trình GDPT 2018',
+  });
+  expect(version, 201);
+  const job = await uploadWorkbook(9, version.data.id);
+  const preview = await req('GET', '/curriculum/import/' + job.id + '/preview');
+  const sheet = preview.data.trusted.sheets.find(s => s.grade === 9);
+
+  // Client gửi dòng tiêu đề và cột sai hoàn toàn; máy chủ phải tự nhận diện lại và dùng bản đúng.
+  const mapped = await req('PUT', '/curriculum/import/' + job.id + '/map', {
+    sheet: sheet.sheet, header_row: 1, columns: {text: 0, group: 1, outcome_title: 1, domain: 2},
+    topic_as_outcome: false, source_profile: 'KHTN_OUTCOME_YCCD_OFFICIAL_V1', revision: job.revision,
+  });
+  expect(mapped, 200);
+  assert.equal(mapped.data.mapping.header_row, sheet.header_row, 'Phải dùng dòng tiêu đề do máy chủ suy ra');
+  assert.deepEqual(mapped.data.mapping.columns, sheet.columns, 'Phải dùng ánh xạ cột do máy chủ suy ra');
+  assert.equal(mapped.data.mapping.topic_as_outcome, true);
+
+  const staged = await req('GET', '/curriculum/import/' + job.id + '/preview');
+  const sample = staged.data.rows.find(r => r.mapped_payload.branch_code === 'L');
+  assert(sample, 'Phải nhận ra phân môn từ cột Môn thật');
+  assert.equal(Number.isInteger(sample.mapped_payload.yccd_ordinal), true);
+});
+
 test('V665 bootstrap: nạp lại cùng bộ nguồn là idempotent', {skip}, async () => {
   const created = await req('POST', '/curriculum/versions', {
     subject_id: subjectId, grade: 6, version_code: 'GDPT2018-K6-LAI', title: 'KHTN khối 6 — nạp lại',

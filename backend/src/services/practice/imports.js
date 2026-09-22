@@ -2,6 +2,7 @@ import {storage,sourceKey} from '../storage/index.js';
 import {getEffectiveAccess,contentFilterSQL} from '../accessResolver.js';
 import {enrichMetadata,validateDraft} from '../smartMetadata.js';
 import {resolveQuestionFromCode,applyResolution} from '../curriculumResolver.js';
+import {parseQuestionCode,inferNumberingMode,checkNumbering} from '../questionCode.js';
 import crypto from 'node:crypto';
 import {bankFilter} from '../../middleware/bankScope.js';
 import {duplicateSignals} from './duplicates.js';
@@ -90,7 +91,17 @@ export async function parseJob(user,file,bulk){
   await log(client,user,'IMPORT_PARSED',job.id,{count:parsed.items.length});return job;
  });
 }
-export async function getJob(user,id,client=pool){const job=(await client.query('SELECT * FROM import_jobs WHERE id=$1',[id])).rows[0];if(!job||job.created_by!==user.id&&user.role!=='admin')fail('Không có quyền với lần nhập này',403);job.items=(await client.query('SELECT * FROM import_items WHERE job_id=$1 ORDER BY sequence',[id])).rows;return job;}
+// Kiểm cách đánh số của cả lô. Tính khi đọc nên không cần cột mới và luôn phản ánh bản nháp hiện tại.
+// Chỉ cảnh báo: mã câu là do người soạn đặt, hệ thống không tự sửa (§13, §33).
+export function batchNumbering(items){
+ const parsed=items.map(i=>parseQuestionCode(i.draft?.display_code||''));
+ const coded=parsed.filter(p=>p.ok);
+ if(coded.length<2)return {mode:'CUSTOM',scope:'NONE',issues:[],coded:coded.length,total:items.length};
+ const mode=inferNumberingMode(parsed);
+ const {issues,scope}=checkNumbering(parsed,mode);
+ return {mode,scope,issues,coded:coded.length,total:items.length};
+}
+export async function getJob(user,id,client=pool){const job=(await client.query('SELECT * FROM import_jobs WHERE id=$1',[id])).rows[0];if(!job||job.created_by!==user.id&&user.role!=='admin')fail('Không có quyền với lần nhập này',403);job.items=(await client.query('SELECT * FROM import_items WHERE job_id=$1 ORDER BY sequence',[id])).rows;job.numbering=batchNumbering(job.items);return job;}
 // §30 — reloading the browser must not lose a staging job. Visibility matches getJob(): a teacher
 // only ever sees their own jobs, so the list cannot be used to discover someone else's batch.
 export async function listJobs(user,query={}){
@@ -115,6 +126,8 @@ export async function confirmJob(user,id,ids,bankId){staff(user);return tx(async
  const checksum=crypto.createHash('sha256').update(await storage.get(sourceKey(job.source_path))).digest('hex');
  const items=job.items.filter(i=>ids.includes(i.id)&&i.decision!=='skip');if(!items.length)fail('Chọn ít nhất một câu hợp lệ');
  const questionIds=[];
- for(const item of items){const {q,validation}=await enrich(client,item.draft);if(validation.errors.length)fail(`Câu ${item.sequence}: ${validation.errors.join('; ')}`);if(q.subject_id)await subjectAccess(user,q.subject_id);const duplicateAction=['version','replace'].includes(item.decision);const isUpdate=q.record_action==='UPDATE';const duplicateId=isUpdate?Number(q.question_id):duplicateAction?item.duplicate_candidates[0]?.id:null;if(isUpdate&&(!duplicateId||!q.question_version_id))fail('UPDATE cần question_id và question_version_id');if(duplicateAction&&!duplicateId)fail('Không có bản gốc để tạo version');const result=await persistQuestion(client,user,q,{id:duplicateId,bankId,source:{type:job.parser_type,path:job.source_path,locator:q.source_locator,checksum}});await client.query('UPDATE import_items SET result_question_id=$1 WHERE id=$2',[result.id,item.id]);questionIds.push(result.id);await log(client,user,'IMPORT_DUPLICATE_DECISION',item.id,{decision:item.decision,candidates:item.duplicate_candidates.map(c=>c.id)});}
+ // Chế độ đánh số là thuộc tính của cả lô, nên suy một lần rồi gắn cho từng câu.
+ const numbering=batchNumbering(items);
+ for(const item of items){const {q,validation}=await enrich(client,{...item.draft,numbering_mode:item.draft?.numbering_mode||numbering.mode});if(validation.errors.length)fail(`Câu ${item.sequence}: ${validation.errors.join('; ')}`);if(q.subject_id)await subjectAccess(user,q.subject_id);const duplicateAction=['version','replace'].includes(item.decision);const isUpdate=q.record_action==='UPDATE';const duplicateId=isUpdate?Number(q.question_id):duplicateAction?item.duplicate_candidates[0]?.id:null;if(isUpdate&&(!duplicateId||!q.question_version_id))fail('UPDATE cần question_id và question_version_id');if(duplicateAction&&!duplicateId)fail('Không có bản gốc để tạo version');const result=await persistQuestion(client,user,q,{id:duplicateId,bankId,source:{type:job.parser_type,path:job.source_path,locator:q.source_locator,checksum}});await client.query('UPDATE import_items SET result_question_id=$1 WHERE id=$2',[result.id,item.id]);questionIds.push(result.id);await log(client,user,'IMPORT_DUPLICATE_DECISION',item.id,{decision:item.decision,candidates:item.duplicate_candidates.map(c=>c.id)});}
  await client.query("UPDATE import_jobs SET status='confirmed',confirmed_at=now() WHERE id=$1",[id]);await log(client,user,'IMPORT_CONFIRM',id,{count:items.length});return {ok:true,job_id:id,imported:items.length,question_ids:questionIds};
  });}

@@ -163,7 +163,7 @@ test('Trình duyệt GV: nhập mẫu, xem kho, giao bài và theo dõi lớp',{
   assert.equal(await page.locator('.queue-table tbody tr').count()>0,true);
   await page.goto(origin+'/practice/banks');await page.getByRole('heading',{name:'Ngân hàng câu hỏi',exact:true}).waitFor();
   // Không chọn câu nào thì không có thanh thao tác hàng loạt.
-  assert.equal(await page.locator('.bulk-toolbar').count(),0);
+  assert.equal(await page.locator('.bulk-bar').count(),0);
   assert.equal(await page.locator('.filter-row select').count()<=4,true,'Bộ lọc mặc định phải gọn');
   await page.goto(origin+'/practice/assignments');await page.getByRole('button',{name:'Tạo bài giao',exact:true}).click();await page.getByText('Hoặc chọn từng học sinh',{exact:true}).waitFor();
   await page.goto(origin+'/practice');await page.getByLabel('Năm học · Lớp').selectOption(String(classId));await page.getByText('pilot_test_student · pilot_test_student',{exact:true}).waitFor();await page.screenshot({path:path.join(artifacts,'teacher-dashboard.png'),fullPage:true});assert.deepEqual(errors,[]);

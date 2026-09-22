@@ -1,0 +1,251 @@
+{
+ "source": "Outcome_YCCD_KHTN_7_VatLi_NangLuongVaSuBienDoi_v2.xlsx + ThongKe_YCCD_theo_Bai_SGK_KHTN7.xlsx",
+ "curriculum": "Chương trình GDPT 2018 môn Khoa học tự nhiên — TT 32/2018/TT-BGDĐT",
+ "subject_code": "KHTN",
+ "grade": 7,
+ "branch_code": "L",
+ "note": "STT là số thứ tự YCCĐ trong bảng CT2018 lớp 7. YCCĐ được đối chiếu với cơ sở dữ liệu bằng nguyên văn, không bằng số.",
+ "lessons": [
+  {
+   "lesson_no": 8,
+   "chapter": "III. Tốc độ",
+   "name": "Bài 8. Tốc độ chuyển động",
+   "sgk_pages": "45–48",
+   "source_outcome": "Tốc độ chuyển động",
+   "yccd": [
+    {
+     "stt": 19,
+     "text": "Nêu được ý nghĩa vật lí của tốc độ, xác định được tốc độ qua quãng đường vật đi được trong khoảng thời gian tương ứng, tốc độ = quãng đường vật đi/thời gian đi quãng đường đó."
+    },
+    {
+     "stt": 20,
+     "text": "Liệt kê được một số đơn vị đo tốc độ thường dùng."
+    }
+   ]
+  },
+  {
+   "lesson_no": 9,
+   "chapter": "III. Tốc độ",
+   "name": "Bài 9. Đo tốc độ",
+   "sgk_pages": "49–52",
+   "source_outcome": "Đo tốc độ",
+   "yccd": [
+    {
+     "stt": 21,
+     "text": "Mô tả được sơ lược cách đo tốc độ bằng đồng hồ bấm giây và cổng quang điện trong dụng cụ thực hành ở nhà trường; thiết bị “bắn tốc độ” trong kiểm tra tốc độ các phương tiện giao thông."
+    }
+   ]
+  },
+  {
+   "lesson_no": 10,
+   "chapter": "III. Tốc độ",
+   "name": "Bài 10. Đồ thị quãng đường – thời gian",
+   "sgk_pages": "53–55",
+   "source_outcome": "Đồ thị quãng đường – thời gian",
+   "yccd": [
+    {
+     "stt": 22,
+     "text": "Vẽ được đồ thị quãng đường – thời gian cho chuyển động thẳng."
+    },
+    {
+     "stt": 23,
+     "text": "Từ đồ thị quãng đường – thời gian cho trước, tìm được quãng đường vật đi (hoặc tốc độ, hay thời gian chuyển động của vật)."
+    }
+   ]
+  },
+  {
+   "lesson_no": 11,
+   "chapter": "III. Tốc độ",
+   "name": "Bài 11. Thảo luận về ảnh hưởng của tốc độ trong an toàn giao thông",
+   "sgk_pages": "56–59",
+   "source_outcome": "Tốc độ và an toàn giao thông",
+   "yccd": [
+    {
+     "stt": 24,
+     "text": "Dựa vào tranh ảnh (hoặc học liệu điện tử) thảo luận để nêu được ảnh hưởng của tốc độ trong an toàn giao thông."
+    }
+   ]
+  },
+  {
+   "lesson_no": 12,
+   "chapter": "IV. Âm thanh",
+   "name": "Bài 12. Sóng âm",
+   "sgk_pages": "60–63",
+   "source_outcome": "Sóng âm",
+   "yccd": [
+    {
+     "stt": 25,
+     "text": "Thực hiện thí nghiệm tạo sóng âm (như gảy đàn, gõ vào thanh kim loại,...) để chứng tỏ được sóng âm có thể truyền được trong chất rắn, lỏng, khí."
+    },
+    {
+     "stt": 26,
+     "text": "Giải thích được sự truyền sóng âm trong không khí."
+    }
+   ]
+  },
+  {
+   "lesson_no": 13,
+   "chapter": "IV. Âm thanh",
+   "name": "Bài 13. Độ to và độ cao của âm",
+   "sgk_pages": "",
+   "source_outcome": "Độ to và độ cao của âm",
+   "yccd": [
+    {
+     "stt": 27,
+     "text": "Từ hình ảnh hoặc đồ thị xác định được biên độ và tần số sóng âm."
+    },
+    {
+     "stt": 28,
+     "text": "Nêu được đơn vị của tần số là hertz (kí hiệu là Hz)."
+    },
+    {
+     "stt": 29,
+     "text": "Nêu được sự liên quan của độ to của âm với biên độ âm."
+    },
+    {
+     "stt": 30,
+     "text": "Sử dụng nhạc cụ (hoặc học liệu điện tử, dao động kí) chứng tỏ được độ cao của âm có liên hệ với tần số âm."
+    }
+   ]
+  },
+  {
+   "lesson_no": 14,
+   "chapter": "IV. Âm thanh",
+   "name": "Bài 14. Phản xạ âm, chống ô nhiễm tiếng ồn",
+   "sgk_pages": "68–71",
+   "source_outcome": "Phản xạ âm và chống ô nhiễm tiếng ồn",
+   "yccd": [
+    {
+     "stt": 31,
+     "text": "Lấy được ví dụ về vật phản xạ âm tốt, vật phản xạ âm kém."
+    },
+    {
+     "stt": 32,
+     "text": "Giải thích được một số hiện tượng đơn giản thường gặp trong thực tế về sóng âm; đề xuất được phương án đơn giản để hạn chế tiếng ồn ảnh hưởng đến sức khoẻ."
+    }
+   ]
+  },
+  {
+   "lesson_no": 15,
+   "chapter": "V. Ánh sáng",
+   "name": "Bài 15. Năng lượng ánh sáng. Tia sáng, vùng tối",
+   "sgk_pages": "72–77",
+   "source_outcome": "Năng lượng ánh sáng. Tia sáng, vùng tối",
+   "yccd": [
+    {
+     "stt": 33,
+     "text": "Thực hiện thí nghiệm thu được năng lượng ánh sáng; từ đó, nêu được ánh sáng là một dạng của năng lượng."
+    },
+    {
+     "stt": 34,
+     "text": "Thực hiện thí nghiệm tạo ra được mô hình tia sáng bằng một chùm sáng hẹp song song."
+    },
+    {
+     "stt": 35,
+     "text": "Vẽ được hình biểu diễn vùng tối do nguồn sáng rộng và vùng tối do nguồn sáng hẹp."
+    }
+   ]
+  },
+  {
+   "lesson_no": 16,
+   "chapter": "V. Ánh sáng",
+   "name": "Bài 16. Sự phản xạ ánh sáng",
+   "sgk_pages": "78–81",
+   "source_outcome": "Sự phản xạ ánh sáng",
+   "yccd": [
+    {
+     "stt": 36,
+     "text": "Phân biệt được phản xạ và phản xạ khuếch tán."
+    },
+    {
+     "stt": 37,
+     "text": "Vẽ được hình biểu diễn và nêu được các khái niệm: tia sáng tới, tia sáng phản xạ, pháp tuyến, góc tới, góc phản xạ, mặt phẳng tới, ảnh."
+    },
+    {
+     "stt": 38,
+     "text": "Thực hiện được thí nghiệm rút ra định luật và phát biểu được nội dung của định luật phản xạ ánh sáng."
+    }
+   ]
+  },
+  {
+   "lesson_no": 17,
+   "chapter": "V. Ánh sáng",
+   "name": "Bài 17. Ảnh của vật qua gương phẳng",
+   "sgk_pages": "82–85",
+   "source_outcome": "Ảnh của vật qua gương phẳng",
+   "yccd": [
+    {
+     "stt": 39,
+     "text": "Nêu được tính chất ảnh của vật qua gương phẳng và dựng được ảnh của một vật tạo bởi gương phẳng."
+    },
+    {
+     "stt": 40,
+     "text": "Vận dụng được định luật phản xạ ánh sáng trong một số trường hợp đơn giản."
+    }
+   ]
+  },
+  {
+   "lesson_no": 18,
+   "chapter": "VI. Từ",
+   "name": "Bài 18. Nam châm",
+   "sgk_pages": "86–89",
+   "source_outcome": "Nam châm",
+   "yccd": [
+    {
+     "stt": 41,
+     "text": "Tiến hành thí nghiệm để nêu được:\n+ Tác dụng của nam châm đến các vật liệu khác nhau;\n+ Sự định hướng của thanh nam châm (kim nam châm)."
+    },
+    {
+     "stt": 42,
+     "text": "Xác định được cực Bắc và cực Nam của một thanh nam châm."
+    }
+   ]
+  },
+  {
+   "lesson_no": 19,
+   "chapter": "VI. Từ",
+   "name": "Bài 19. Từ trường",
+   "sgk_pages": "90–95",
+   "source_outcome": "Từ trường",
+   "yccd": [
+    {
+     "stt": 43,
+     "text": "Nêu được vùng không gian bao quanh một nam châm (hoặc dây dẫn mang dòng điện), mà vật liệu có tính chất từ đặt trong nó chịu tác dụng lực từ, được gọi là từ trường."
+    },
+    {
+     "stt": 44,
+     "text": "Nêu được khái niệm từ phổ và tạo được từ phổ bằng mạt sắt và nam châm."
+    },
+    {
+     "stt": 45,
+     "text": "Nêu được khái niệm đường sức từ và vẽ được đường sức từ quanh một thanh nam châm."
+    },
+    {
+     "stt": 46,
+     "text": "Dựa vào ảnh (hoặc hình vẽ, đoạn phim khoa học) khẳng định được Trái Đất có từ trường."
+    },
+    {
+     "stt": 47,
+     "text": "Nêu được cực Bắc địa từ và cực Bắc địa lí không trùng nhau."
+    },
+    {
+     "stt": 49,
+     "text": "Sử dụng la bàn để tìm được hướng địa lí."
+    }
+   ]
+  },
+  {
+   "lesson_no": 20,
+   "chapter": "VI. Từ",
+   "name": "Bài 20. Chế tạo nam châm điện đơn giản",
+   "sgk_pages": "96–98",
+   "source_outcome": "Nam châm điện",
+   "yccd": [
+    {
+     "stt": 48,
+     "text": "Chế tạo được nam châm điện đơn giản và làm thay đổi được từ trường của nó bằng thay đổi dòng điện."
+    }
+   ]
+  }
+ ]
+}

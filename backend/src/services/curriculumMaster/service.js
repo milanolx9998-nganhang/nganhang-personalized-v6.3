@@ -104,9 +104,21 @@ export async function preview(actor,id){const {j,v}=await getJob(actor,id,pool);
 export async function mapImport(actor,id,raw){
  const d=z.object({sheet:z.string(),header_row:z.number().int().min(1).max(5000),columns:z.record(z.enum(fields),z.number().int().min(0).max(49)),topic_as_outcome:z.boolean().default(false),source_profile:z.enum([TRUSTED_PROFILE]).nullable().optional(),revision:z.number().int()}).strict().parse(raw);
  return tx(async c=>{const {j,v}=await getJob(actor,id,c,true);draft(v);if(j.status==='COMMITTED'||j.revision!==d.revision)fail('Import đã thay đổi hoặc đã commit',409);
- const sheet=j.workbook.sheets.find(s=>s.name===d.sheet);if(!sheet)fail('Sheet không hợp lệ');if(d.columns.text===undefined)fail('Bắt buộc chọn cột YCCĐ');
- const source=sheet.rows.slice(d.header_row);
- let rows=mapRows(source,d.columns,d.topic_as_outcome).map((row,index)=>({...row,__origin:index}));
+ const sheet=j.workbook.sheets.find(s=>s.name===d.sheet);if(!sheet)fail('Sheet không hợp lệ');
+ // Với hồ sơ nguồn chính thức, máy chủ tự nhận diện lại từ workbook đã lưu và dùng chính ánh xạ do
+ // mình suy ra. Client chỉ được chọn sheet; nó không phải nguồn tin cậy cho header/cột/khối.
+ let effective={header_row:d.header_row,columns:d.columns,topic_as_outcome:d.topic_as_outcome};
+ if(d.source_profile===TRUSTED_PROFILE){
+  const detected=detectTrustedProfile(j.workbook);
+  if(!detected)fail('Tệp này không phải bộ Outcome/YCCĐ chính thức',409,{code:'TRUSTED_SOURCE_NOT_DETECTED'});
+  const trusted=detected.sheets.find(s=>s.sheet===d.sheet);
+  if(!trusted)fail('Sheet đã chọn không thuộc bộ nguồn chính thức',409,{code:'TRUSTED_SOURCE_SHEET_UNKNOWN',sheets:detected.sheets.map(s=>({sheet:s.sheet,grade:s.grade}))});
+  if(trusted.grade!==v.grade)fail(`Sheet là khối ${trusted.grade} nhưng phiên bản chương trình là khối ${v.grade}`,409,{code:'TRUSTED_SOURCE_GRADE_MISMATCH',sheet_grade:trusted.grade,version_grade:v.grade});
+  effective={header_row:trusted.header_row,columns:trusted.columns,topic_as_outcome:true};
+ }
+ if(effective.columns.text===undefined)fail('Bắt buộc chọn cột YCCĐ');
+ const source=sheet.rows.slice(effective.header_row);
+ let rows=mapRows(source,effective.columns,effective.topic_as_outcome).map((row,index)=>({...row,__origin:index}));
  // Chỉ hồ sơ tin cậy mới được tách ô nhiều YCCĐ và đọc số thứ tự từ nguồn. Bảng tính bất kỳ giữ
  // nguyên hành vi cũ: một dòng là một dòng.
  if(d.source_profile===TRUSTED_PROFILE)rows=normalizeSourceRows(rows);
@@ -126,8 +138,10 @@ export async function mapImport(actor,id,raw){
   const flags=sourceFlags.filter(f=>BLOCKING_SOURCE_FLAGS.has(f)||HARD_BLOCK_SOURCE_FLAGS.has(f));
   const status=hard.length?'BLOCKED':flags.length&&row_status==='READY'?'WARNING':row_status;
   const notes=[...validation_result,...flags.map(f=>SOURCE_FLAG_MESSAGES[f]||f)];
-  await c.query('INSERT INTO curriculum_import_rows(import_job_id,source_sheet,source_row,source_segment,raw_payload,mapped_payload,validation_result,row_status) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',[id,d.sheet,d.header_row+origin+1,segment,JSON.stringify(source[origin]),value,JSON.stringify(notes),status]);}
- await c.query("UPDATE curriculum_import_jobs SET mapping=$2,status='MAPPED',revision=revision+1 WHERE id=$1",[id,d]);await audit(c,actor,v,'IMPORT_MAPPED',null,{job:id,mapping:d,rows:mapped.length},'Người dùng chọn mapping cột');return {ok:true,rows:mapped.length};});
+  await c.query('INSERT INTO curriculum_import_rows(import_job_id,source_sheet,source_row,source_segment,raw_payload,mapped_payload,validation_result,row_status) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',[id,d.sheet,effective.header_row+origin+1,segment,JSON.stringify(source[origin]),value,JSON.stringify(notes),status]);}
+ // Lưu ánh xạ thực sự đã dùng, không lưu thứ client gửi lên.
+ const applied={sheet:d.sheet,...effective,source_profile:d.source_profile||null};
+ await c.query("UPDATE curriculum_import_jobs SET mapping=$2,status='MAPPED',revision=revision+1 WHERE id=$1",[id,applied]);await audit(c,actor,v,'IMPORT_MAPPED',null,{job:id,mapping:applied,rows:mapped.length},'Người dùng chọn mapping cột');return {ok:true,rows:mapped.length,mapping:applied};});
 }
 const SOURCE_FLAG_MESSAGES={
  SOURCE_NUMBER_MALFORMED:'Số thứ tự trong nguồn viết sai định dạng; đã đọc tạm, cần xác nhận',

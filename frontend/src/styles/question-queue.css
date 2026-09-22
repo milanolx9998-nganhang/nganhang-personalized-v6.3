@@ -340,3 +340,44 @@
     max-width: none;
   }
 }
+
+/* --- Thanh thao tác hàng loạt dạng gọn, dính đáy màn hình --- */
+
+.bulk-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: .5rem .75rem;
+  margin: .5rem 0;
+  border: 1px solid rgba(128, 128, 128, .4);
+  border-radius: .5rem;
+  background: Canvas;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, .12);
+}
+
+.bulk-bar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem;
+}
+
+.bulk-sheet fieldset { margin: .5rem 0; }
+
+.reject-popover {
+  border: 1px solid rgba(128, 128, 128, .4);
+  border-radius: .5rem;
+  padding: .6rem;
+  margin-top: .5rem;
+  background: Canvas;
+}
+
+.reject-popover label.scope-v2-tick { display: block; }
+
+@media (max-width: 720px) {
+  .bulk-bar { flex-direction: column; align-items: stretch; }
+}

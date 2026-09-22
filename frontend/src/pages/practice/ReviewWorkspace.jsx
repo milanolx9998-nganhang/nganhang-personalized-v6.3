@@ -9,6 +9,7 @@ import BulkQuestionToolbar from './queue/BulkQuestionToolbar.jsx';
 import {useQueue, useSelection, QuestionQueueTable, QuestionPreviewPane} from './queue/QuestionQueue.jsx';
 import WorkspaceShell from './workspace/WorkspaceShell.jsx';
 import SimpleFilterBar from './workspace/SimpleFilterBar.jsx';
+import RejectReasonPopover from './workspace/RejectReasonPopover.jsx';
 
 const TABS = [
   {id: 'author', label: 'Bản nháp của tôi', capabilities: ['content.write']},
@@ -30,6 +31,7 @@ function QuestionTab({tab, params, setParams, user}) {
   const [offset, setOffset] = useState(0);
   const [activeId, setActiveId] = useState(null);
   const [deepId, setDeepId] = useState(null);
+  const [rejecting, setRejecting] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const selection = useSelection();
@@ -68,13 +70,9 @@ function QuestionTab({tab, params, setParams, user}) {
   }, [rows, activeId]);
 
   // Một câu và năm trăm câu đi qua cùng một endpoint, nên chính sách và nhật ký không thể lệch nhau.
-  const single = useCallback(async (row, action) => {
+  const single = useCallback(async (row, action, reason = '') => {
     if (!row) return;
-    let reason = '';
-    if (action === 'request_changes') {
-      reason = window.prompt('Lý do trả sửa') || '';
-      if (!reason.trim()) return;
-    }
+    if (action === 'request_changes' && !reason.trim()) { setRejecting(row.id); return; }
     setBusy(true); setError('');
     const at = rows.findIndex(r => r.id === row.id);
     try {
@@ -84,6 +82,7 @@ function QuestionTab({tab, params, setParams, user}) {
       });
       const next = rows[at + 1];
       setActiveId(next ? next.id : null);
+      setRejecting(null);
       queue.reload();
     } catch (e) {
       const stopper = e.details?.requires_deep_review?.[0] || e.details?.blocked?.[0];
@@ -100,7 +99,9 @@ function QuestionTab({tab, params, setParams, user}) {
       else if (key === 'k') { event.preventDefault(); move(-1); }
       else if (event.key === ' ' && active) { event.preventDefault(); selection.toggle(active.id, active.current_version_id); }
       else if (key === 'a' && active && TAB_ACTIONS[tab].includes('approve')) { event.preventDefault(); single(active, 'approve'); }
-      else if (key === 'r' && active && TAB_ACTIONS[tab].includes('request_changes')) { event.preventDefault(); single(active, 'request_changes'); }
+      else if (key === 'r' && active && TAB_ACTIONS[tab].includes('request_changes')) { event.preventDefault(); setRejecting(active.id); }
+      else if (key === 'e' && active) { event.preventDefault(); setDeepId(active.id); }
+      else if (event.key === 'Escape') { setRejecting(null); }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
@@ -112,10 +113,14 @@ function QuestionTab({tab, params, setParams, user}) {
       <div className="practice-actions">
         <button className="btn" disabled={busy || index <= 0} onClick={() => move(-1)} aria-label="Câu trước">←</button>
         {TAB_ACTIONS[tab].includes('submit') && <button className="btn primary" disabled={busy} onClick={() => single(active, 'submit')}>Gửi duyệt</button>}
-        {TAB_ACTIONS[tab].includes('request_changes') && <button className="btn" disabled={busy} onClick={() => single(active, 'request_changes')}>Trả sửa</button>}
+        {TAB_ACTIONS[tab].includes('request_changes') && <button className="btn" disabled={busy} onClick={() => setRejecting(active.id)}>Trả sửa</button>}
         {TAB_ACTIONS[tab].includes('approve') && <button className="btn primary" disabled={busy} onClick={() => single(active, 'approve')}>Duyệt</button>}
         <button className="btn" disabled={busy || index >= rows.length - 1} onClick={() => move(1)} aria-label="Câu sau">→</button>
       </div>
+      {rejecting === active.id && (
+        <RejectReasonPopover busy={busy} onCancel={() => setRejecting(null)}
+                             onSubmit={({reason}) => single(active, 'request_changes', reason)}/>
+      )}
     </div>
   );
 
@@ -134,7 +139,7 @@ function QuestionTab({tab, params, setParams, user}) {
       {selection.count > 0 &&
         <BulkQuestionToolbar selection={selection} actions={TAB_ACTIONS[tab]} banks={banks.data || []}
                              onDone={() => { queue.reload(); setActiveId(null); }}/>}
-      <p className="queue-hint">Phím tắt: J/K chuyển câu · Space chọn · A duyệt · R trả sửa. Không chạy khi con trỏ đang ở ô nhập liệu.</p>
+      <p className="queue-hint">Phím tắt: J/K chuyển câu · Space chọn · A duyệt · R trả sửa · E xem kỹ · Shift+tick chọn cả đoạn. Không chạy khi con trỏ đang ở ô nhập liệu.</p>
       <div className="queue-layout">
         <QuestionQueueTable rows={rows} selection={selection} activeId={activeId} onActivate={row => setActiveId(row.id)}
                             pageSize={pageSize} onPageSize={setPageSize} total={total} offset={offset} onOffset={setOffset}/>
