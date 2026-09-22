@@ -59,7 +59,7 @@ Backend V6.6.4 **không bị rewrite**. Một migration duy nhất, additive tuy
 | `backend/test/integration/v665-resolver.test.js` | **Mới** | 10 ca tích hợp trên DB clone. |
 | `backend/test/integration/pilot.test.js` | Sửa | Ca UI cập nhật sang luồng nhập 3 bước và vỏ workspace; thêm khẳng định không có bulk khi chưa chọn và bộ lọc mặc định gọn. |
 | `docs/V6_6_5_QUESTION_WORKSPACE_CURRICULUM_RESOLVER.md` | **Mới** | Luồng dữ liệu, ngữ pháp mã, ngữ cảnh khối, hai chế độ đánh số, gắn Bài, quyết định UX, giới hạn đã biết. |
-| `artifacts/v665-question-resolver-acceptance.json` | **Mới** | Bằng chứng nghiệm thu theo đúng danh mục §69. |
+| `docs/V6_6_5_ACCEPTANCE.md` | **Mới** | Bản nghiệm thu có trong repo. `artifacts/` bị `.gitignore` bỏ qua cùng nhóm với `backups/` và `*.dump` vì chứa dump dữ liệu thật, nên bản JSON ở `artifacts/v665-question-resolver-acceptance.json` chỉ là bản máy đọc cục bộ. |
 | ba `package.json` | Sửa | 6.6.4 → 6.6.5. |
 
 ---

@@ -1,5 +1,37 @@
 # AI Work Log
 
+## 2026-09-22 — V6.6.5 hotfix theo audit `2f7ace2` (3 P1 + 3 P2)
+
+**Bối cảnh:** audit GitHub phát hiện Curriculum Auto Resolver chưa an toàn để nạp 4 file chính thức.
+
+**Sửa:**
+- **P1.1** `assignOrdinals()` tự đếm lại số YCCĐ → `normalizeSourceRows()` đọc số **từ nguồn**.
+  Đây là lỗi nghiêm trọng nhất: khối 8 đánh YCCĐ liên tục theo phân môn (Chủ đề 2 có YCCĐ 4–11),
+  khối 7 đánh lại từ 1 mỗi Chủ đề. Tự đếm lại sẽ biến `H.2.4` thành `H.2.1`.
+- **P1.2** resolver chỉ lọc `status='ACTIVE'` → thêm `effectiveCurriculumVersion()` chốt bản PUBLISHED
+  mới nhất theo môn+khối. `copyVersion()` cũng phải mang theo canonical_key/source_ordinal.
+- **P1.3** `readJob()` bỏ qua `result.trusted` → tự điền sheet/header/cột + banner nhận diện.
+- **P1.4** viết `v665-bootstrap.test.js` nạp thật 4 workbook từ `G:/tai lieu  oppa/UP SHARE/outcome khtn`.
+- **P2.1** Mode B kiểm ở mức cả lô; Mode A vẫn theo từng YCCĐ.
+- **P2.2** tách `autoResolved` khỏi `validManual` trong ImportCenter.
+- **P2.3** `artifacts/` bị gitignore cùng `backups/`+`*.dump` (chứa dữ liệu thật) → viết
+  `docs/V6_6_5_ACCEPTANCE.md` thay vì `git add -f`.
+
+**Migration mới:** `migration-v665-import-split.sql` — một dòng bảng tính có thể chứa nhiều YCCĐ nên
+khóa tự nhiên của `curriculum_import_rows` đổi thành `(job, sheet, dòng, source_segment)`.
+
+**Phát hiện trong chính nguồn:** workbook lớp 8 Chủ đề 18 có **hai YCCĐ khác nhau cùng số 1**.
+Hệ thống chặn hẳn (`SOURCE_ORDINAL_DUPLICATE`, không cho `accept_source_warnings` bỏ qua) và bắt
+người phụ trách sửa số trong staging. Cần rà với chủ chương trình trước khi nạp thật.
+
+**Kiểm chứng:** 188 pass / 3 fail (3 lỗi có sẵn từ trước, đã đo baseline).
+
+**Bẫy đã gặp:**
+- `xlsx` bản ESM không mở được đường dẫn ổ G; phải `fs.readFileSync` rồi `XLSX.read(buf)`.
+- Đặt tên biến `all` trong vòng lặp che mất `all` là danh sách dòng DB → `all[i].id` undefined.
+  Lỗi do chính em tạo khi patch bằng script; đã đổi tên thành `sourceFlags`.
+- Zod `.strict()` ở `editRows` từ chối khóa lạ, nên khi sửa dòng staging chỉ gửi đúng trường cho phép.
+
 ## 2026-09-22 — V6.6.5: Question Workspace + Curriculum Auto Resolver
 
 **Yêu cầu:** thực thi `V6_6_5_FULL_QUESTION_WORKSPACE_CURRICULUM_CODE_RESOLVER_PROMPT` trên HEAD

@@ -53,12 +53,18 @@ export default function ImportCenter() {
   const [result, setResult] = useState(null);
 
   const items = job?.items || [];
-  const counts = useMemo(() => ({
-    total: items.length,
-    ready: items.filter(i => i.validation.status === 'VALID').length,
-    review: items.filter(i => ['WARNING', 'NEEDS_REVIEW'].includes(i.validation.status)).length,
-    error: items.filter(i => i.validation.status === 'ERROR').length,
-  }), [items]);
+  // "Tự nhận diện" chỉ đúng khi mã câu thật sự resolve ra Outcome/YCCĐ. Câu hợp lệ nhưng không có mã
+  // vẫn nhập được, nhưng không được đếm chung để tránh hiểu nhầm là hệ thống đã tự phân loại.
+  const counts = useMemo(() => {
+    const valid = items.filter(i => i.validation.status === 'VALID');
+    return {
+      total: items.length,
+      autoResolved: valid.filter(i => i.validation.resolution?.state === 'RESOLVED').length,
+      validManual: valid.filter(i => i.validation.resolution?.state !== 'RESOLVED').length,
+      review: items.filter(i => ['WARNING', 'NEEDS_REVIEW'].includes(i.validation.status)).length,
+      error: items.filter(i => i.validation.status === 'ERROR').length,
+    };
+  }, [items]);
   const visible = useMemo(() => onlyIssues ? items.filter(needsWork) : items, [items, onlyIssues]);
   const active = items.find(i => i.id === activeId) || null;
   const confirmable = useMemo(() => selected.filter(id => items.find(i => i.id === id)?.validation.status !== 'ERROR'), [selected, items]);
@@ -213,7 +219,8 @@ export default function ImportCenter() {
           <button className="btn" onClick={() => { setJob(null); setSelected([]); setActiveId(null); }}>Hủy lần nhập</button>
         </header>
         <p className="import-summary">
-          <span className="tone-ok">✓ {counts.ready} tự nhận diện</span>{' · '}
+          <span className="tone-ok">✓ {counts.autoResolved} tự nhận diện từ mã</span>{' · '}
+          <span className="tone-ok">✓ {counts.validManual} hợp lệ theo metadata</span>{' · '}
           <span className="tone-warn">! {counts.review} cần xem</span>{' · '}
           <span className="tone-danger">× {counts.error} lỗi</span>
         </p>

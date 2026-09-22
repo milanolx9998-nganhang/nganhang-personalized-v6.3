@@ -124,8 +124,36 @@ branch  Outcome      YCCĐ          source_page
 - Khối lấy từ **tên sheet** (`YCCĐ lớp 7`), không lấy từ tên tệp viết tắt.
 - Chỉ hồ sơ này mới được coi cột "Chủ đề" là Outcome. Importer tổng quát vẫn bắt người dùng bật
   `topic_as_outcome` tường minh — một bảng bất kỳ có cột "Chủ đề" không phải là chuẩn chương trình.
-- Số thứ tự Outcome đếm theo **từng phân môn**, số thứ tự YCCĐ đếm **trong từng Outcome**, theo thứ tự
-  xuất hiện trong văn bản nguồn. Đó chính là nghĩa của "Outcome số 2 của phân môn Vật lí".
+
+### Số thứ tự luôn lấy từ nguồn
+
+Số thứ tự Outcome và YCCĐ **đã nằm sẵn trong văn bản nguồn** và phải được tôn trọng tuyệt đối.
+Quy ước đánh số khác nhau giữa các tệp:
+
+- khối 8 đánh YCCĐ **liên tục theo phân môn** — Chủ đề 1 có YCCĐ 1–3, Chủ đề 2 có YCCĐ **4–11**;
+- khối 7 đánh **lại từ 1** trong từng Chủ đề.
+
+Nếu hệ thống tự đếm lại, `Câu H. 2. 4` sẽ trỏ nhầm sang YCCĐ khác. Vì vậy `normalizeSourceRows()`
+đọc số từ nguồn, và chỉ đếm tuần tự khi nguồn thực sự không có số — kèm cờ `SOURCE_ORDINAL_FALLBACK`
+buộc người dùng xác nhận.
+
+### Chuẩn hóa nguồn trước khi vào DRAFT
+
+Một ô "Yêu cầu cần đạt" có thể chứa nhiều YCCĐ đánh số. Bộ chuẩn hóa tách theo ranh giới đầu dòng
+`<số>.` và **không** tách theo `+` (đó là gạch đầu dòng nối tiếp trong cùng một yêu cầu). Mỗi YCCĐ
+thành một dòng staging riêng để người dùng rà soát trước khi commit.
+
+| Hình dạng trong nguồn | Xử lý | Cờ |
+|---|---|---|
+| Một ô chứa `1. … 2. … 3. …` | tách từng YCCĐ | `SOURCE_ROW_SPLIT` |
+| `1. … \n+ bullet` | giữ nguyên một YCCĐ | — |
+| `. Mô tả được…:\n1. …` | tách; câu dẫn gắn vào mục đầu | `SOURCE_LEADIN_TEXT` |
+| `. 5Nêu được…` / `6 Trình bày…` | đọc số, tách chữ | `SOURCE_NUMBER_MALFORMED` |
+| Không có số | đếm tuần tự | `SOURCE_ORDINAL_FALLBACK` |
+| **Hai YCCĐ cùng số** | **chặn hẳn, không cho xác nhận cho qua** | `SOURCE_ORDINAL_DUPLICATE` |
+
+Trùng số là lỗi của chính văn bản nguồn (đã gặp thật ở khối 8, Chủ đề 18). Hệ thống không tự đánh lại
+số — người phụ trách chương trình sửa trong staging, sửa xong cờ tự mất.
 
 Nạp lại đúng bộ nguồn là idempotent: cùng khóa + cùng nội dung ⇒ bỏ qua và đếm vào `unchanged`;
 cùng khóa + khác nội dung ⇒ dừng và trả về cả hai bản để đối chiếu. Không ghi đè âm thầm.
@@ -236,10 +264,29 @@ Phím tắt J/K/Space/A/R, không chạy khi con trỏ đang ở ô nhập liệ
 
 ---
 
+## 9b. PHIÊN BẢN CHƯƠNG TRÌNH ĐANG HIỆU LỰC
+
+`status='ACTIVE'` một mình **không** đủ để xác định "bản đang dùng": hệ thống giữ nhiều phiên bản lịch
+sử, và hai phiên bản cùng có hàng ACTIVE sẽ khiến resolver trả về bản cũ.
+
+`effectiveCurriculumVersion(subject, grade)` chốt vào **bản PUBLISHED mới nhất** của đúng môn + khối.
+Mọi truy vấn resolve đều kèm `curriculum_version_id = <bản hiệu lực>`. Nếu môn/khối chưa có phiên bản
+nào (dữ liệu legacy trước khi có versioning) thì chỉ dùng các hàng không gắn phiên bản. **Không bao giờ
+trộn hai nguồn.**
+
+`copyVersion()` mang theo `source_branch_code`, `source_ordinal`, `canonical_key`, `source_text`,
+`source_page`, nếu không mã câu sẽ không resolve được vào phiên bản mới sau khi công bố.
+
 ## 10. THAY ĐỔI DỮ LIỆU
 
-Migration `migration-v665-curriculum-code.sql` — **additive tuyệt đối**, qua được cổng an toàn của
-auto-deploy:
+Hai migration, đều qua được cổng an toàn của auto-deploy.
+
+`migration-v665-import-split.sql` thêm `source_segment` và nới khóa duy nhất của bảng staging
+`curriculum_import_rows` từ `(job, sheet, dòng nguồn)` thành `(job, sheet, dòng nguồn, thứ tự trong
+dòng)`, vì một dòng bảng tính có thể chứa nhiều YCCĐ. Đây là bảng dàn dựng tạm, không phải dữ liệu
+lịch sử; không bản ghi nào mất.
+
+`migration-v665-curriculum-code.sql` — **additive tuyệt đối**:
 
 - `curriculum_outcomes`: `source_branch_code`, `source_ordinal`, `canonical_key`, `source_text`
 - `curriculum_yccds`: `source_ordinal`, `canonical_key`, `source_text`, `source_page`
@@ -254,12 +301,12 @@ Không đổi kiểu cột, không xóa, không rename, không đụng lineage I
 ## 11. GIỚI HẠN ĐÃ BIẾT
 
 1. **Hạ tầng CI/deploy**: `DEFERRED_INFRA_NOT_BLOCKING_UX_V665`. Không đụng trong vòng này.
-2. **Chưa nạp thật 4 workbook chính thức.** Hồ sơ tin cậy đã có và được kiểm thử ở mức nhận diện
-   sheet/cột/khối và đánh số thứ tự, nhưng bộ 4 tệp thật chưa được commit vào một phiên bản chương
-   trình vận hành.
-3. **Chưa có Playwright E2E riêng cho toàn luồng V6.6.5.** Luồng được phủ ở tầng API bởi 10 ca tích hợp
-   và phủ một phần ở UI bởi ca Playwright trong `pilot.test.js` (ba bước nhập, lưới không mount editor,
-   không có bulk khi chưa chọn, bộ lọc mặc định gọn).
+2. **Workbook lớp 8 có lỗi trùng số trong chính nguồn** (Chủ đề 18 có hai YCCĐ cùng số 1). Hệ thống
+   chặn đúng và bắt sửa, nhưng người phụ trách chương trình cần rà lại hai dòng đó trước khi nạp vào
+   môi trường thật.
+3. **Chưa có Playwright E2E riêng cho toàn luồng V6.6.5.** Luồng được phủ ở tầng API bởi 15 ca tích hợp
+   (10 resolver + 5 bootstrap trên tệp thật) và phủ một phần ở UI bởi ca Playwright trong
+   `pilot.test.js` (ba bước nhập, lưới không mount editor, không có bulk khi chưa chọn, bộ lọc gọn).
 4. **Chưa chụp bộ ảnh UX.**
 5. **Ba ca tích hợp lỗi có sẵn từ trước V6.6.4** vẫn còn (hai Playwright timeout, một 401 phiên
    đăng nhập ở test competency V66). Đã đo baseline trên HEAD sạch, không phải do V6.6.4/V6.6.5.

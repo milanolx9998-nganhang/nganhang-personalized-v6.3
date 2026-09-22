@@ -12,6 +12,7 @@ files.push('migration-v653-delegation.sql');
 files.push('migration-v663-curriculum.sql');
 files.push('migration-v663-competency.sql');
 files.push('migration-v665-curriculum-code.sql');
+files.push('migration-v665-import-split.sql');
 const client=await pool.connect();
 try {
  await client.query('SELECT pg_advisory_lock(9182741)');

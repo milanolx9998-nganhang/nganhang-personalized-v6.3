@@ -19,6 +19,23 @@ Nội dung vòng V6.6.5:
 
 **Migration V6.6.5 là additive và đã áp lên DB local.** Máy chủ thật sẽ tự áp khi deploy.
 
+## Hotfix sau audit `2f7ace2` (đã xong)
+
+Audit GitHub phát hiện 3 lỗi P1 + 3 P2 ở Curriculum Auto Resolver. Đã sửa toàn bộ:
+
+1. Số thứ tự Outcome/YCCĐ **luôn lấy từ nguồn**, không tự đếm lại (trước đây `H.2.4` bị biến thành `H.2.1`).
+2. Resolver **chốt vào phiên bản chương trình đang hiệu lực**, không chỉ lọc `status='ACTIVE'`.
+3. Hồ sơ nhập tin cậy **tự điền mapping cột** trong giao diện, không bắt map lại.
+4. Đã **nạp thật bộ 4 workbook KHTN** trong test tích hợp: 5/5 PASS.
+5. Mode B kiểm ở **mức cả lô**, không đòi mỗi YCCĐ đủ 10 câu.
+6. Tách **"tự nhận diện từ mã"** khỏi "hợp lệ theo metadata" ở màn hình nhập.
+
+Chi tiết: `docs/V6_6_5_ACCEPTANCE.md`.
+
+**Việc cần người quyết:** workbook lớp 8, Chủ đề `18.Bảo vệ môi trường` có **hai YCCĐ khác nhau cùng
+đánh số 1** trong chính văn bản nguồn. Hệ thống chặn và bắt sửa số, không tự đánh lại. Cần người phụ
+trách chương trình rà hai dòng này trước khi nạp vào môi trường thật.
+
 ## Rủi ro cần xử lý
 
 1. **Token GitHub lộ trong `.git/config`** — remote `origin` nhúng PAT plaintext. Cần thu hồi và đổi
@@ -39,10 +56,14 @@ Chạy tuần tự trên Windows + PostgreSQL 16 local; tích hợp clone DB dù
 | `test/integration/pilot.test.js` | 34/34 |
 | `test/integration/v664-bulk.test.js` | 12/12 |
 | `test/integration/v665-resolver.test.js` | 10/10 |
+| `test/integration/v665-bootstrap.test.js` (4 workbook thật) | 5/5 |
 | `test/integration/v63.test.js` | 47/50 (3 lỗi có sẵn) |
 | `npm run build` (frontend) | PASS |
 
-**Tổng 171 pass / 3 fail, cả 3 đều có sẵn từ trước.**
+**Tổng 188 pass / 3 fail, cả 3 đều có sẵn từ trước.**
+
+Test bootstrap cần bộ 4 workbook tại `G:/tai lieu  oppa/UP SHARE/outcome khtn`; không có thì tự bỏ qua
+kèm lý do, không báo đỏ giả.
 
 Lưu ý khi chạy lại: **đừng dùng `npm run test:integration` để lấy kết luận** — chạy song song các file
 tích hợp gây fail dây chuyền giả. Chạy từng file một.

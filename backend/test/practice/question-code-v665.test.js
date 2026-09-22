@@ -104,6 +104,29 @@ test('V665 Mode B: 10 câu, số 1→10 không lặp, phân bố 3/3/2/2, hình 
   assert.equal(forms.includes('TL'), false);
 });
 
+test('V665 Mode B: bộ 10 câu trải trên nhiều YCCĐ vẫn hợp lệ — kiểm ở mức cả lô', () => {
+  // Luật hiện hành cho phép 2 YCCĐ chia 5+5. Validator không được đòi mỗi YCCĐ phải đủ 10 câu.
+  const levels = ['NB', 'NB', 'NB', 'TH', 'TH', 'TH', 'VD', 'VD', 'VDC', 'VDC'];
+  const forms = ['TN', 'TN', 'TN', 'TN', 'ĐS', 'ĐS', 'ĐS', 'TLN', 'GN', 'GN'];
+  const parsed = levels.map((level, i) =>
+    parseQuestionCode(`Câu L. 3. ${i < 5 ? 1 : 2}. ${level}. ${i + 1}. ${forms[i]}`));
+  const result = checkNumbering(parsed, 'INDEPENDENT_10');
+  assert.equal(result.scope, 'PER_BATCH');
+  assert.equal(result.yccd_count, 2);
+  assert.deepEqual(result.issues, [], JSON.stringify(result.issues));
+});
+
+test('V665 Mode B: thiếu câu hoặc lặp số vẫn bị báo ở mức cả lô', () => {
+  const short = modeBBatch().slice(0, 9);
+  const issues = checkNumbering(short, 'INDEPENDENT_10').issues.map(i => i.code);
+  assert.equal(issues.includes('BATCH_SIZE'), true);
+  assert.equal(issues.includes('CONTENT_NUMBER_SEQUENCE'), true);
+});
+
+test('V665 Mode A vẫn kiểm theo từng YCCĐ, không đổi sang mức lô', () => {
+  assert.equal(checkNumbering(modeABatch()).scope, 'PER_YCCD');
+});
+
 test('V665 Mode B: có Tự luận thì bị báo vì mặc định bộ 10 câu không dùng dạng này', () => {
   const parsed = modeBBatch();
   parsed[9] = parseQuestionCode('Câu H. 2. 1. VDC. 10. TL');
@@ -138,14 +161,16 @@ test('V665 mã phân môn L/H/S giữ nguyên qua mọi cách viết trong ngu�
   assert.equal(normalizeBranchCode('Toán'), null);
 });
 
-test('V665 số thứ tự Outcome đếm theo từng phân môn, YCCĐ đếm trong Outcome', () => {
+test('V665 chống tái phát: không được đánh số lại khi nguồn đã có số', () => {
+  // Trước đây hệ thống tự đếm 1,2,3... trong từng Outcome, biến H.2.4 của nguồn thành H.2.1.
   const rows = assignOrdinals([
-    {domain: 'Vật lí', outcome_title: 'Tốc độ'}, {domain: 'Vật lí', outcome_title: 'Tốc độ'},
-    {domain: 'Vật lí', outcome_title: 'Cơ năng'},
-    {domain: 'Hóa học', outcome_title: 'Nguyên tử'},
+    {domain: 'Hóa học', outcome_title: '2.Phản ứng hóa học', text: '4. Nêu được khái niệm biến đổi.'},
+    {domain: 'Hóa học', outcome_title: '2.Phản ứng hóa học', text: '5. Phân biệt được biến đổi.'},
+    {domain: 'Vật lí', outcome_title: '1.Tốc độ', text: '1. Nêu được khái niệm tốc độ.'},
   ]);
   assert.deepEqual(rows.map(r => [r.branch_code, r.outcome_ordinal, r.yccd_ordinal]),
-    [['L', 1, 1], ['L', 1, 2], ['L', 2, 1], ['H', 1, 1]]);
+    [['H', 2, 4], ['H', 2, 5], ['L', 1, 1]]);
+  assert.equal(rows.every(r => !r.source_flags.includes('SOURCE_ORDINAL_FALLBACK')), true);
 });
 
 test('V665 số bài không được dùng để suy Outcome: hai hệ đánh số độc lập', () => {

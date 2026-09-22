@@ -7,23 +7,41 @@ import {parseQuestionCode, canonicalKey, outcomeLabel, yccdLabel, FORMS} from '.
 const BRANCH_ALIASES = {VL: 'L', HH: 'H', SH: 'S'};
 export const branchCodeOf = code => BRANCH_ALIASES[code] || code;
 
-// Tra Outcome/YCCĐ trong đúng môn + khối. Cùng một mã nghiệp vụ (L.2.1) có thể tồn tại ở khối khác,
-// nên không bao giờ tra toàn cục chỉ bằng chuỗi mã.
+// Phiên bản chương trình đang hiệu lực cho một môn + khối.
+//
+// `status='ACTIVE'` một mình KHÔNG đủ để xác định "bản đang dùng": hệ thống giữ nhiều phiên bản
+// lịch sử, và hai phiên bản cùng có hàng ACTIVE sẽ khiến resolver trả về bản cũ. Vì vậy luôn chốt
+// vào đúng một phiên bản PUBLISHED mới nhất; nếu môn/khối chưa có phiên bản nào (dữ liệu legacy
+// trước khi có versioning) thì chỉ dùng các hàng không gắn phiên bản. Không bao giờ trộn hai nguồn.
+export async function effectiveCurriculumVersion(client, subject_id, grade) {
+  const row = (await client.query(
+    `SELECT id,version_code,published_at FROM curriculum_versions
+     WHERE subject_id=$1 AND grade=$2 AND status='PUBLISHED'
+     ORDER BY published_at DESC NULLS LAST, id DESC LIMIT 1`, [subject_id, grade])).rows[0];
+  return row || null;
+}
+
+// Tra Outcome/YCCĐ trong đúng môn + khối + phiên bản hiệu lực. Cùng một mã nghiệp vụ (L.2.1) có thể
+// tồn tại ở khối khác hoặc ở phiên bản chương trình khác, nên không bao giờ tra toàn cục bằng chuỗi mã.
 export async function resolveCurriculumCode(client, {subject_id, grade, branch_code, outcome_number, yccd_number}) {
   const subject = (await client.query('SELECT id,code,name FROM subjects WHERE id=$1', [subject_id])).rows[0];
   if (!subject) return {ok: false, error: 'SUBJECT_UNKNOWN', message: 'Môn không tồn tại'};
   if (!grade) return {ok: false, error: 'GRADE_CONTEXT_MISSING', message: 'Thiếu khối; khối là ngữ cảnh của phiên nhập'};
 
+  const version = await effectiveCurriculumVersion(client, subject_id, grade);
+  const versionId = version?.id ?? null;
   const key = canonicalKey({subject_code: subject.code, grade, branch_code, outcome_number});
   const outcome = (await client.query(
     `SELECT * FROM curriculum_outcomes
      WHERE subject_id=$1 AND grade=$2 AND status='ACTIVE'
+       AND ($6::int IS NULL AND curriculum_version_id IS NULL OR curriculum_version_id=$6)
        AND (canonical_key=$3 OR (COALESCE(source_branch_code,domain_code)=$4 AND source_ordinal=$5))
      ORDER BY (canonical_key=$3) DESC, id LIMIT 1`,
-    [subject_id, grade, key, branch_code, outcome_number])).rows[0];
+    [subject_id, grade, key, branch_code, outcome_number, versionId])).rows[0];
   if (!outcome) {
+    const where = version ? `bản chương trình ${version.version_code}` : 'bản chương trình hiện dùng';
     return {ok: false, error: 'OUTCOME_NOT_FOUND',
-      message: `Không tìm thấy Outcome ${outcomeLabel(branch_code, outcome_number)} trong ${subject.name} khối ${grade}`};
+      message: `Không tìm thấy Outcome ${outcomeLabel(branch_code, outcome_number)} trong ${subject.name} khối ${grade} (${where})`};
   }
 
   const yccd = (await client.query(
@@ -47,6 +65,7 @@ export async function resolveCurriculumCode(client, {subject_id, grade, branch_c
     ok: true,
     subject: {id: subject.id, code: subject.code, name: subject.name},
     grade,
+    version: version ? {id: version.id, code: version.version_code} : null,
     branch: branch ? {id: branch.id, code: branch.code, name: branch.name} : null,
     outcome: {id: outcome.id, label: outcomeLabel(branch_code, outcome_number), title: outcome.title, code: outcome.code},
     yccd: {id: yccd.id, label: yccdLabel(branch_code, outcome_number, yccd_number), text: yccd.text, code: yccd.code},

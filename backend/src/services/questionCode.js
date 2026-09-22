@@ -91,43 +91,69 @@ export function inferNumberingMode(parsed) {
   return 'CUSTOM';
 }
 
+const duplicateCodes = (items, label, issues) => {
+  const seen = new Set(), duplicates = new Set();
+  for (const r of items) {
+    const key = [r.branch_code, r.outcome_number, r.yccd_number, r.content_number, r.question_form].join(':');
+    if (seen.has(key)) duplicates.add(key); else seen.add(key);
+  }
+  for (const key of duplicates) {
+    const parts = key.split(':');
+    issues.push({code: 'DUPLICATE_CODE', message: `${label}: trùng mã ở đơn vị ${parts[3]} dạng ${parts[4]}`});
+  }
+};
+
 // Kiểm một lô theo đúng luật của chế độ đã suy ra. Trả cảnh báo, không tự sửa mã (§13, §33).
+//
+// Mode A kiểm theo TỪNG YCCĐ: một YCCĐ phải đủ 20 câu, 4 đơn vị × 5 hình thức.
+// Mode B kiểm theo CẢ LÔ: bộ 10 câu có thể trải trên nhiều YCCĐ (5+5, hoặc chia đều cho 3 YCCĐ trở
+// lên), nên đòi mỗi YCCĐ phải có đủ 10 câu là sai luật hiện hành.
 export function checkNumbering(parsed, mode = inferNumberingMode(parsed)) {
   const rows = parsed.filter(p => p?.ok).map(p => p.value);
   const issues = [];
-  const spec = mode === 'CONTENT_UNIT_5_FORMS' ? MODE_A : mode === 'INDEPENDENT_10' ? MODE_B : null;
-  if (!spec) return {mode, issues};
+  if (mode === 'CONTENT_UNIT_5_FORMS') {
+    const groups = new Map();
+    for (const r of rows) {
+      const key = [r.branch_code, r.outcome_number, r.yccd_number].join('.');
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(r);
+    }
+    for (const [yccd, items] of groups) {
+      const units = new Set(items.map(r => r.content_number));
+      if (units.size !== MODE_A.content_units) {
+        issues.push({code: 'CONTENT_UNIT_COUNT', message: `YCCĐ ${yccd}: có ${units.size} đơn vị kiến thức, chuẩn của chế độ này là ${MODE_A.content_units}`});
+      }
+      if (items.length !== MODE_A.total) {
+        issues.push({code: 'BATCH_SIZE', message: `YCCĐ ${yccd}: có ${items.length} câu, chuẩn của chế độ này là ${MODE_A.total}`});
+      }
+      const levels = Object.fromEntries(LEVELS.map(l => [l, items.filter(r => r.declared_level === l).length]));
+      for (const level of LEVELS) if (levels[level] !== MODE_A.level_distribution[level]) {
+        issues.push({code: 'LEVEL_DISTRIBUTION', message: `YCCĐ ${yccd}: mức ${level} có ${levels[level]} câu, chuẩn là ${MODE_A.level_distribution[level]}`});
+      }
+      duplicateCodes(items, `YCCĐ ${yccd}`, issues);
+    }
+    return {mode, issues, scope: 'PER_YCCD'};
+  }
 
-  const groups = new Map();
-  for (const r of rows) {
-    const key = [r.branch_code, r.outcome_number, r.yccd_number].join('.');
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(r);
+  if (mode === 'INDEPENDENT_10') {
+    if (rows.length !== MODE_B.total) {
+      issues.push({code: 'BATCH_SIZE', message: `Bộ câu có ${rows.length} câu, chuẩn của chế độ này là ${MODE_B.total}`});
+    }
+    const numbers = rows.map(r => r.content_number).sort((a, b) => a - b);
+    const expected = Array.from({length: MODE_B.total}, (_, i) => i + 1);
+    if (numbers.length !== expected.length || numbers.some((n, i) => n !== expected[i])) {
+      issues.push({code: 'CONTENT_NUMBER_SEQUENCE', message: `Bộ 10 câu phải đánh số 1→10 không lặp; hiện là ${numbers.join(', ')}`});
+    }
+    const levels = Object.fromEntries(LEVELS.map(l => [l, rows.filter(r => r.declared_level === l).length]));
+    for (const level of LEVELS) if (levels[level] !== MODE_B.level_distribution[level]) {
+      issues.push({code: 'LEVEL_DISTRIBUTION', message: `Cả bộ: mức ${level} có ${levels[level]} câu, chuẩn là ${MODE_B.level_distribution[level]}`});
+    }
+    if (rows.some(r => r.question_form === 'TL')) {
+      issues.push({code: 'UNEXPECTED_ESSAY', message: 'Bộ 10 câu độc lập mặc định không có dạng Tự luận'});
+    }
+    duplicateCodes(rows, 'Bộ câu', issues);
+    return {mode, issues, scope: 'PER_BATCH', yccd_count: new Set(rows.map(r => [r.branch_code, r.outcome_number, r.yccd_number].join('.'))).size};
   }
-  for (const [yccd, items] of groups) {
-    const units = new Set(items.map(r => r.content_number));
-    if (units.size !== spec.content_units) {
-      issues.push({code: 'CONTENT_UNIT_COUNT', message: `YCCĐ ${yccd}: có ${units.size} đơn vị kiến thức, chuẩn của chế độ này là ${spec.content_units}`});
-    }
-    if (items.length !== spec.total) {
-      issues.push({code: 'BATCH_SIZE', message: `YCCĐ ${yccd}: có ${items.length} câu, chuẩn của chế độ này là ${spec.total}`});
-    }
-    const levels = Object.fromEntries(LEVELS.map(l => [l, items.filter(r => r.declared_level === l).length]));
-    for (const level of LEVELS) if (levels[level] !== spec.level_distribution[level]) {
-      issues.push({code: 'LEVEL_DISTRIBUTION', message: `YCCĐ ${yccd}: mức ${level} có ${levels[level]} câu, chuẩn là ${spec.level_distribution[level]}`});
-    }
-    if (mode === 'INDEPENDENT_10' && items.some(r => r.question_form === 'TL')) {
-      issues.push({code: 'UNEXPECTED_ESSAY', message: `YCCĐ ${yccd}: bộ 10 câu độc lập mặc định không có dạng Tự luận`});
-    }
-    const duplicates = new Set();
-    const seen = new Set();
-    for (const r of items) {
-      const key = r.content_number + ':' + r.question_form;
-      if (seen.has(key)) duplicates.add(key); else seen.add(key);
-    }
-    for (const key of duplicates) {
-      issues.push({code: 'DUPLICATE_CODE', message: `YCCĐ ${yccd}: trùng mã ở đơn vị ${key.split(':')[0]} dạng ${key.split(':')[1]}`});
-    }
-  }
-  return {mode, issues};
+
+  return {mode, issues, scope: 'NONE'};
 }
