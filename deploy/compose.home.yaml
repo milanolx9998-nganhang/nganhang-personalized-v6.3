@@ -2,7 +2,7 @@ name: nganhang-home-app
 services:
   app:
     build: ..
-    image: nganhang-home-app:6.5.3
+    image: nganhang-home-app:${APP_VERSION:-6.6.7.1}
     restart: unless-stopped
     init: true
     env_file: .env.home

@@ -1,10 +1,10 @@
 # PERF V6.6.7 — Redis + Supavisor + tối ưu luồng làm bài
 
-Ngày: 2026-09-24 · Nguồn: `REDIS_SUPAVISOR_PERFORMANCE_PLAN_NGANHANG_V666.md` · HEAD khi bắt đầu: `e243b69` (+ V6.6.6.3 chưa commit)
+Ngày: 2026-09-24 · Nguồn: `REDIS_SUPAVISOR_PERFORMANCE_PLAN_NGANHANG_V666.md` · Code baseline: `cbd6558e` (GitHub Actions run `35901506659` PASS) · Runtime verification: 2026-09-24
 
 Kiến trúc giữ nguyên: **Trình duyệt → Caddy → Express → (Redis tùy chọn) + PostgreSQL / Supavisor**. Frontend không bao giờ gọi DB/Storage trực tiếp.
 
-## 1. Kết quả đo (máy local, 1 tiến trình Node, PostgreSQL 16, **chưa có Redis**)
+## 1. Kết quả đo lịch sử (máy local, 1 tiến trình Node, PostgreSQL 16, **chưa có Redis**)
 
 Công cụ: `backend/test/load/quiz-load.mjs`. Công cụ tự dựng DB tạm, seed học sinh + câu đã duyệt, rồi đo:
 - đăng nhập;
@@ -44,9 +44,21 @@ Giữa các lượt đo cùng một mã, kết quả lệch khoảng ±30%. Vì 
 
 ### 1.3 Chưa đo được ở local
 
-- **Redis thật:** máy local không có Redis / Docker. Phần có Redis mới chỉ được kiểm bằng Redis giả (unit test) và bằng Redis không kết nối được (test tích hợp). Tỉ lệ trúng cache và độ trễ catalog khi có Redis phải đo trên server (§8).
-- **Supavisor:** local nối thẳng PostgreSQL.
-- **Máy chủ thật, nhiều tiến trình, mạng thật:** dùng k6 trên staging (§7).
+- **Redis thật / Supavisor:** đây là kết quả benchmark lịch sử trước khi provision runtime Home; không dùng đoạn này để mô tả trạng thái hiện tại.
+- **Máy chủ thật, nhiều tiến trình, mạng thật:** dùng k6 trên staging (§7). Xác minh runtime Home hiện tại xem §1A.
+
+## 1A. Xác minh runtime hiện tại trên máy Home
+
+Đã xử lý các gap runtime P0/P1 có thể xác minh an toàn trên Home bằng systemd hiện hữu, không chuyển app sang Compose:
+
+- `nganhang.service` chạy Node trực tiếp; `nganhang-redis.service` chạy Redis private bằng Docker.
+- Redis image được pin digest, chỉ bind `127.0.0.1:6379`; maxmemory `256 MB`, `allkeys-lru`, không persistence.
+- `/api/health`: `status=ok`, `database=ok`, `storage=ok`, `cache=ok`.
+- Redis failure test: dừng Redis vẫn giữ app `status=ok`, `cache=degraded`; khởi động lại Redis khôi phục `cache=ok`.
+- `perf-db-check.mjs`: app dùng Supavisor **session mode** (`127.0.0.1:5432`, user dạng `postgres.<tenant>`); pooler thật có `POOLER_POOL_MODE=transaction` cho các client khác và không làm app Node chuyển sang transaction mode.
+- PostgreSQL `17.6`, `max_connections=100`, ngân sách sau reserved connection khoảng `97`; `DB_POOL_MAX=20` cho một Node process.
+
+Các kết quả này chứng minh runtime/cache/Supavisor hiện tại; chưa thay thế load test staging 50→100→200.
 
 ## 2. Phát hiện từ baseline (quan trọng hơn Redis)
 
@@ -130,7 +142,7 @@ Khuyến nghị:
 
 ## 7. Đo tải trên staging (k6)
 
-`backend/test/load/k6-quiz.js`: `SCENARIO=ramp` (50→100→200), `burst_start` (120 người bắt đầu cùng lúc), `soak` (100 người, 30 phút). Ngưỡng đạt:
+`backend/test/load/k6-quiz.js`: `SCENARIO=ramp` (50→100→200), `burst_start` (120 start trong ≤5 giây), `burst_submit` (120 submit trong ≤10 giây), `soak` (100 người, 30 phút). Burst dùng `setup()` để chuẩn bị token/attempt, không tính login/think-time vào cửa sổ đo. Ngưỡng đạt:
 - lỗi < 1%;
 - p95 đọc chung < 300 ms;
 - p95 lưu bài < 500 ms;
@@ -140,17 +152,32 @@ Cần tài khoản học sinh thử và một chủ đề có đủ câu đã du
 
 ## 8. Triển khai Home
 
-1. `deploy/compose.home.yaml` đã có service `redis` (redis:7.4-alpine), **không publish cổng**, 256 MB, LRU, không ghi đĩa.
-2. Thêm vào `deploy/.env.home` các khóa trong `deploy/.env.home.example` (mục PERF): `REDIS_URL=redis://redis:6379`, `REDIS_PREFIX=ngh:home`…
-3. `bash scripts/home-update.sh` (build lại image để có gói `redis`), rồi kiểm:
-   - `/api/health` có `cache: ok`;
-   - `/api/practice/operations` có `cache.redis.used_memory`, `rate_limit.redis > 0`.
-4. Thử sập Redis: `docker compose … stop redis`, rồi kiểm:
-   - học sinh vẫn làm / nộp bài được;
-   - health báo `cache: degraded`;
-   - `rate_limit.fallback` tăng.
+### 8.1 Runtime hiện hành: systemd + Redis private
 
-   Sau đó `start redis` và xác nhận `cache: ok` trở lại.
+Máy Home hiện deploy app bằng `nganhang.service`, vì vậy không dùng hostname `redis` của Compose. Runtime đã được provision bằng:
+
+- `/home/hieu/.config/systemd/user/nganhang-redis.service`;
+- `backend/.env`: `REDIS_URL=redis://127.0.0.1:6379` (file local, không commit);
+- Redis image `redis@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499`.
+
+Không đổi sang Compose giữa chừng. `deploy/compose.home.yaml` vẫn là profile Compose độc lập; image app đã đổi sang `${APP_VERSION:-6.6.7.1}` để không còn tag stale `6.5.3`.
+
+Đã kiểm chứng:
+
+- `systemctl --user is-active nganhang-redis.service nganhang.service` → `active active`;
+- Redis bind `127.0.0.1:6379`, `PONG`, `used_memory≈1 MB`, `maxmemory=256 MB`, `allkeys-lru`;
+- `/api/health` → `status=ok`, `cache=ok`;
+- stop Redis → `/api/health` vẫn `status=ok`, `cache=degraded`;
+- start Redis → `/api/health` trở lại `cache=ok`.
+
+### 8.2 Profile Compose (chưa phải runtime đang chạy)
+
+`deploy/compose.home.yaml` có service `redis` private, không publish cổng, 256 MB, LRU, không ghi đĩa. Nếu sau này chuyển toàn bộ app sang Compose thì phải dùng `REDIS_URL=redis://redis:6379` và chạy UAT lại, không trộn hai topology.
+
+### 8.3 Kiểm tra vận hành
+
+- `/api/practice/operations` cần được gọi bằng phiên admin để xác nhận `cache.redis.used_memory`, `rate_limit.redis > 0`, pool waiting và query metrics.
+- Load test staging 50→100→200 vẫn còn chờ; không dùng health 200 để kết luận performance acceptance.
 
 ## 9. Header HTTP
 
@@ -162,17 +189,17 @@ Cần tài khoản học sinh thử và một chủ đề có đủ câu đã du
 
 | Mục | Trạng thái | Bằng chứng |
 |---|---|---|
-| App vẫn chạy khi Redis sập | **ĐẠT (local)** | `v667-perf`: Redis trỏ vào cổng chết → health `ok` + `cache: degraded`, đăng nhập / làm bài / nộp bình thường. Thử `docker stop redis` trên server: chờ làm. |
-| Redis không mở cổng 6379 | **ĐẠT (cấu hình)** | `compose.home.yaml` không có `ports` cho redis. |
+| App vẫn chạy khi Redis sập | **ĐẠT (runtime Home)** | Dừng `nganhang-redis.service`: health vẫn `ok`, `cache: degraded`; bật lại khôi phục `cache: ok`. |
+| Redis không public cổng 6379 | **ĐẠT (runtime Home)** | systemd chỉ bind `127.0.0.1:6379`; Compose profile không publish Redis ra ngoài network nội bộ. |
 | Không cache đáp án / bí mật | **ĐẠT** | Chỉ cache catalog, bài giao, dashboard, số đếm (§3). Lượt làm bài / lưu / nộp / câu hỏi có đáp án không đi qua cache. |
 | Rate limit dùng Redis | **ĐẠT (code + unit)** | `FallbackRedisStore` + unit test với Redis giả. Trên server: xem `rate_limit.redis > 0`. |
 | Tỉ lệ trúng cache dữ liệu chung cao, số truy vấn DB giảm | **CHỜ SERVER** | `/api/practice/operations` → `cache.metrics` / `cache.redis.keyspace_*`, `db.queries.count`. |
 | Pool DB không chờ nhiều | **CÓ SỐ LIỆU** | `db.pool.waiting / max_waiting_seen / wait_ms_*`. |
 | p95 tốt hơn hoặc không xấu đi | **ĐẠT (local)** | §1: tổng giảm 28–34%; đăng nhập nhanh gấp 3; không API nào xấu đi vượt mức dao động. |
 | Bộ nhớ Redis có giới hạn, theo dõi được số khóa bị đẩy ra | **ĐẠT (cấu hình)** | `maxmemory` + `allkeys-lru`; `cache.redis.evicted_keys`. |
-| Ghi lại cấu hình Supavisor | **CHỜ SERVER** | Chạy `scripts/perf-db-check.mjs` + đọc `.env` Supabase (§6). |
+| Ghi lại cấu hình Supavisor | **ĐẠT (runtime Home)** | `perf-db-check.mjs`: app dùng session mode ở cổng 5432; pooler env thật: transaction pool cho service pooler, default pool size 20, max client 100; PostgreSQL 17.6 / max 100. |
 | Đo tải 100 / 200 người đạt | **CHỜ STAGING** | `k6-quiz.js` (§7). Local: 120 người làm trọn luồng, 0 lỗi khi trần IP đúng. |
-| Dồn bắt đầu / nộp bài đạt | **ĐẠT (local)** | 120 người bắt đầu cùng lúc: 1,26 s cả lớp; 120 người nộp cùng lúc: 0,89 s. |
+| Dồn bắt đầu / nộp bài đạt | **ĐẠT (local script); k6 scenario đã bổ sung** | Local script: 120 start ~1,26 s, 120 submit ~0,89 s. k6 đã tách `burst_start`/`burst_submit`; staging vẫn chờ số đo thật. |
 | Trần NAT / IP không chặn nhầm cả lớp | **ĐẠT với đăng nhập; API cần cấu hình** | B1 đã sửa trong code. B3: kiểm `client-ip` rồi chỉnh `RATE_LIMIT_API_IP` (§5). |
 
 ## 11. Tệp đổi

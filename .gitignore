@@ -5,6 +5,9 @@ node_modules/
 !/backend/uploads/.gitkeep
 dist-ssr/
 *.local
+deploy/.env.home
+deploy/.env.supabase-lan
+deploy/.env.*.local
 .vscode/*
 !.vscode/extensions.json
 .idea/

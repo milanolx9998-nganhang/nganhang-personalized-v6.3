@@ -35,12 +35,19 @@ if (process.env.DATABASE_URL) {
     route: viaSupavisor ? (port === 6543 ? 'Supavisor — transaction mode' : 'Supavisor — session mode') : 'PostgreSQL trực tiếp (không qua Supavisor)'};
   config = {connectionString: process.env.DATABASE_URL};
 } else {
-  out.connection = {host: process.env.DB_HOST || 'localhost', port: Number(process.env.DB_PORT || 5432), database: process.env.DB_NAME, user_role: process.env.DB_USER,
-    route: 'PostgreSQL trực tiếp (DB_HOST/DB_PORT)'};
-  config = {host: process.env.DB_HOST, port: process.env.DB_PORT, database: process.env.DB_NAME, user: process.env.DB_USER, password: process.env.DB_PASSWORD};
+  const host = process.env.DB_HOST || 'localhost';
+  const port = Number(process.env.DB_PORT || 5432);
+  const user = process.env.DB_USER || '';
+  // Self-host Supavisor cũng có thể được cấu hình qua DB_HOST/DB_PORT thay vì DATABASE_URL.
+  // Username tenant dạng postgres.<tenant-id> là tín hiệu chắc chắn hơn hostname localhost.
+  const viaSupavisor = user.includes('.');
+  out.connection = {host, port, database: process.env.DB_NAME, user_role: user.split('.')[0],
+    tenant: viaSupavisor ? user.split('.').slice(1).join('.') : null,
+    route: viaSupavisor ? (port === 6543 ? 'Supavisor — transaction mode' : 'Supavisor — session mode') : 'PostgreSQL trực tiếp (DB_HOST/DB_PORT)'};
+  config = {host, port, database: process.env.DB_NAME, user, password: process.env.DB_PASSWORD};
 }
 if (out.connection.route.includes('transaction')) out.notes.push('App Node chạy lâu dài: nên dùng session mode (cổng 5432 của Supavisor) — xem docs/PERF_V6_6_7_REDIS_SUPAVISOR.md.');
-if (out.connection.route.includes('trực tiếp') && process.env.DATABASE_URL) out.notes.push('Production nên nối qua Supavisor; ghi lại quyết định nếu cố ý nối thẳng.');
+if (out.connection.route.includes('trực tiếp')) out.notes.push('Production nên nối qua Supavisor; ghi lại quyết định nếu cố ý nối thẳng.');
 
 const client = new pg.Client({...config, connectionTimeoutMillis: 5000});
 try {

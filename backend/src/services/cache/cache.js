@@ -57,8 +57,9 @@ async function load(key, ttlSeconds, loader, jitter, raw) {
   cacheMetrics.miss++;
   // Chống dồn tải giữa nhiều tiến trình: một bên giữ khóa nạp dữ liệu, bên khác chờ ngắn rồi đọc lại.
   const lockKey = key + ':lock';
+  const lockToken = crypto.randomUUID();
   let locked = false;
-  try { locked = (await command(['SET', lockKey, '1', 'PX', '5000', 'NX'])) === 'OK'; } catch { cacheMetrics.error++; }
+  try { locked = (await command(['SET', lockKey, lockToken, 'PX', '5000', 'NX'])) === 'OK'; } catch { cacheMetrics.error++; }
   if (!locked) {
     for (let i = 0; i < 6; i++) {
       await sleep(40);
@@ -75,7 +76,8 @@ async function load(key, ttlSeconds, loader, jitter, raw) {
     } catch { cacheMetrics.error++; }
     return value;
   } finally {
-    if (locked) command(['DEL', lockKey]).catch(() => {});
+    // Chỉ owner hiện tại được xoá lock; tránh owner cũ xoá lock của request khác sau khi hết TTL.
+    if (locked) command(['EVAL', "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end", '1', lockKey, lockToken]).catch(() => {});
   }
 }
 

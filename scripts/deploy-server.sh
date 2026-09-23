@@ -4,6 +4,8 @@
 # backup -> migrate -> restart -> polled health -> rollback app on failure.
 # Never logs env values or secrets; never packages .env.
 set -Eeuo pipefail
+# User services cần runtime directory khi deploy chạy từ self-hosted runner/SSH không có session GUI.
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 
 APP_DIR="${APP_DIR:-/home/hieu/nganhang-personalized-v6.3}"
 SERVICE="${SERVICE:-nganhang.service}"

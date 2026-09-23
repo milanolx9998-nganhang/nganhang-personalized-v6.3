@@ -59,7 +59,11 @@ r.put('/settings',wrap(async(req,res)=>{if(!await can(req.user,'system.config',{
 // PERF V6.6.7: catalog giống nhau với mọi người (~400 KB) → cache chung 10 phút theo thế hệ nội dung, giữ sẵn
 // dạng chuỗi JSON để gửi thẳng, không parse / tuần tự hóa lại mỗi request.
 r.get('/catalog',wrap(async(req,res)=>res.type('application/json').send(await cachedShared(['catalog','v2'],600,async()=>{const subjects=(await pool.query('SELECT s.*,p.config AS profile FROM subjects s LEFT JOIN subject_profiles p ON p.subject_id=s.id ORDER BY s.name')).rows;const topics=(await pool.query("SELECT * FROM topics WHERE status='ACTIVE' ORDER BY subject_id,grade,order_index")).rows;const taxonomy_nodes=(await pool.query('SELECT n.*,v.subject_id,v.name AS version_name FROM taxonomy_nodes n JOIN taxonomy_versions v ON v.id=n.version_id ORDER BY v.id,n.id')).rows;return JSON.stringify({subjects,topics,taxonomy_nodes});},{raw:true}))));
-r.get('/content-options',wrap(async(req,res)=>res.json(await contentOptions(req.user,req.query))));
+// Curriculum/YCCĐ/Bài mapping dùng chung theo từng người dùng và môn/khối; không chứa đáp án.
+r.get('/content-options',wrap(async(req,res)=>{
+ const subject=Number(req.query.subject_id),grade=Number(req.query.grade);
+ res.json(await cachedShared(['content-options',req.user.id,subject,grade],600,()=>contentOptions(req.user,{subject_id:subject,grade})));
+}));
 r.post('/availability',wrap(async(req,res)=>{const {availability:counts,shortages}=await availability(req.user,req.body);res.json({availability:counts,shortages});}));
 r.post('/attempts',wrap(async(req,res)=>res.status(201).json(await freshDashboard(req,await createAttempt(req.user,req.body)))));
 r.get('/attempts/:id',wrap(async(req,res)=>res.json(await getAttempt(req.user,req.params.id))));

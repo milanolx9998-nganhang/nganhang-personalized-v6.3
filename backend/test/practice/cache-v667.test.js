@@ -33,6 +33,11 @@ function fakeRedis() {
       }
       case 'PTTL': { const e = alive(a[0]); return !e ? -2 : e.exp ? e.exp - Date.now() : -1; }
       case 'PEXPIRE': { const e = alive(a[0]); if (!e) return 0; e.exp = Date.now() + Number(a[1]); return 1; }
+      case 'EVAL': {
+        const key = a[2], token = a[3], e = alive(key);
+        if (e?.v === token) { data.delete(key); return 1; }
+        return 0;
+      }
       default: throw new Error('lệnh chưa hỗ trợ: ' + cmd);
     }
   }};
@@ -57,6 +62,18 @@ test('nhiều request cùng khóa khi chưa có cache chỉ nạp DB một lần
   const results = await Promise.all(Array.from({length: 50}, () => cached(cacheKey('unit', 'burst'), 30, loader)));
   assert.equal(loads, 1);
   assert(results.every(r => r.rows.length === 3));
+});
+
+test('distributed lock chỉ owner mới được release', async () => {
+  const redis = fakeRedis(); setRedisClientForTest(redis);
+  let loads = 0;
+  const key = cacheKey('unit', 'owner-lock');
+  const first = cached(key, 30, async () => { loads++; await new Promise(r => setTimeout(r, 30)); return {owner: 'first'}; });
+  await new Promise(r => setTimeout(r, 5));
+  const second = cached(key, 30, async () => { loads++; return {owner: 'second'}; });
+  assert.deepEqual(await first, {owner: 'first'});
+  assert.deepEqual(await second, {owner: 'first'});
+  assert.equal(loads, 1);
 });
 
 test('Redis lỗi giữa chừng: trả thẳng dữ liệu từ loader, không ném lỗi', async () => {
