@@ -12,6 +12,9 @@ import fs from 'fs';
 import crypto from 'node:crypto';
 import {pool} from './db/pool.js';
 import {pruneEditOperations} from './services/practice/quickEdit.js';
+import {requestContextMiddleware} from './utils/requestContext.js';
+import {initRedis,redisStatus} from './services/cache/redis.js';
+import {bumpGeneration} from './services/cache/cache.js';
 import {auth} from './middleware/auth.js';
 import {csrfGuard} from './middleware/session.js';
 import {staffMedia} from './services/practice/privateMedia.js';
@@ -48,6 +51,7 @@ const PORT = parseInt(process.env.PORT || '3001', 10);
 const HOST = process.env.HOST || '0.0.0.0';
 
 app.use((req,res,next)=>{res.on('finish',()=>{recordHttp(res.statusCode);if(res.statusCode===403)void audit(req.user?.id||null,'AUTHZ_DENIED','security',null,{path:req.path},req.ip);if(res.statusCode===200&&/export|download/.test(req.path)){const action=/source/.test(req.path)?'SOURCE_DOWNLOAD':/qti/.test(req.path)||req.query.answers==='true'||req.query.kind==='answer'?'ANSWER_EXPORT':'CONTENT_EXPORT';void audit(req.user?.id||null,action,'security',null,{path:req.path},req.ip);}});req.requestId=crypto.randomUUID();res.setHeader('X-Request-ID',req.requestId);next();});
+app.use(requestContextMiddleware);
 app.use(helmet({contentSecurityPolicy:{directives:{defaultSrc:["'self'"],scriptSrc:["'self'"],styleSrc:["'self'","'unsafe-inline'"],imgSrc:["'self'",'data:'],objectSrc:["'none'"],baseUri:["'self'"],formAction:["'self'"],connectSrc:["'self'"],fontSrc:["'self'"],frameAncestors:["'self'",...(process.env.CANVAS_ORIGINS||'').split(',').filter(Boolean)]}},frameguard:process.env.CANVAS_ORIGINS?false:{action:'sameorigin'}}));
 const origins=(process.env.CORS_ORIGIN||'').split(',').filter(Boolean);
 app.use(cors({origin:(origin,cb)=>cb(null,!origin||origins.includes(origin))}));
@@ -61,9 +65,11 @@ if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 for(const folder of ['images','media'])app.use('/uploads/'+folder,auth,(req,res,next)=>{if(req.user.must_change_password)return res.sendStatus(403);staffMedia(req,res).catch(next);});
 
 app.get('/api/health', async (_req, res) => {
-  try{await pool.query('SELECT 1');await storage.health();res.json({ status: 'ok', database:'ok', storage:'ok',...publicProfile(), timestamp: new Date().toISOString(), version: VERSION });}catch{res.status(503).json({status:'unavailable'});}
+  try{await pool.query('SELECT 1');await storage.health();res.json({ status: 'ok', database:'ok', storage:'ok', cache:redisStatus(),...publicProfile(), timestamp: new Date().toISOString(), version: VERSION });}catch{res.status(503).json({status:'unavailable'});}
 });
 
+// Mọi phản hồi API (bài làm, đáp án, dữ liệu cá nhân) không được lưu ở trình duyệt / proxy trung gian.
+app.use('/api',(_req,res,next)=>{res.setHeader('Cache-Control','private, no-store');next();});
 app.use('/api',csrfGuard);
 app.use('/api/auth/login', loginLimiter);
 app.use('/api/auth', authRoutes);
@@ -71,6 +77,16 @@ app.use('/api',auth,apiIpLimiter,sensitiveLimiter,(req,res,next)=>{
  if(req.user.must_change_password)return res.status(403).json({error:'Cần đổi mật khẩu trước khi tiếp tục'});
  if(req.user.role==='student'&&!req.path.startsWith('/practice/'))return res.status(403).json({error:'Học sinh chỉ được truy cập khu tự luyện'});
 
+ next();
+});
+// Dữ liệu dùng chung trong cache (catalog, bài giao, số đếm) gắn "thế hệ nội dung": thao tác ghi thành công của
+// giáo viên / quản trị đổi thế hệ trước khi trả lời (transaction đã commit), nên lần đọc kế tiếp thấy dữ liệu mới.
+// Học sinh ghi (lưu bài, nộp) không đổi thế hệ (PERF V6.6.7).
+app.use('/api',(req,res,next)=>{
+ if(['GET','HEAD','OPTIONS'].includes(req.method)||req.user?.role==='student')return next();
+ const json=res.json.bind(res);let bumped=false;
+ res.json=body=>{if(res.statusCode<400&&!bumped){bumped=true;bumpGeneration('content').finally(()=>json(body));return res;}return json(body);};
+ res.on('finish',()=>{if(res.statusCode<400&&!bumped){bumped=true;void bumpGeneration('content');}});
  next();
 });
 app.use('/api/practice',apiLimiter,practiceRoutes,studentCompetencyRoutes);
@@ -92,9 +108,14 @@ app.use('/api/analysis', apiLimiter, analysisRoutes);
 // Serve frontend production build
 const frontendDist = path.resolve(__dirname, '../../frontend/dist');
 if (fs.existsSync(frontendDist)) {
-  app.use(express.static(frontendDist));
+  // Tệp JS/CSS/font của Vite có hash trong tên: cache lâu dài. index.html luôn hỏi lại để nhận bản build mới.
+  app.use(express.static(frontendDist,{setHeaders:(res,file)=>{
+    if(/[\\/]assets[\\/]/.test(file))res.setHeader('Cache-Control','public, max-age=31536000, immutable');
+    else if(file.endsWith('index.html'))res.setHeader('Cache-Control','no-cache');
+  }}));
   app.get(/.*/, (req, res, next) => {
     if (req.path.startsWith('/api/')) return next();
+    res.setHeader('Cache-Control','no-cache');
     res.sendFile(path.join(frontendDist, 'index.html'));
   });
 }
@@ -102,6 +123,8 @@ if (fs.existsSync(frontendDist)) {
 app.use(errorHandler);
 
 (async () => {
+  // Redis tùy chọn: không chờ kết nối, không chặn khởi động (PERF V6.6.7).
+  initRedis();
   try {
     await testConnection();
     console.log('✓ Kết nối PostgreSQL thành công');

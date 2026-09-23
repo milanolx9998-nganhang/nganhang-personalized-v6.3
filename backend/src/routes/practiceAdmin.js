@@ -8,6 +8,9 @@ const r=Router();
 const admin=(req,res,next)=>req.user.role==='admin'?next():res.status(403).json({error:'Chỉ quản trị quản lý cấu trúc môn'});
 const wrap=fn=>async(req,res,next)=>{try{await fn(req,res);}catch(e){next(e);}};
 r.get('/operations',admin,wrap(async(_req,res)=>res.json(await operations())));
+// Kiểm tra NAT / proxy: IP mà rate limit đang dùng cho chính request này (PERF V6.6.7). Mở từ vài máy học sinh
+// khác nhau: nếu mọi máy ra cùng một "ip" thì cả lớp chung một trần rate limit theo IP.
+r.get('/operations/client-ip',admin,(req,res)=>res.json({ip:req.ip,ips:req.ips,forwarded_for:req.headers['x-forwarded-for']||null,trust_proxy:process.env.TRUST_PROXY||null}));
 r.get('/taxonomy',wrap(async(req,res)=>res.json({versions:(await pool.query('SELECT * FROM taxonomy_versions ORDER BY id')).rows,nodes:(await pool.query('SELECT * FROM taxonomy_nodes ORDER BY version_id,id')).rows})));
 r.post('/taxonomy/versions',admin,wrap(async(req,res)=>{
  const d=z.object({subject_id:z.number().int().positive(),name:z.string().min(1).max(200)}).parse(req.body);

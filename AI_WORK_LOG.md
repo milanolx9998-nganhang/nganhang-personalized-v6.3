@@ -275,3 +275,21 @@ thu hồi PAT GitHub; commit khi user yêu cầu; deploy xong chạy `npm run mi
 **Kết quả:** 3 lỗi audit + 2 mục P3 đóng; exception-counts ~1,1 s ở 20k vẫn chỉ theo dõi. Chưa commit. Codegraph chưa rebuild (không có `codegraph.py` trên máy).
 
 **Việc tiếp theo:** UAT lô Word thật; user chạy cleanup `--apply`; thu hồi PAT GitHub; commit khi user yêu cầu.
+
+## 2026-09-24 — V6.6.6.3: sửa theo audit `e243b69` (AUDIT_COMMIT_E243B69_V6662.md)
+
+**Yêu cầu:** sửa P2 (gửi duyệt lô nhập gọi lại không idempotent về số liệu) + P3 (mục nhập vs câu trong kho).
+
+**Skills:** không dùng (delta nhỏ, phạm vi rõ).
+
+**Đổi:** `imports.js`:
+- `submitImportJob` khóa + phân loại từng phần (`PENDING_REVIEW` → already_submitted, `APPROVED` → already_handled, còn lại mới `evaluateBulk`), trả `submitted_now / already_submitted / already_handled / not_submitted`;
+- `importResult` thêm `processed_items`, `unique_questions` (`imported` giữ làm alias).
+
+`ImportCenter.jsx`: hiển thị số mới. `v6652-import.test.js`: mở rộng test 501 câu (gửi dở 200 → 301 now / 200 already; gửi lại → 0 / 501 / 0), thêm test hai mục "tạo phiên bản" cùng một câu. Tài liệu `docs/V6_6_6_3_AUDIT_E243B69_FIXES.md`. Không migration.
+
+**Kiểm tra (tuần tự):** unit 115/115; security 27/27; pilot 34/34; v63 47/50 (3 baseline); v664 12/12; bootstrap 7/7; resolver 10/10; v6652 19/19; workbench 10/10; ui-gallery 1/1; build OK. DB tạm không tăng.
+
+**Kết quả:** P2 + P3 audit đóng; chưa commit. Theo audit: dừng phát triển chức năng, chuyển UAT bằng file Word thật.
+
+**Việc tiếp theo:** UAT Word thật; user chạy cleanup `--apply`; thu hồi PAT GitHub; commit khi user yêu cầu.

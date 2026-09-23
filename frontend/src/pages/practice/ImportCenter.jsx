@@ -407,11 +407,13 @@ export default function ImportCenter() {
   // Gửi thật các câu vừa nhập đi duyệt. Máy chủ tự chia phần ≤ 500 câu, gửi phần đủ điều kiện và báo phần
   // chưa gửi được — lô nhập lớn hơn giới hạn thao tác hàng loạt vẫn gửi được trong một lần bấm.
   async function submitImported() {
-    if (!result?.job_id || !result?.imported) return;
+    if (!result?.job_id || !(result.unique_questions ?? result.imported)) return;
     setBusy(true); setError('');
     try {
       const sent = await api.post(`${base}/imports/${result.job_id}/submit`, {});
-      setResult(r => ({...r, submitted: sent.submitted, notSubmitted: sent.not_submitted}));
+      // Gọi lại an toàn: câu đã gửi / đã duyệt từ trước được máy chủ đếm riêng, không tính là "chưa gửi được".
+      setResult(r => ({...r, submitted: sent.submitted_now, alreadySubmitted: sent.already_submitted,
+        alreadyHandled: sent.already_handled, notSubmitted: sent.not_submitted}));
     } catch (e) { setError(e.message); }
     finally { setBusy(false); }
   }
@@ -495,7 +497,10 @@ export default function ImportCenter() {
 
       {step === 3 && (
         <article className="ok-box" role="status">
-          <h2>Đã nhập {result.imported} câu</h2>
+          <h2>Đã nhập {result.unique_questions ?? result.imported} câu</h2>
+          {result.processed_items != null && result.processed_items !== result.unique_questions && (
+            <p>Đã xử lý {result.processed_items} mục nhập · {result.unique_questions} câu trong kho (có mục cập nhật vào cùng một câu).</p>
+          )}
           <p>
             {result.summary.AUTO_RESOLVED} tự nhận diện từ mã · {result.summary.VALID_METADATA} hợp lệ theo metadata
             {' · '}{result.summary.NEEDS_REVIEW} cần xem{result.skipped > 0 ? ` · ${result.skipped} câu không nhập` : ''}
@@ -504,11 +509,16 @@ export default function ImportCenter() {
             <p>{result.lessons.assigned} câu đã gắn Bài · {result.lessons.unassigned} câu chưa gắn Bài.</p>
           )}
           {result.submitted != null && (
-            <p className="ok-box" role="status">Đã gửi {result.submitted} câu đi duyệt{result.notSubmitted ? ` · ${result.notSubmitted} câu chưa gửi được (mở để xem lý do)` : ''}.</p>
+            <p className="ok-box" role="status">
+              {[`Đã gửi thêm ${result.submitted} câu đi duyệt`,
+                result.alreadySubmitted ? `${result.alreadySubmitted} câu đã gửi trước đó` : '',
+                result.alreadyHandled ? `${result.alreadyHandled} câu đã được duyệt` : '',
+                result.notSubmitted ? `${result.notSubmitted} câu chưa gửi được (mở để xem lý do)` : ''].filter(Boolean).join(' · ')}.
+            </p>
           )}
           <div className="practice-actions">
             {result.submitted == null
-              ? <button className="btn primary" disabled={busy} onClick={submitImported}>Gửi {result.imported} câu đi duyệt</button>
+              ? <button className="btn primary" disabled={busy} onClick={submitImported}>Gửi {result.unique_questions ?? result.imported} câu đi duyệt</button>
               : <Link className="btn primary" to={`/practice/reviews?tab=${result.notSubmitted ? 'author' : 'pending'}&import_job_id=${result.job_id}`}>
                   {result.notSubmitted ? `Mở ${result.notSubmitted} câu chưa gửi` : 'Mở màn Duyệt'}
                 </Link>}

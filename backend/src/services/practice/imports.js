@@ -313,10 +313,18 @@ async function lessonSummary(client,jobId){
   FROM questions q WHERE q.id IN (SELECT result_question_id FROM import_items WHERE job_id=$1 AND result_question_id IS NOT NULL)`,[jobId])).rows[0];
 }
 
+// Một mục nhập "tạo phiên bản / thay thế" trỏ vào câu đã có, nên nhiều mục có thể cùng là một câu trong kho.
+// processed_items = số mục đã xử lý; unique_questions = số câu khác nhau (đơn vị của thống kê Bài và gửi duyệt).
+// `imported` giữ lại = processed_items cho client cũ.
+function importResult(jobId,questionIds,lessons){
+ const unique=new Set(questionIds).size;
+ return {ok:true,job_id:jobId,imported:questionIds.length,processed_items:questionIds.length,unique_questions:unique,question_ids:questionIds,lessons};
+}
+
 export async function confirmJob(user,id,ids,bankId){staff(user);return tx(async client=>{
  await client.query('SELECT id FROM import_jobs WHERE id=$1 FOR UPDATE',[id]);const job=await getJob(user,id,client);
  // §31 — the caller needs the batch back, not just a count, so the UI can open exactly what was imported.
- if(job.status==='confirmed'){const done=job.items.filter(i=>i.result_question_id);return {ok:true,job_id:id,imported:done.length,question_ids:done.map(i=>i.result_question_id),lessons:await lessonSummary(client,id)};}
+ if(job.status==='confirmed'){const done=job.items.filter(i=>i.result_question_id);return importResult(id,done.map(i=>i.result_question_id),await lessonSummary(client,id));}
  const checksum=crypto.createHash('sha256').update(await storage.get(sourceKey(job.source_path))).digest('hex');
  const items=job.items.filter(i=>ids.includes(i.id)&&i.decision!=='skip');if(!items.length)fail('Chọn ít nhất một câu hợp lệ');
  const context=job.context||{},targetBank=bankId||context.bank_id||undefined;
@@ -343,27 +351,39 @@ export async function confirmJob(user,id,ids,bankId){staff(user);return tx(async
     question_version_id:fresh.current_version_id});
   }
  }
- await client.query("UPDATE import_jobs SET status='confirmed',confirmed_at=now() WHERE id=$1",[id]);await log(client,user,'IMPORT_CONFIRM',id,{count:items.length});return {ok:true,job_id:id,imported:items.length,question_ids:questionIds,lessons:await lessonSummary(client,id)};
+ await client.query("UPDATE import_jobs SET status='confirmed',confirmed_at=now() WHERE id=$1",[id]);await log(client,user,'IMPORT_CONFIRM',id,{count:items.length});return importResult(id,questionIds,await lessonSummary(client,id));
 });}
 
 // Gửi duyệt mọi câu của một lần nhập đã xác nhận. Máy chủ tự chia phần ≤ MAX_BULK_IDS, mỗi phần một transaction:
 // câu đủ điều kiện được gửi, câu chưa đủ giữ nguyên và được trả kèm lý do — lô nhập lớn đến đâu cũng gửi được.
+// Gọi lại an toàn (V6.6.6.3): câu đã chờ duyệt / đã duyệt được đếm riêng, không bị báo là "chưa gửi được" — nên
+// thử lại sau khi mất mạng, hay sau khi một phần đã chạy xong và phần sau lỗi, vẫn cho số đúng với trạng thái thật.
 export async function submitImportJob(user,id){
  staff(user);const job=await getJob(user,id);
  if(job.status!=='confirmed')fail('Lần nhập chưa được xác nhận',409);
  const ids=[...new Set(job.items.map(i=>i.result_question_id).filter(Boolean))];
- const submitted=[],notSubmitted=[];
+ const submittedNow=[],alreadySubmitted=[],alreadyHandled=[],notSubmitted=[];
  for(let start=0;start<ids.length;start+=MAX_BULK_IDS){
   const chunk=ids.slice(start,start+MAX_BULK_IDS);
   const plan=await tx(async client=>{
-   const p=await evaluateBulk(client,user,{ids:chunk,action:'submit'});
+   // Khóa các câu của phần này rồi mới phân loại, để hai yêu cầu song song không cùng gửi một câu.
+   const state=new Map((await client.query(`SELECT q.id,v.review_status FROM questions q LEFT JOIN question_versions v ON v.id=q.current_version_id
+     WHERE q.id=ANY($1::int[]) FOR UPDATE OF q`,[chunk])).rows.map(r=>[r.id,r.review_status]));
+   const pending=chunk.filter(q=>state.get(q)==='PENDING_REVIEW');
+   const approved=chunk.filter(q=>state.get(q)==='APPROVED');
+   const todo=chunk.filter(q=>!['PENDING_REVIEW','APPROVED'].includes(state.get(q)));
+   const p=todo.length?await evaluateBulk(client,user,{ids:todo,action:'submit'}):{eligible:[],blocked:[],requires_deep_review:[]};
    if(p.eligible.length)await log(client,user,'QUESTION_BULK_WORKFLOW',crypto.randomUUID(),{action:'submit',source_ref:'IMPORT:'+id,
     question_ids:p.eligible.map(e=>e.question_id),count:p.eligible.length,result:'APPLIED'});
-   return p;
+   return {...p,pending,approved};
   });
-  submitted.push(...plan.eligible.map(e=>e.question_id));
+  submittedNow.push(...plan.eligible.map(e=>e.question_id));
+  alreadySubmitted.push(...plan.pending);
+  alreadyHandled.push(...plan.approved);
   notSubmitted.push(...plan.blocked,...plan.requires_deep_review);
  }
- await log(pool,user,'IMPORT_SUBMIT',id,{requested:ids.length,submitted:submitted.length,not_submitted:notSubmitted.length});
- return {ok:true,job_id:id,requested:ids.length,submitted:submitted.length,not_submitted:notSubmitted.length,question_ids:submitted,blocked:notSubmitted};
+ const summary={requested:ids.length,submitted_now:submittedNow.length,already_submitted:alreadySubmitted.length,
+  already_handled:alreadyHandled.length,not_submitted:notSubmitted.length};
+ await log(pool,user,'IMPORT_SUBMIT',id,summary);
+ return {ok:true,job_id:id,...summary,question_ids:submittedNow,blocked:notSubmitted};
 }

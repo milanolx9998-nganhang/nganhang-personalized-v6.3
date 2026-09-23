@@ -58,7 +58,10 @@ export async function createAttempt(user,raw,{assignmentId=null,retryId=null}={}
   if(fixed){items=(await client.query('SELECT * FROM question_versions WHERE id=ANY($1::uuid[])',[fixed])).rows.sort((a,b)=>fixed.indexOf(a.id)-fixed.indexOf(b.id)).map(q=>({...q,selection_reason:source==='retry'?'repeat':'assigned'}));if(items.length!==fixed.length)fail('Bản câu hỏi đã khóa không đầy đủ');}
   else {const reader=assignment?(await client.query('SELECT id,role,subject_id,department_id FROM users WHERE id=$1',[assignment.created_by])).rows[0]:user;const result=selectQuestions(await candidates(client,user,config,{reader}),config,seed);if(result.shortages.length)fail('Kho chưa đủ câu theo cấu hình. Hãy giảm số câu hoặc sửa tỉ lệ.',409,result.shortages);items=result.items;}
   const a=(await client.query('INSERT INTO attempts(student_id,assignment_id,retry_of,source,mode,config,seed) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING *',[user.id,assignmentId,retryId,source,config.mode,JSON.stringify(config),seed])).rows[0];
-  for(let i=0;i<items.length;i++)await client.query('INSERT INTO attempt_items(attempt_id,question_version_id,question_id,sequence,selection_reason,curriculum_snapshot) VALUES($1,$2,$3,$4,$5,$6)',[a.id,items[i].id,items[i].question_id,i+1,items[i].selection_reason,fixed?JSON.stringify(frozenCurriculum?.find(c=>c.id===items[i].id)?.curriculum||{historical_labels_unavailable:true,topic_id:items[i].topic_id,cognitive_level:'M'+items[i].cognitive_level}):JSON.stringify(items[i].curriculum_snapshot)]);
+  // PERF V6.6.7: một câu INSERT cho cả bài thay vì một câu mỗi câu hỏi (40 câu = 40 lượt đi-về DB khi cả lớp bấm "Bắt đầu").
+  const rows=items.map((q,i)=>({v:q.id,q:q.question_id,s:i+1,r:q.selection_reason,c:fixed?(frozenCurriculum?.find(c=>c.id===q.id)?.curriculum||{historical_labels_unavailable:true,topic_id:q.topic_id,cognitive_level:'M'+q.cognitive_level}):(q.curriculum_snapshot??null)}));
+  await client.query(`INSERT INTO attempt_items(attempt_id,question_version_id,question_id,sequence,selection_reason,curriculum_snapshot)
+   SELECT $1,x.v,x.q,x.s,x.r,x.c FROM jsonb_to_recordset($2::jsonb) AS x(v uuid,q integer,s integer,r text,c jsonb) ORDER BY x.s`,[a.id,JSON.stringify(rows)]);
   return studentAttempt(a);
  });
 }
@@ -82,7 +85,8 @@ export async function saveResponse(user,attemptId,itemId,raw){
   const final=a.mode==='practice'&&data.final&&!data.skipped;const grade=final?gradeQuestion(i,data.response):null;
   await client.query('UPDATE attempt_items SET response=$1,uncertain=$2,skipped=$3,is_final=$4,first_response=$5,grade_result=$6,saved_at=now(),first_viewed_at=COALESCE(first_viewed_at,now()) WHERE id=$7',[JSON.stringify(data.response),data.uncertain,data.skipped,final,final?JSON.stringify(data.response):null,grade?JSON.stringify(grade):null,itemId]);
   const reveal=canRevealAnswer(a,{...i,is_final:final},await releaseContext(client,a));
-  return {saved:true,result:reveal?grade:null,question:reveal?scopedQuestionMedia(publicQuestion(i,true),a.id,i.id):null};
+  // is_final luôn trả về: Player cập nhật tại chỗ thay vì tải lại cả lượt làm bài sau khi chốt (PERF V6.6.7).
+  return {saved:true,is_final:final,result:reveal?grade:null,question:reveal?scopedQuestionMedia(publicQuestion(i,true),a.id,i.id):null};
  });
 }
 export async function submitAttempt(user,id){

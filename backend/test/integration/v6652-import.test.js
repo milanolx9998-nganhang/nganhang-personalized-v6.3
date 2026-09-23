@@ -410,22 +410,57 @@ test('V6662: lô nhập 501 câu — thống kê gắn Bài tính cả lô, gử
   const again = await req('POST', `/practice/imports/${job.id}/confirm`, {ids});
   expect(again, 200);
   assert.deepEqual(again.data.lessons, {assigned: SIZE - 150, unassigned: 150});
+  assert.equal(again.data.processed_items, SIZE);
+  assert.equal(again.data.unique_questions, SIZE);
 
-  // Gửi duyệt cả lô: máy chủ chia ≤ 500 câu mỗi phần, không trả lỗi giới hạn thao tác hàng loạt.
+  // Mô phỏng lần gửi trước bị đứt giữa chừng: 200 câu đã sang chờ duyệt, 301 câu còn nháp.
+  const early = confirmed.data.question_ids.slice(0, 200);
+  expect(await req('POST', '/practice/questions/bulk-workflow', {ids: early, action: 'submit'}), 200);
+
+  // Gửi duyệt cả lô: máy chủ chia ≤ 500 câu mỗi phần, không trả lỗi giới hạn thao tác hàng loạt; câu đã gửi
+  // trước đó được đếm riêng, không bị báo là "chưa gửi được".
   const sent = await req('POST', `/practice/imports/${job.id}/submit`, {});
   expect(sent, 200);
   assert.equal(sent.data.requested, SIZE);
-  assert.equal(sent.data.submitted + sent.data.not_submitted, SIZE);
-  assert.equal(sent.data.submitted, SIZE, JSON.stringify(sent.data.blocked.slice(0, 3)));
+  assert.equal(sent.data.submitted_now, SIZE - 200, JSON.stringify(sent.data.blocked.slice(0, 3)));
+  assert.equal(sent.data.already_submitted, 200);
+  assert.equal(sent.data.already_handled, 0);
+  assert.equal(sent.data.not_submitted, 0);
   const pending = (await db.query(`SELECT count(*)::int AS n FROM questions q JOIN question_versions v ON v.id=q.current_version_id
     WHERE q.id=ANY($1::int[]) AND v.review_status='PENDING_REVIEW'`, [confirmed.data.question_ids])).rows[0].n;
   assert.equal(pending, SIZE);
-  // Gửi lại: không câu nào gửi thêm, không lỗi.
+  // Gửi lại lần nữa: không gửi thêm, cả lô là "đã gửi trước đó", không câu nào "chưa gửi được".
   const twice = await req('POST', `/practice/imports/${job.id}/submit`, {});
   expect(twice, 200);
-  assert.equal(twice.data.submitted, 0);
+  assert.equal(twice.data.submitted_now, 0);
+  assert.equal(twice.data.already_submitted, SIZE);
+  assert.equal(twice.data.not_submitted, 0);
+  assert.deepEqual(twice.data.blocked, []);
   // Người khác không gửi được lô của người nhập.
   expect(await req('POST', `/practice/imports/${job.id}/submit`, {}, tokens.author), 403);
+});
+
+test('V6663: hai mục "tạo phiên bản" cùng trỏ một câu — đếm riêng mục nhập và câu trong kho', async () => {
+  const stem = 'Câu gốc cho hai mục tạo phiên bản ' + crypto.randomUUID().slice(0, 8);
+  const original = await req('POST', '/practice/questions', {
+    subject_id: subjectId, grade: 7, stem, bank_id: bankId, cognitive_level: 1, type: 'multiple_choice',
+    options: ['A', 'B', 'C', 'D'].map(k => ({id: k, text: {A: 'Một', B: 'Hai', C: 'Ba', D: 'Bốn'}[k]})), answer: {correct: 'B'}, explanation: 'Lời giải',
+  });
+  expect(original, 201);
+  const job = await uploadWord([['Câu L. 1. 2. NB. 31. TN', {stem}], ['Câu L. 1. 2. NB. 32. TN', {stem}]], {subject_id: subjectId, grade: 7, bank_id: bankId}, {token: tokens.admin});
+  assert.equal(job.items.length, 2);
+  for (const item of job.items) assert.equal(item.duplicate_candidates[0]?.id, original.data.id, JSON.stringify(item.duplicate_candidates));
+  expect(await req('PUT', '/practice/imports/' + job.id, {items: job.items.map(i => ({id: i.id, decision: 'version'}))}), 200);
+  const confirmed = await req('POST', `/practice/imports/${job.id}/confirm`, {ids: job.items.map(i => i.id)});
+  expect(confirmed, 200);
+  assert.equal(confirmed.data.processed_items, 2);
+  assert.equal(confirmed.data.unique_questions, 1);
+  assert.deepEqual([...new Set(confirmed.data.question_ids)], [original.data.id]);
+  assert.equal(confirmed.data.lessons.assigned + confirmed.data.lessons.unassigned, 1, 'Thống kê Bài tính theo câu trong kho');
+  const sent = await req('POST', `/practice/imports/${job.id}/submit`, {});
+  expect(sent, 200);
+  assert.equal(sent.data.requested, 1);
+  assert.equal(sent.data.submitted_now + sent.data.not_submitted, 1);
 });
 
 test('V6652 seed: chỉ liên kết vào bản PUBLISHED mới nhất; nguyên văn trùng thì dừng', async () => {

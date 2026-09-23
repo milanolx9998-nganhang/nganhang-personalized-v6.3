@@ -11,6 +11,7 @@ import v63Routes from './v63.js';
 import {classDashboard,scopedSubjects} from '../services/practice/analytics.js';
 import {answered,portfolioOverview,attemptHistory,attemptReview,portfolioMastery,portfolioAssignments,portfolioClasses} from '../services/practice/portfolio.js';
 import adminRoutes from './practiceAdmin.js';
+import {cached,cachedShared,cacheKey,invalidate,hashOf} from '../services/cache/cache.js';
 import {Router} from 'express';
 import multer from 'multer';
 import fs from 'node:fs';
@@ -55,17 +56,23 @@ const upload=multer({storage:multer.diskStorage({destination:temp,filename:(_r,f
 r.get('/workspace',wrap(async(req,res)=>res.json(await workspaceOverview(req.user))));
 r.get('/settings',wrap(async(req,res)=>res.json(await settings())));
 r.put('/settings',wrap(async(req,res)=>{if(!await can(req.user,'system.config',{}))fail('Không có quyền cấu hình hệ thống',403);await tx(async c=>{validateSettings(await settings(c),req.body);for(const [key,value] of Object.entries(req.body)){if(!(key in defaults))fail('Cấu hình không hợp lệ: '+key);if(['personalized_recommendations','auto_personalized_practice','essay_ai_grading','leaderboard','canvas_lti'].includes(key)&&value!==false)fail('Tính năng ngoài V1 chưa được bật');if(typeof defaults[key]==='number'&&(!Number.isFinite(value)||value<0))fail('Giá trị cấu hình không hợp lệ');if(key==='mastery_decay_rate'&&(value<=0||value>1))fail('Hệ số Mastery phải trong (0,1]');await c.query('INSERT INTO system_settings(key,value,updated_by) VALUES($1,$2,$3) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value,updated_by=EXCLUDED.updated_by,updated_at=now()',[key,JSON.stringify(value),req.user.id]);}await log(c,req.user,'SETTINGS_UPDATE','settings',{keys:Object.keys(req.body)});});res.json({ok:true});}));
-r.get('/catalog',wrap(async(req,res)=>{const subjects=(await pool.query('SELECT s.*,p.config AS profile FROM subjects s LEFT JOIN subject_profiles p ON p.subject_id=s.id ORDER BY s.name')).rows;const topics=(await pool.query("SELECT * FROM topics WHERE status='ACTIVE' ORDER BY subject_id,grade,order_index")).rows;const taxonomy_nodes=(await pool.query('SELECT n.*,v.subject_id,v.name AS version_name FROM taxonomy_nodes n JOIN taxonomy_versions v ON v.id=n.version_id ORDER BY v.id,n.id')).rows;res.json({subjects,topics,taxonomy_nodes});}));
+// PERF V6.6.7: catalog giống nhau với mọi người (~400 KB) → cache chung 10 phút theo thế hệ nội dung, giữ sẵn
+// dạng chuỗi JSON để gửi thẳng, không parse / tuần tự hóa lại mỗi request.
+r.get('/catalog',wrap(async(req,res)=>res.type('application/json').send(await cachedShared(['catalog','v2'],600,async()=>{const subjects=(await pool.query('SELECT s.*,p.config AS profile FROM subjects s LEFT JOIN subject_profiles p ON p.subject_id=s.id ORDER BY s.name')).rows;const topics=(await pool.query("SELECT * FROM topics WHERE status='ACTIVE' ORDER BY subject_id,grade,order_index")).rows;const taxonomy_nodes=(await pool.query('SELECT n.*,v.subject_id,v.name AS version_name FROM taxonomy_nodes n JOIN taxonomy_versions v ON v.id=n.version_id ORDER BY v.id,n.id')).rows;return JSON.stringify({subjects,topics,taxonomy_nodes});},{raw:true}))));
 r.get('/content-options',wrap(async(req,res)=>res.json(await contentOptions(req.user,req.query))));
 r.post('/availability',wrap(async(req,res)=>{const {availability:counts,shortages}=await availability(req.user,req.body);res.json({availability:counts,shortages});}));
-r.post('/attempts',wrap(async(req,res)=>res.status(201).json(await createAttempt(req.user,req.body))));
+r.post('/attempts',wrap(async(req,res)=>res.status(201).json(await freshDashboard(req,await createAttempt(req.user,req.body)))));
 r.get('/attempts/:id',wrap(async(req,res)=>res.json(await getAttempt(req.user,req.params.id))));
 r.get('/attempts/:attemptId/items/:itemId/media/:mediaId',wrap(attemptMedia));
 r.put('/attempts/:id/items/:itemId',wrap(async(req,res)=>res.json(await saveResponse(req.user,req.params.id,req.params.itemId,req.body))));
-r.post('/attempts/:id/submit',wrap(async(req,res)=>res.json(await submitAttempt(req.user,req.params.id))));
-r.post('/attempts/:id/retry',wrap(async(req,res)=>res.status(201).json(await createAttempt(req.user,{}, {retryId:req.params.id}))));
-r.get('/dashboard',wrap(async(req,res)=>{if(req.user.role!=='student')fail('Trang dành cho học sinh',403);res.json(await dashboard(req.user.id));}));
-r.get('/assignments',wrap(async(req,res)=>res.json(await listAssignments(req.user))));
+r.post('/attempts/:id/submit',wrap(async(req,res)=>res.json(await freshDashboard(req,await submitAttempt(req.user,req.params.id)))));
+r.post('/attempts/:id/retry',wrap(async(req,res)=>res.status(201).json(await freshDashboard(req,await createAttempt(req.user,{}, {retryId:req.params.id})))));
+// Dashboard học sinh: cache 15 giây; tạo / nộp bài xóa ngay khóa của học sinh đó.
+const dashboardKey=id=>cacheKey('dashboard','student',id);
+const freshDashboard=async(req,value)=>{await invalidate(dashboardKey(req.user.id));return value;};
+r.get('/dashboard',wrap(async(req,res)=>{if(req.user.role!=='student')fail('Trang dành cho học sinh',403);res.json(await cached(dashboardKey(req.user.id),15,()=>dashboard(req.user.id)));}));
+// Danh sách bài giao của học sinh: cache 20 giây theo thế hệ nội dung (giáo viên giao / sửa bài → thế hệ mới).
+r.get('/assignments',wrap(async(req,res)=>res.json(req.user.role==='student'?await cachedShared(['assignments','student',req.user.id],20,()=>listAssignments(req.user)):await listAssignments(req.user))));
 r.post('/assignments',wrap(async(req,res)=>res.status(201).json(await saveAssignment(req.user,req.body))));
 r.put('/assignments/:id',wrap(async(req,res)=>res.json(await saveAssignment(req.user,req.body,req.params.id))));
 r.post('/assignments/:id/release-answers',wrap(async(req,res)=>{
@@ -77,7 +84,7 @@ r.post('/assignments/:id/release-answers',wrap(async(req,res)=>{
   await c.query('UPDATE assignments SET answers_released_at=COALESCE(answers_released_at,now()),answers_released_by=COALESCE(answers_released_by,$2) WHERE id=$1',[a.id,req.user.id]);await log(c,req.user,'ASSIGNMENT_ANSWERS_RELEASED',a.id,{reason});});res.json({ok:true});
 }));
 r.get('/shared/:token',wrap(async(req,res)=>{const a=(await pool.query('SELECT * FROM assignments WHERE share_token=$1',[req.params.token])).rows[0];await assignmentAccess(req.user,a);res.json(req.user.role==='student'?studentAssignment(a):a);}));
-r.post('/assignments/:id/start',wrap(async(req,res)=>res.status(201).json(await createAttempt(req.user,{}, {assignmentId:req.params.id}))));
+r.post('/assignments/:id/start',wrap(async(req,res)=>res.status(201).json(await freshDashboard(req,await createAttempt(req.user,{}, {assignmentId:req.params.id})))));
 let activeExports=0;
 r.get('/assignments/:id/export',wrap(async(req,res)=>{
  if(req.user.role==='student')fail('Chỉ người giao bài được xuất phiếu',403);
@@ -127,8 +134,9 @@ const bulkBody=z.object({
  expected_versions:z.record(z.string()).nullable().optional().default(null),
 }).strict();
 r.get('/questions/queue',wrap(async(req,res)=>res.json(await questionQueue(req.user,req.query))));
-r.get('/questions/view-counts',wrap(async(req,res)=>res.json(await viewCounts(req.user))));
-r.get('/questions/exception-counts',wrap(async(req,res)=>res.json(await exceptionCounts(req.user,req.query))));
+// Số đếm của bàn làm việc: cache 8 giây theo người xem + bộ lọc + thế hệ nội dung (sửa câu → đếm lại ngay).
+r.get('/questions/view-counts',wrap(async(req,res)=>res.json(await cachedShared(['counts','views',req.user.id],8,()=>viewCounts(req.user)))));
+r.get('/questions/exception-counts',wrap(async(req,res)=>res.json(await cachedShared(['counts','exceptions',req.user.id,hashOf(req.query)],8,()=>exceptionCounts(req.user,req.query)))));
 // V6.6.6 — sửa nhanh mức/Bài từ bàn làm việc; preflight chạy cùng đường trong giao dịch luôn hoàn tác.
 const quickEditBody=z.object({
  ids:z.array(z.number().int().positive()).min(1).max(MAX_BULK_IDS).optional(),

@@ -1,6 +1,6 @@
 # AI HANDOFF
 
-Cập nhật: 2026-09-23 · Phiên bản mã: **6.6.6** (V6.6.6.1 đã commit `c92054a`; + V6.6.6.2 chưa commit) (root/backend/frontend + `/api/health`)
+Cập nhật: 2026-09-24 · Phiên bản mã: **6.6.6** (V6.6.6.2 đã commit `e243b69`; + V6.6.6.3 chưa commit) (root/backend/frontend + `/api/health`)
 HEAD khi bắt đầu vòng này: `d01b801d129c179314a385796ae1e2f3751db1ba`
 
 ## Trạng thái hiện tại
@@ -19,7 +19,15 @@ Nội dung vòng V6.6.5:
 
 **Migration V6.6.5 là additive và đã áp lên DB local.** Máy chủ thật sẽ tự áp khi deploy.
 
-## V6.6.6.2 — Sửa theo audit `c92054a` (đã xong, chưa commit)
+## V6.6.6.3 — Sửa theo audit `e243b69` (đã xong, chưa commit)
+
+Chi tiết: `docs/V6_6_6_3_AUDIT_E243B69_FIXES.md`.
+- `POST /practice/imports/:id/submit` gọi lại an toàn: trả `submitted_now / already_submitted / already_handled / not_submitted`
+  (trường `submitted` cũ bỏ). Câu đã chờ duyệt / đã duyệt không còn bị tính "chưa gửi được".
+- `confirm` trả thêm `processed_items`, `unique_questions` (`imported` = processed_items, giữ cho client cũ).
+- Không migration. Audit khuyên: sau vòng này dừng chức năng mới, chuyển UAT bằng file Word thật.
+
+## V6.6.6.2 — Sửa theo audit `c92054a` (đã commit ở `e243b69`)
 
 Chi tiết: `docs/V6_6_6_2_AUDIT_C92054A_FIXES.md`.
 - Hoàn tác trả được mức `null` và đúng mã hiển thị cũ (API công khai vẫn chỉ nhận 1..4).

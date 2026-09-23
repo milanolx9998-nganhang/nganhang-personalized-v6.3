@@ -17,6 +17,18 @@ services:
       interval: 30s
       timeout: 20s
       retries: 3
+  # Redis chỉ làm cache + bộ đếm rate limit (PERF V6.6.7). Không publish cổng 6379; app gọi redis://redis:6379
+  # trong mạng nội bộ compose. Không lưu dữ liệu nghiệp vụ nên tắt ghi đĩa; Redis dừng thì app vẫn chạy (cache=degraded).
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--maxmemory", "${REDIS_MAXMEMORY:-256mb}", "--maxmemory-policy", "allkeys-lru", "--save", "", "--appendonly", "no"]
+    networks: [default]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
   proxy:
     image: caddy:2.10.2
     restart: unless-stopped

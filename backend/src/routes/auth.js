@@ -2,6 +2,7 @@ import {passwordRule} from '../services/passwordPolicy.js';
 import {capabilitySummary} from '../services/capabilities.js';
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
+import {verifyPassword} from '../services/passwordHasher.js';
 import { z } from 'zod';
 import { pool } from '../db/pool.js';
 import { auth, signToken } from '../middleware/auth.js';
@@ -11,6 +12,7 @@ import {sensitiveLimiter} from '../middleware/rateLimiter.js';
 import {browserRequest,issueCsrf,setSession,clearSession} from '../middleware/session.js';
 const r = Router();
 const dummyHash=bcrypt.hash('Unusable-login-timing-comparison',12);
+// Đăng nhập kiểm mật khẩu trong worker thread: cả lớp đăng nhập cùng lúc không làm đứng luồng chính (PERF V6.6.7).
 r.get('/csrf',(req,res)=>res.json({csrf_token:issueCsrf(req,res)}));
 
 r.post('/login', async (req, res, next) => {
@@ -24,9 +26,9 @@ r.post('/login', async (req, res, next) => {
       'SELECT * FROM users WHERE username = $1 AND is_active = TRUE',
       [username]
     );
-    if (!rows.length) {await bcrypt.compare(password,await dummyHash);await audit(null,'LOGIN_FAILURE','security',null,{},req.ip);return res.status(401).json({ error: 'Sai tài khoản hoặc mật khẩu' });}
+    if (!rows.length) {await verifyPassword(password,await dummyHash);await audit(null,'LOGIN_FAILURE','security',null,{},req.ip);return res.status(401).json({ error: 'Sai tài khoản hoặc mật khẩu' });}
     const user = rows[0];
-    const ok = await bcrypt.compare(password, user.password_hash);
+    const ok = await verifyPassword(password, user.password_hash);
     if (!ok) {await audit(user.id,'LOGIN_FAILURE','security',null,{},req.ip);return res.status(401).json({ error: 'Sai tài khoản hoặc mật khẩu' });}
 
     await pool.query('UPDATE users SET last_login = NOW() WHERE id = $1', [user.id]);
