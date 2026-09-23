@@ -18,7 +18,18 @@ const xml=new XMLParser({ignoreAttributes:false,removeNSPrefix:true,parseTagValu
 const safeXML=s=>{if(/<!DOCTYPE|<!ENTITY/i.test(s))throw new Error('XML entity/DOCTYPE không được phép');return s;};
 function textOf(value){if(value==null)return '';if(typeof value!=='object')return String(value);return Object.entries(value).filter(([k])=>!k.startsWith('@_')).map(([,v])=>arr(v).map(textOf).join('')).join('');}
 function htmlText(s,media=[]){return he.decode(String(s||'')).replace(/<img\b[^>]*src=["']([^"']+)["'][^>]*>/gi,(_,src)=>{const clean=decodeURIComponent(src).replace(/\$IMS-CC-FILEBASE\$\/?/,'');const exact=media.filter(m=>m.path===clean||m.filename===path.posix.basename(clean));return exact.length===1?`![Ảnh](${exact[0].url})`:'[Ảnh chưa xác định: '+clean+']';}).replace(/<\/?(?:p|div|br|tr)[^>]*>/gi,'\n').replace(/<[^>]+>/g,'').trim();}
-export function parseKhtnCode(line){const m=line.match(/^Câu\s+([LHS])\s*\.\s*(\d+)\s*\.\s*(\d+)\s*\.\s*(NB|TH|VD|VDC)\s*\.\s*(\d+)\s*\.\s*(TN|ĐS|TLN|GN|TL)/i);return m?{display_code:`Câu ${m[1].toUpperCase()}. ${m[2]}. ${m[3]}. ${m[4].toUpperCase()}. ${m[5]}. ${m[6].toUpperCase()}`,outcome:m[2],yccd:m[3],branch_code:m[1].toUpperCase(),cognitive_level:levelNumber(m[4].toUpperCase()),q_type:m[6].toUpperCase(),header_tail:line.slice(m[0].length).replace(/^[\s:.)–—-]+/,'')}:{};}
+// Nhận cả dạng chuẩn "Câu L. 2. 1. NB. 2. ĐS" lẫn dạng viết liền cũ "Câu.L.2.1.NB.2.ĐS"; mã luôn được
+// chuẩn hóa về dạng chính thức. Dòng trông như mã hiện hành nhưng đọc không được thì giữ nguyên
+// văn ở `code_raw` để tầng kiểm tra báo lỗi — không được lặng lẽ coi là câu không có mã.
+const KHTN_CODE=/^Câu[\s.]+([LHS])\s*\.\s*(\d+)\s*\.\s*(\d+)\s*\.\s*(NB|TH|VD|VDC)\s*\.\s*(\d+)\s*\.\s*(TN|ĐS|TLN|GN|TL)/iu;
+const CODE_ATTEMPT=/^Câu[\s.]+[A-Za-zĐđ]\s*\./u;
+export function parseKhtnCode(line){
+ const m=line.match(KHTN_CODE);
+ if(!m)return CODE_ATTEMPT.test(line)?{code_raw:line.split(/\s{2,}|:\s/)[0].trim()}:{};
+ const canonical=`Câu ${m[1].toUpperCase()}. ${m[2]}. ${m[3]}. ${m[4].toUpperCase()}. ${m[5]}. ${m[6].toUpperCase()}`;
+ return {display_code:canonical,outcome:m[2],yccd:m[3],branch_code:m[1].toUpperCase(),cognitive_level:levelNumber(m[4].toUpperCase()),q_type:m[6].toUpperCase(),
+  code_legacy:m[0].replace(/\s+/g,' ').trim()!==canonical,header_tail:line.slice(m[0].length).replace(/^[\s:.)–—-]+/,'')};
+}
 export function omml(node,warnings=[]){
  if(Array.isArray(node))return node.map(n=>omml(n,warnings)).join('');if(!node||typeof node!=='object')return String(node||'');
  return Object.entries(node).filter(([key])=>key!==':@').map(([key,children])=>{
@@ -49,9 +60,9 @@ export function parseDocx(buffer){
  }).join('')).join('');}
  const blocks=[];for(const block of find(doc,'w:body')){if(block['w:p'])blocks.push({type:'paragraph',text:inline(block['w:p'])});if(block['w:tbl']){const rows=arr(block['w:tbl']).filter(n=>n['w:tr']).map(n=>arr(n['w:tr']).filter(c=>c['w:tc']).map(c=>inline(c['w:tc'])));blocks.push({type:'table',rows,text:rows.map(row=>'| '+row.join(' | ')+' |').join('\n')});}}
  const items=[];let q=null,section='stem';const metadata=[];
- for(const block of blocks){const line=block.text.trim();if(/^Câu\s+(?:\d+|[LHS]\s*\.)/i.test(line)){
+ for(const block of blocks){const line=block.text.trim();if(/^Câu(?:\s+\d+|[\s.]+[A-Za-zĐđ]\s*\.)/iu.test(line)){
    q={...parseKhtnCode(line),stem:'',options:[],statements:[],blocks:[],parser_warnings:[],source_locator:'Câu '+(items.length+1)};items.push(q);section='stem';
-   const plain=line.replace(/^Câu\s+\d+\s*[.:)]\s*/i,'');if(q.display_code)q.stem=q.header_tail||'';else if(plain!==line)q.stem=plain;delete q.header_tail;continue;
+   const plain=line.replace(/^Câu\s+\d+\s*[.:)]\s*/i,'');if(q.display_code)q.stem=q.header_tail||'';else if(plain!==line&&!q.code_raw)q.stem=plain;delete q.header_tail;continue;
   }
   if(!q){metadata.push(line);continue;}
   if(/^Đáp án\s*:/i.test(line)){q.answer_key=line.replace(/^Đáp án\s*:\s*/i,'');section='answer';continue;}

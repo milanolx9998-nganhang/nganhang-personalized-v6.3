@@ -1,6 +1,6 @@
 # AI HANDOFF
 
-Cập nhật: 2026-09-22 · Phiên bản mã: **6.6.5** (root/backend/frontend + `/api/health`)
+Cập nhật: 2026-09-23 · Phiên bản mã: **6.6.5** (+ V6.6.5.2 chưa commit) (root/backend/frontend + `/api/health`)
 HEAD khi bắt đầu vòng này: `d01b801d129c179314a385796ae1e2f3751db1ba`
 
 ## Trạng thái hiện tại
@@ -18,6 +18,62 @@ Nội dung vòng V6.6.5:
 4. **Gán Bài hàng loạt** theo nhóm YCCĐ, đi qua `persistQuestion`.
 
 **Migration V6.6.5 là additive và đã áp lên DB local.** Máy chủ thật sẽ tự áp khi deploy.
+
+## V6.6.6 — Bàn làm việc hợp nhất (đã xong, chưa commit)
+
+Cập nhật: 2026-09-23. User duyệt đề xuất giao diện ("duyệt, làm full nhé"). Chi tiết: `docs/V6_6_6_UNIFIED_WORKBENCH.md`.
+
+- **Kho = bàn làm việc 3 cột:** "Việc của tôi" (đếm máy chủ + góc nhìn tự lưu) · lưới · khung xem + sửa
+  nhanh. Phạm vi "Chỉ câu này ⇄ Cả lô" (G), đánh dấu "chỉnh riêng", phím 1–4 mức, B gắn Bài, Ctrl+Z hoàn
+  tác, Ctrl+K bảng lệnh.
+- **API mới:** `POST /practice/questions/quick-edit[/preflight]` (mức/Bài, tất cả hoặc không, trả
+  before/after để hoàn tác, `regenerate_code` tường minh, `expected_versions` là UUID);
+  `GET /practice/questions/view-counts`; lọc `created_after`, `returned=1`; assign-lesson trả `before_topic_id`.
+- **Duyệt:** phần sạch duyệt một lần sau checklist; lý do trả sửa một chạm, gợi ý từ kiểm tra máy.
+- **Nhập:** "Sửa theo nhóm vấn đề" + Ctrl+K.
+- Không có migration mới.
+
+Kiểm chứng: unit 113/113 · pilot 34/34 · v63 47/50 (3 lỗi có sẵn) · v664 12/12 · bootstrap 7/7 ·
+resolver 10/10 · v6652 14/14 · **v666 7/7 (có Playwright)** · build OK.
+
+## V6.6.5.2 — Nhập Word thông minh, tự nhận chương trình, duyệt theo ngoại lệ (đã xong, chưa commit)
+
+Cập nhật: 2026-09-23. Chi tiết đầy đủ: `docs/V6_6_5_2_SMART_WORD_IMPORT.md`.
+
+- **Nhập:** chỉ cần Môn + Khối + tệp Word. Mã câu tự ra Outcome/YCCĐ/Mức/Dạng/Bài. "Tùy chọn thêm"
+  (Phân môn/Bài/Mức/Dạng) chỉ là **kỳ vọng** — lệch mã thì cảnh báo `OPTIONAL_*_MISMATCH`, không đè;
+  câu không mã dùng kỳ vọng làm giá trị dự phòng. Ngữ cảnh lưu ở `import_jobs.context` (migration
+  `migration-v6652-import-context.sql`, additive, **đã áp local**).
+- **Mức nghiêm trọng:** blocking (mã sai, Outcome/YCCĐ không có, YCCĐ ngừng dùng, xung đột mã–phân
+  loại, lệch ngữ cảnh) / review (Bài, trùng, kỳ vọng) / info. `category`: AUTO_RESOLVED /
+  VALID_METADATA / NEEDS_REVIEW / ERROR.
+- **Lưu câu:** bất biến mã–phân loại (409 + `suggested_code`, `regenerate_code`); tạo tay sinh mã chuẩn.
+- **Duyệt:** `reason_codes` kiểm ở máy chủ + nhật ký; lọc ngoại lệ `exception=`; dải kiểm tra máy
+  `checks`; duyệt phần sạch + "Xem M câu còn lại".
+- **Chương trình:** nguồn chính thức do máy chủ quyết (bỏ checkbox); `GET /api/curriculum/health`.
+- **Seed KHTN7:** nay đòi bản **PUBLISHED**; máy chưa có (như local) → dừng `NO_PUBLISHED_VERSION`,
+  dùng `--allow-legacy` nếu cố ý liên kết vào dữ liệu cũ.
+- **Đề xuất giao diện** (lượt sau có thể triển khai): canvas https://claude.ai/artifact/AXCT9nbHYPpaSCHZR9jsUv
+  (riêng tư — chỉ chủ sở hữu mở được cho tới khi chia sẻ).
+
+Kiểm chứng: unit 113/113 · pilot 34/34 · v63 47/50 (3 lỗi có sẵn) · v664 12/12 · bootstrap 7/7 ·
+resolver 10/10 · v6652 14/14 · frontend build OK.
+
+## Hotfix sau audit `3ab8f7f` — V6.6.5.1 (đã xong)
+
+**Trusted source hardening:** máy chủ không còn tin `source_profile` do client gửi; tự nhận diện lại
+hồ sơ nguồn, bắt sheet đúng khối, dùng ánh xạ cột tự suy ra, lệch thì 409. Tải tệp mới không còn xóa
+ánh xạ vừa nhận diện. Giao diện không lấy tạm sheet đầu tiên nữa.
+
+**Power workflow:** Shift+tick chọn khoảng · lý do trả sửa có mã (bỏ `window.prompt`) · thanh bulk gọn
+dính đáy, checklist/lý do/preflight chỉ mở theo thao tác · phím `E` xem kỹ · cảnh báo cách đánh số
+Mode A/B hiện ở màn nhập.
+
+**Dữ liệu KHTN 7 Vật lí:** đã nạp 13 Bài + 31 liên kết Bài↔YCCĐ. Dữ liệu nguồn trích sẵn và commit tại
+`backend/src/db/seed-data/khtn7-vatli-lessons.json`; máy chủ chạy `npm run seed:khtn7-lessons` sau
+deploy (idempotent). Chi tiết và quyết định về cách đánh số: `docs/KHTN7_VATLI_BAI_YCCD.md`.
+
+Chi tiết vòng này: `docs/V6_6_5_1_TRUSTED_HARDENING_POWER_DELTA.md`.
 
 ## Hotfix sau audit `2f7ace2` (đã xong)
 
@@ -71,12 +127,26 @@ tích hợp gây fail dây chuyền giả. Chạy từng file một.
 ## Việc tiếp theo
 
 1. Thu hồi và thay GitHub token (ưu tiên cao nhất, tồn hai vòng).
-2. Commit + push V6.6.5.
+2. Commit + push V6.6.5.2 (khi user yêu cầu). Sau deploy: `npm run migrate`; seed KHTN7 cần bản
+   PUBLISHED hoặc `--allow-legacy`.
+3. ~~Triển khai đề xuất giao diện~~ — xong ở V6.6.6. Tiếp theo có thể: lưu "chỉnh riêng" phía máy chủ
+   nếu cần giữ qua phiên; hoàn tác nhiều bước; điều tra 3 test lỗi có sẵn.
 3. Nạp thật bộ 4 workbook KHTN chính thức qua hồ sơ tin cậy vào một phiên bản chương trình.
 4. Nối `inferNumberingMode()` vào đường ghi khi commit lô nhập (hiện chỉ dùng ở tầng kiểm tra).
 5. Viết Playwright E2E riêng cho toàn luồng V6.6.5 và chụp bộ ảnh UX.
 6. Điều tra 3 test tích hợp lỗi có sẵn.
 7. Lấy `journalctl` trên máy chủ để kết luận sự cố deploy; đóng gói release (releases/ còn ở v6.5.3).
+
+## Quy ước cho AI agent (2026-09-23)
+
+Repo có `AGENTS.md` ở gốc — luật vận hành cho mọi agent (Claude Code, Cursor, Codex,
+Hermes...). Đọc trước khi thao tác. Điểm chính: **không tự poll job chạy nền bằng vòng
+lặp sleep** (harness tự đánh thức khi job xong; poll đốt context + chi phí API và gây
+compaction giữa task), ưu tiên LSP/`.codegraph` trước grep, bắt buộc cập nhật
+`AI_WORK_LOG.md`/`AI_HANDOFF.md` trước khi kết thúc việc có ý nghĩa.
+
+Luật no-polling cũng đã đặt ở mức global cho Claude Code tại
+`~/.claude/rules/no-poll-background-jobs.md` (ngoài repo, không theo repo khi clone).
 
 ## Tài liệu
 

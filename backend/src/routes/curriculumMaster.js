@@ -11,6 +11,7 @@ r.get('/catalog',wrap(async(req,res)=>{
  for(const s of subjects){const grades=[];for(let grade=1;grade<=12;grade++)if(await can(req.user,'curriculum.read',{subjectId:s.id,grade}))grades.push(grade);if(grades.length)result.push({...s,grades});}
  res.json({subjects:result});
 }));
+r.get('/health',wrap(async(req,res)=>res.json(await master.masterDataHealth(req.user,req.query))));
 r.get('/versions',wrap(async(req,res)=>res.json(await master.listVersions(req.user))));
 r.post('/versions',wrap(async(req,res)=>res.status(201).json(await master.createVersion(req.user,req.body))));
 r.get('/versions/:id',wrap(async(req,res)=>res.json(await master.detail(req.user,Number(req.params.id)))));

@@ -1,5 +1,5 @@
 import {pool} from '../db/pool.js';
-import {parseQuestionCode, canonicalKey, outcomeLabel, yccdLabel, FORMS} from './questionCode.js';
+import {parseQuestionCode, canonicalKey, outcomeLabel, yccdLabel, FORMS, buildDisplayCode} from './questionCode.js';
 
 // Mã câu quyết định Outcome/YCCĐ. Nó KHÔNG quyết định Bài.
 // Bài chỉ đến từ topic_yccd_map (Bài ↔ YCCĐ), vì "Bài 2" và "Outcome 2" là hai hệ khác nhau.
@@ -39,6 +39,8 @@ export async function resolveCurriculumCode(client, {subject_id, grade, branch_c
      ORDER BY (canonical_key=$3) DESC, id LIMIT 1`,
     [subject_id, grade, key, branch_code, outcome_number, versionId])).rows[0];
   if (!outcome) {
+    const retired = await retiredMatch(client, 'outcome', {subject_id, grade, versionId, key, branch_code, outcome_number});
+    if (retired) return retired;
     const where = version ? `bản chương trình ${version.version_code}` : 'bản chương trình hiện dùng';
     return {ok: false, error: 'OUTCOME_NOT_FOUND',
       message: `Không tìm thấy Outcome ${outcomeLabel(branch_code, outcome_number)} trong ${subject.name} khối ${grade} (${where})`};
@@ -51,6 +53,8 @@ export async function resolveCurriculumCode(client, {subject_id, grade, branch_c
      ORDER BY (canonical_key=$2) DESC, id LIMIT 1`,
     [outcome.id, key + ':' + yccd_number, yccd_number])).rows[0];
   if (!yccd) {
+    const retired = await retiredMatch(client, 'yccd', {outcomeId: outcome.id, key: key + ':' + yccd_number, yccd_number, branch_code, outcome_number});
+    if (retired) return retired;
     return {ok: false, error: 'YCCD_NOT_FOUND',
       message: `Outcome ${outcomeLabel(branch_code, outcome_number)} không có YCCĐ số ${yccd_number}`};
   }
@@ -70,6 +74,62 @@ export async function resolveCurriculumCode(client, {subject_id, grade, branch_c
     outcome: {id: outcome.id, label: outcomeLabel(branch_code, outcome_number), title: outcome.title, code: outcome.code},
     yccd: {id: yccd.id, label: yccdLabel(branch_code, outcome_number, yccd_number), text: yccd.text, code: yccd.code},
   };
+}
+
+// Mã trỏ vào chuẩn đã ngừng dùng: chỉ đi theo quan hệ thay thế đã được khai báo tường minh
+// (superseded_by hoặc curriculum_replacements), không bao giờ tìm "chuẩn gần giống" (§53).
+// Luôn trả lỗi để người dùng xác nhận — ý nghĩa chuẩn có thể đã đổi.
+async function retiredMatch(client, type, {subject_id, grade, versionId, key, branch_code, outcome_number, outcomeId, yccd_number}) {
+  const table = type === 'outcome' ? 'curriculum_outcomes' : 'curriculum_yccds';
+  const row = type === 'outcome'
+    ? (await client.query(
+      `SELECT * FROM curriculum_outcomes WHERE subject_id=$1 AND grade=$2 AND status='RETIRED'
+         AND ($6::int IS NULL AND curriculum_version_id IS NULL OR curriculum_version_id=$6)
+         AND (canonical_key=$3 OR (COALESCE(source_branch_code,domain_code)=$4 AND source_ordinal=$5))
+       ORDER BY id DESC LIMIT 1`, [subject_id, grade, key, branch_code, outcome_number, versionId])).rows[0]
+    : (await client.query(
+      `SELECT * FROM curriculum_yccds WHERE outcome_id=$1 AND status='RETIRED' AND (canonical_key=$2 OR source_ordinal=$3)
+       ORDER BY id DESC LIMIT 1`, [outcomeId, key, yccd_number])).rows[0];
+  if (!row) return null;
+
+  let replacementId = row.superseded_by || null;
+  if (!replacementId) {
+    replacementId = (await client.query(
+      'SELECT replacement_id FROM curriculum_replacements WHERE entity_type=$1 AND original_id=$2 ORDER BY id DESC LIMIT 1',
+      [type, row.id])).rows[0]?.replacement_id || null;
+  }
+  let replacement = null;
+  if (replacementId) {
+    const r = type === 'outcome'
+      ? (await client.query(`SELECT id,title AS text,COALESCE(source_branch_code,domain_code) b,source_ordinal o,NULL::int y FROM ${table} WHERE id=$1 AND status='ACTIVE'`, [replacementId])).rows[0]
+      : (await client.query(`SELECT y.id,y.text,COALESCE(o.source_branch_code,o.domain_code) b,o.source_ordinal o,y.source_ordinal y
+                              FROM curriculum_yccds y JOIN curriculum_outcomes o ON o.id=y.outcome_id WHERE y.id=$1 AND y.status='ACTIVE'`, [replacementId])).rows[0];
+    if (r) replacement = {id: r.id, label: r.y == null ? outcomeLabel(r.b, r.o) : yccdLabel(r.b, r.o, r.y), text: r.text};
+  }
+  const label = type === 'outcome' ? outcomeLabel(branch_code, outcome_number) : yccdLabel(branch_code, outcome_number, yccd_number);
+  return {
+    ok: false,
+    error: type === 'outcome' ? 'OUTCOME_RETIRED' : 'YCCD_RETIRED',
+    replacement,
+    message: replacement
+      ? `${type === 'outcome' ? 'Outcome' : 'YCCĐ'} ${label} đã ngừng dùng; chương trình khai báo thay thế bằng ${replacement.label}. Cần sửa mã câu sau khi xác nhận nội dung vẫn đúng.`
+      : `${type === 'outcome' ? 'Outcome' : 'YCCĐ'} ${label} đã ngừng dùng và không có chuẩn thay thế được khai báo.`,
+  };
+}
+
+// Sinh mã câu hiện hành từ phân loại đã lưu (§24, §67–68). Chỉ áp dụng cho phân môn L/H/S có số thứ tự
+// nguồn; môn khác giữ cách đánh mã riêng. Trả null nếu không đủ dữ liệu — không bịa mã.
+export async function codeForMetadata(client, {yccd_id, cognitive_level, type, content_number}) {
+  if (!yccd_id || !cognitive_level || !type || !content_number) return null;
+  const row = (await client.query(
+    `SELECT COALESCE(o.source_branch_code,o.domain_code) AS branch, o.source_ordinal AS outcome_number, y.source_ordinal AS yccd_number
+     FROM curriculum_yccds y JOIN curriculum_outcomes o ON o.id=y.outcome_id WHERE y.id=$1`, [yccd_id])).rows[0];
+  if (!row || !['L', 'H', 'S'].includes(row.branch) || !row.outcome_number || !row.yccd_number) return null;
+  const form = Object.entries(FORMS).find(([, t]) => t === type)?.[0];
+  const level = ['NB', 'TH', 'VD', 'VDC'][Number(cognitive_level) - 1];
+  if (!form || !level) return null;
+  return buildDisplayCode({branch_code: row.branch, outcome_number: row.outcome_number, yccd_number: row.yccd_number,
+    declared_level: level, content_number: Number(content_number), question_form: form});
 }
 
 // YCCĐ → Bài qua topic_yccd_map. Ba kết quả, không bao giờ đoán khi có nhiều Bài.
@@ -101,49 +161,77 @@ export async function resolveQuestionFromCode(client, rawCode, {subject_id, grad
     outcome_number: code.outcome_number, yccd_number: code.yccd_number,
   });
   if (!curriculum.ok) {
-    return {ok: false, stage: 'CURRICULUM', error: curriculum.error, message: curriculum.message, code, warnings: parsed.warnings};
+    return {ok: false, stage: 'CURRICULUM', error: curriculum.error, message: curriculum.message, replacement: curriculum.replacement || null, code, warnings: parsed.warnings};
   }
 
   const lesson = await resolveLesson(client, curriculum.yccd.id, {subject_id, grade});
+  // Chưa có Bài nào được liên kết cho cả phân môn/khối này thì đó là thiếu dữ liệu nền, không phải lỗi
+  // của người nhập (§66). Phân biệt để thông báo đúng người cần xử lý.
+  if (lesson.status === 'UNMAPPED') {
+    const linked = (await client.query(
+      `SELECT count(*)::int n FROM topic_yccd_map m JOIN topics t ON t.id=m.topic_id
+       JOIN curriculum_yccds y ON y.id=m.yccd_id JOIN curriculum_outcomes o ON o.id=y.outcome_id
+       WHERE m.status='ACTIVE' AND t.subject_id=$1 AND t.grade=$2 AND COALESCE(o.source_branch_code,o.domain_code)=$3`,
+      [subject_id, grade, code.branch_code])).rows[0].n;
+    lesson.master_data_missing = linked === 0;
+  }
   return {ok: true, code, curriculum, lesson, warnings: parsed.warnings};
 }
 
-// Ghép kết quả resolve vào bản nháp câu hỏi. Metadata do người dùng khai vẫn được giữ để so sánh —
-// mã và metadata lệch nhau thì tầng import báo "cần xem", không tự chọn bên nào (§32).
 const LEVEL_ORDER = ['NB', 'TH', 'VD', 'VDC'];
 
+// Ghép kết quả resolve vào bản nháp câu hỏi.
+//
+// Trường còn trống thì điền theo mã. Trường người dùng đã khai mà khác mã thì GIỮ NGUYÊN giá trị đã
+// khai và báo xung đột — hệ thống không chọn hộ bên nào; người dùng bấm "Theo mã" hoặc sửa mã (§32,
+// §69). `code_values` là bộ giá trị theo mã để giao diện áp dụng khi người dùng chọn "Theo mã".
 export function applyResolution(draft, resolution) {
   const {code, curriculum, lesson} = resolution;
+  const codeValues = {
+    outcome_id: curriculum.outcome.id,
+    yccd_id: curriculum.yccd.id,
+    type: FORMS[code.question_form],
+    cognitive_level: LEVEL_ORDER.indexOf(code.declared_level) + 1,
+  };
+  const labels = {
+    outcome_id: [curriculum.outcome.label, null],
+    yccd_id: [curriculum.yccd.label, null],
+    type: [code.question_form, null],
+    cognitive_level: [code.declared_level, LEVEL_ORDER[Number(draft.cognitive_level) - 1] || null],
+  };
   const conflicts = [];
-  for (const [field, resolved] of [['outcome_id', curriculum.outcome.id], ['yccd_id', curriculum.yccd.id]]) {
+  const next = {...draft};
+  for (const [field, byCode] of Object.entries(codeValues)) {
     const declared = draft[field];
-    if (declared && Number(declared) !== Number(resolved)) {
-      conflicts.push({code: 'CODE_METADATA_CONFLICT', field, by_code: resolved, by_metadata: Number(declared)});
+    const same = field === 'type' ? declared === byCode : Number(declared) === Number(byCode);
+    if (declared != null && declared !== '' && !same) {
+      conflicts.push({code: 'CODE_METADATA_CONFLICT', field, by_code: byCode, by_metadata: declared,
+        by_code_label: labels[field][0], by_metadata_label: labels[field][1] ?? String(declared)});
+    } else {
+      next[field] = byCode;
     }
   }
-  // Hình thức và mức độ cũng nằm trong mã. Lệch nhau là việc người dùng phải quyết, không phải việc
-  // hệ thống chọn hộ — nên chỉ báo, không ghi đè giá trị đã khai.
-  const codeType = FORMS[code.question_form];
-  if (draft.type && draft.type !== codeType) {
-    conflicts.push({code: 'CODE_METADATA_CONFLICT', field: 'type', by_code: codeType, by_metadata: draft.type});
+
+  // Bài: một Bài thì tự gắn. Nhiều Bài thì chỉ giữ lựa chọn tay nếu nó thuộc danh sách ứng viên.
+  // Chưa có Bài thì giữ lựa chọn tay (nếu có) nhưng vẫn báo là chưa liên kết trong dữ liệu nền.
+  let topicId = null, lessonStatus = lesson.status;
+  const manual = draft.topic_id ? Number(draft.topic_id) : null;
+  if (lesson.status === 'AUTO_MAPPED') {
+    topicId = lesson.topic_id;
+  } else if (lesson.status === 'AMBIGUOUS') {
+    if (manual && lesson.candidates.some(t => t.id === manual)) { topicId = manual; lessonStatus = 'MANUAL'; }
+  } else if (manual) {
+    topicId = manual; lessonStatus = 'MANUAL_UNLINKED';
   }
-  const codeLevel = LEVEL_ORDER.indexOf(code.declared_level) + 1;
-  if (draft.cognitive_level && Number(draft.cognitive_level) !== codeLevel) {
-    conflicts.push({code: 'CODE_METADATA_CONFLICT', field: 'cognitive_level', by_code: code.declared_level, by_metadata: LEVEL_ORDER[Number(draft.cognitive_level) - 1] || draft.cognitive_level});
-  }
-  const next = {
-    ...draft,
+
+  Object.assign(next, {
     subject_id: curriculum.subject.id,
     grade: curriculum.grade,
     branch_id: curriculum.branch?.id ?? draft.branch_id ?? null,
-    outcome_id: curriculum.outcome.id,
-    yccd_id: curriculum.yccd.id,
     display_code: code.canonical_code,
-    type: draft.type || FORMS[code.question_form],
-    cognitive_level: draft.cognitive_level || ['NB', 'TH', 'VD', 'VDC'].indexOf(code.declared_level) + 1,
     content_number: code.content_number,
-    lesson_status: lesson.status,
-    topic_id: lesson.status === 'AUTO_MAPPED' ? lesson.topic_id : draft.topic_id ?? null,
-  };
-  return {draft: next, conflicts};
+    lesson_status: lessonStatus === 'MANUAL_UNLINKED' ? 'MANUAL' : lessonStatus,
+    topic_id: topicId,
+  });
+  return {draft: next, conflicts, codeValues, lessonStatus};
 }

@@ -1,5 +1,5 @@
 import {pool} from '../../db/pool.js';
-import {questionScope, QUESTION_FROM} from './questions.js';
+import {questionScope, QUESTION_FROM, CHECK_SQL} from './questions.js';
 import {MAX_BULK_IDS} from './bulkWorkflow.js';
 import {fail} from './config.js';
 
@@ -15,7 +15,8 @@ const SUMMARY_COLUMNS = `q.id,q.question_code,q.current_version_id,q.active_vers
  v.review_status,v.version_number,b.name AS bank_name,s.name AS subject_name,t.name AS topic_name,br.name AS branch_name,
  o.code AS outcome_code,y.code AS yccd_code,u.full_name AS author_name,
  (SELECT min(c.severity) FROM question_review_cases c WHERE c.question_id=q.id AND c.status IN('OPEN','IN_REVIEW')) AS open_case_severity,
- (SELECT count(*) FROM question_review_cases c WHERE c.question_id=q.id AND c.status IN('OPEN','IN_REVIEW'))::int AS open_cases`;
+ (SELECT count(*) FROM question_review_cases c WHERE c.question_id=q.id AND c.status IN('OPEN','IN_REVIEW'))::int AS open_cases,
+ ${Object.entries(CHECK_SQL).map(([k, sql]) => `${sql} AS chk_${k}`).join(', ')}`;
 
 const SUMMARY_JOINS = `LEFT JOIN subjects s ON s.id=q.subject_id LEFT JOIN topics t ON t.id=q.topic_id
  LEFT JOIN branches br ON br.id=q.branch_id LEFT JOIN curriculum_outcomes o ON o.id=q.outcome_id
@@ -62,6 +63,12 @@ function summaryDto(row, withAuthor) {
       open_cases: row.open_cases,
       open_case_severity: row.open_case_severity,
       needs_curriculum_review: row.metadata_status === 'NEEDS_REVIEW',
+    },
+    // Dải kiểm tra máy: đúng/sai cho từng khía cạnh. `code` là null khi câu không dùng mã hiện hành.
+    checks: {
+      code: row.chk_coded ? row.chk_code : null,
+      curriculum: row.chk_curriculum, lesson: row.chk_lesson, level: row.chk_level, form: row.chk_form,
+      answer: row.chk_answer, explanation: row.chk_explanation, media: row.chk_media, duplicate: row.chk_duplicate,
     },
     answer_hidden: true,
   };
@@ -117,4 +124,30 @@ export async function selectionIds(user, query) {
     items: rows.map(r => ({question_id: r.id, current_version_id: r.current_version_id})),
     expected_versions: Object.fromEntries(rows.map(r => [String(r.id), r.current_version_id])),
   };
+}
+
+// V6.6.6 — "Việc của tôi": các góc nhìn cố định của bàn làm việc, kèm số câu. Mỗi góc nhìn chỉ là một bộ
+// tham số lọc của hàng đợi, nên bấm vào là ra đúng danh sách đã đếm, cùng quy tắc phạm vi truy cập.
+export function workViews(user) {
+  const reviewer = seesAuthor(user);
+  const views = [
+    {key: 'today', label: 'Tôi nhập hôm nay', query: {created_by: String(user.id), created_after: 'today'}},
+    {key: 'drafts', label: 'Bản nháp của tôi', query: {created_by: String(user.id), review_status: 'DRAFT'}},
+    {key: 'returned', label: 'Bị trả sửa', query: {created_by: String(user.id), returned: '1'}},
+    ...(reviewer ? [{key: 'pending', label: 'Chờ duyệt', query: {review_status: 'PENDING_REVIEW'}}] : []),
+    {key: 'nolesson', label: 'Chưa gắn Bài', query: {lesson_status: 'UNASSIGNED'}},
+    {key: 'duplicate', label: 'Nghi trùng', query: {exception: 'duplicate'}},
+  ];
+  return views;
+}
+
+export async function viewCounts(user) {
+  if (user.role === 'student') fail('Không đủ quyền', 403);
+  const out = [];
+  for (const view of workViews(user)) {
+    const {where, params} = await questionScope(user, view.query);
+    const n = (await pool.query(`SELECT count(*)::int n ${QUESTION_FROM} ${where.length ? 'WHERE ' + where.join(' AND ') : ''}`, params)).rows[0].n;
+    out.push({...view, query: new URLSearchParams(view.query).toString(), count: n});
+  }
+  return out;
 }

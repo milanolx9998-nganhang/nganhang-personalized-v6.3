@@ -107,21 +107,26 @@ export async function mapImport(actor,id,raw){
  const sheet=j.workbook.sheets.find(s=>s.name===d.sheet);if(!sheet)fail('Sheet không hợp lệ');
  // Với hồ sơ nguồn chính thức, máy chủ tự nhận diện lại từ workbook đã lưu và dùng chính ánh xạ do
  // mình suy ra. Client chỉ được chọn sheet; nó không phải nguồn tin cậy cho header/cột/khối.
+ //
+ // V6.6.5.2 §62 — việc "đây có phải nguồn chính thức không" do máy chủ quyết định, không phụ thuộc
+ // client có gửi source_profile hay không. Sheet thuộc bộ chính thức thì luôn đi đường tin cậy
+ // (kể cả chặn lệch khối); client bỏ source_profile đi cũng không vòng qua được.
  let effective={header_row:d.header_row,columns:d.columns,topic_as_outcome:d.topic_as_outcome};
- if(d.source_profile===TRUSTED_PROFILE){
-  const detected=detectTrustedProfile(j.workbook);
-  if(!detected)fail('Tệp này không phải bộ Outcome/YCCĐ chính thức',409,{code:'TRUSTED_SOURCE_NOT_DETECTED'});
-  const trusted=detected.sheets.find(s=>s.sheet===d.sheet);
-  if(!trusted)fail('Sheet đã chọn không thuộc bộ nguồn chính thức',409,{code:'TRUSTED_SOURCE_SHEET_UNKNOWN',sheets:detected.sheets.map(s=>({sheet:s.sheet,grade:s.grade}))});
+ const detected=detectTrustedProfile(j.workbook);
+ const trusted=detected?.sheets.find(s=>s.sheet===d.sheet)||null;
+ if(d.source_profile===TRUSTED_PROFILE&&!detected)fail('Tệp này không phải bộ Outcome/YCCĐ chính thức',409,{code:'TRUSTED_SOURCE_NOT_DETECTED'});
+ if(d.source_profile===TRUSTED_PROFILE&&!trusted)fail('Sheet đã chọn không thuộc bộ nguồn chính thức',409,{code:'TRUSTED_SOURCE_SHEET_UNKNOWN',sheets:detected.sheets.map(s=>({sheet:s.sheet,grade:s.grade}))});
+ if(trusted){
   if(trusted.grade!==v.grade)fail(`Sheet là khối ${trusted.grade} nhưng phiên bản chương trình là khối ${v.grade}`,409,{code:'TRUSTED_SOURCE_GRADE_MISMATCH',sheet_grade:trusted.grade,version_grade:v.grade});
   effective={header_row:trusted.header_row,columns:trusted.columns,topic_as_outcome:true};
  }
+ const profile=trusted?TRUSTED_PROFILE:null;
  if(effective.columns.text===undefined)fail('Bắt buộc chọn cột YCCĐ');
  const source=sheet.rows.slice(effective.header_row);
  let rows=mapRows(source,effective.columns,effective.topic_as_outcome).map((row,index)=>({...row,__origin:index}));
  // Chỉ hồ sơ tin cậy mới được tách ô nhiều YCCĐ và đọc số thứ tự từ nguồn. Bảng tính bất kỳ giữ
  // nguyên hành vi cũ: một dòng là một dòng.
- if(d.source_profile===TRUSTED_PROFILE)rows=normalizeSourceRows(rows);
+ if(profile)rows=normalizeSourceRows(rows);
  const mapped=validateRows(rows);
  await c.query('DELETE FROM curriculum_import_rows WHERE import_job_id=$1',[id]);
  const segments=new Map();
@@ -140,7 +145,7 @@ export async function mapImport(actor,id,raw){
   const notes=[...validation_result,...flags.map(f=>SOURCE_FLAG_MESSAGES[f]||f)];
   await c.query('INSERT INTO curriculum_import_rows(import_job_id,source_sheet,source_row,source_segment,raw_payload,mapped_payload,validation_result,row_status) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',[id,d.sheet,effective.header_row+origin+1,segment,JSON.stringify(source[origin]),value,JSON.stringify(notes),status]);}
  // Lưu ánh xạ thực sự đã dùng, không lưu thứ client gửi lên.
- const applied={sheet:d.sheet,...effective,source_profile:d.source_profile||null};
+ const applied={sheet:d.sheet,...effective,source_profile:profile};
  await c.query("UPDATE curriculum_import_jobs SET mapping=$2,status='MAPPED',revision=revision+1 WHERE id=$1",[id,applied]);await audit(c,actor,v,'IMPORT_MAPPED',null,{job:id,mapping:applied,rows:mapped.length},'Người dùng chọn mapping cột');return {ok:true,rows:mapped.length,mapping:applied};});
 }
 const SOURCE_FLAG_MESSAGES={
@@ -202,4 +207,44 @@ export async function commitImport(actor,id,raw){
  if(existing){if(existing.text===m.text){unchanged++;continue;}fail('YCCĐ cùng khóa nhưng khác nội dung; đối chiếu rồi sửa staging',409,{canonical_key:yccdKey,existing:existing.text,incoming:m.text});}
  await c.query("INSERT INTO curriculum_yccds(outcome_id,code,text,source_locator,source_row,order_index,status,curriculum_version_id,source_ordinal,canonical_key,source_text,source_page) VALUES($1,$2,$3,$4,$5,$6,'DRAFT',$7,$8,$9,$10,$11)",[o.id,code,m.text,m.page,r.source_row,m.order,v.id,m.branch_code?m.yccd_ordinal:null,yccdKey,m.text,m.page]);}
  await c.query("UPDATE curriculum_import_jobs SET status='COMMITTED',revision=revision+1 WHERE id=$1",[id]);await audit(c,actor,v,'IMPORT_COMMITTED',null,{job:id,count:rows.length,unchanged},d.reason);return {ok:true,count:rows.length,unchanged,imported:rows.length-unchanged};});
+}
+
+// V6.6.5.2 §65–66 — "sức khỏe dữ liệu nền": cho quản trị thấy trước vì sao câu nhập sẽ bị "chưa gắn Bài"
+// hay không đọc được mã, thay vì để giáo viên phát hiện lúc nhập. Chỉ đọc; tính trên đúng bản chương
+// trình mà resolver đang dùng (PUBLISHED mới nhất, hoặc dữ liệu cũ chưa gắn phiên bản).
+export async function masterDataHealth(actor,query={}){
+ const pairs=(await pool.query(`SELECT DISTINCT o.subject_id,o.grade,s.name AS subject_name FROM curriculum_outcomes o JOIN subjects s ON s.id=o.subject_id
+  WHERE o.status='ACTIVE' AND ($1::int IS NULL OR o.subject_id=$1) AND ($2::int IS NULL OR o.grade=$2) ORDER BY s.name,o.grade`,
+  [Number(query.subject_id)||null,Number(query.grade)||null])).rows;
+ const items=[];
+ for(const p of pairs){
+  if(!await can(actor,'curriculum.read',{subjectId:p.subject_id,grade:p.grade}))continue;
+  const version=(await pool.query("SELECT id,version_code FROM curriculum_versions WHERE subject_id=$1 AND grade=$2 AND status='PUBLISHED' ORDER BY published_at DESC NULLS LAST,id DESC LIMIT 1",[p.subject_id,p.grade])).rows[0]||null;
+  const branches=(await pool.query(`SELECT COALESCE(o.source_branch_code,o.domain_code) AS branch,
+    count(DISTINCT o.id)::int AS outcomes,count(DISTINCT y.id)::int AS yccds,
+    count(DISTINCT y.id) FILTER(WHERE lc.n=1)::int AS yccd_one_lesson,
+    count(DISTINCT y.id) FILTER(WHERE lc.n>1)::int AS yccd_many_lessons,
+    count(DISTINCT y.id) FILTER(WHERE lc.n=0)::int AS yccd_unmapped,
+    count(DISTINCT y.id) FILTER(WHERE y.source_ordinal IS NULL OR o.source_ordinal IS NULL)::int AS ordinal_missing
+   FROM curriculum_outcomes o JOIN curriculum_yccds y ON y.outcome_id=o.id AND y.status='ACTIVE'
+   CROSS JOIN LATERAL (SELECT count(*)::int n FROM topic_yccd_map m JOIN topics t ON t.id=m.topic_id
+     WHERE m.yccd_id=y.id AND m.status='ACTIVE' AND t.status='ACTIVE' AND t.subject_id=o.subject_id AND t.grade=o.grade) lc
+   WHERE o.subject_id=$1 AND o.grade=$2 AND o.status='ACTIVE' AND ($3::int IS NULL AND o.curriculum_version_id IS NULL OR o.curriculum_version_id=$3)
+   GROUP BY 1 ORDER BY 1`,[p.subject_id,p.grade,version?.id??null])).rows;
+  const questions=(await pool.query(`SELECT count(*)::int AS total,
+    count(*) FILTER(WHERE q.topic_id IS NULL OR q.lesson_status IN('UNMAPPED','AMBIGUOUS'))::int AS without_lesson,
+    count(*) FILTER(WHERE q.yccd_id IS NULL)::int AS without_yccd,
+    count(*) FILTER(WHERE y.status='RETIRED')::int AS on_retired_yccd
+   FROM questions q LEFT JOIN curriculum_yccds y ON y.id=q.yccd_id WHERE q.subject_id=$1 AND q.grade=$2 AND q.lifecycle<>'archived'`,[p.subject_id,p.grade])).rows[0];
+  const issues=[];
+  if(!version)issues.push({code:'NO_PUBLISHED_VERSION',severity:'warning',message:'Chưa có bản chương trình PUBLISHED; hệ thống đang dùng dữ liệu cũ chưa gắn phiên bản'});
+  for(const b of branches){
+   if(b.yccds&&b.yccd_one_lesson+b.yccd_many_lessons===0)issues.push({code:'NO_LESSON_LINKS',severity:'warning',branch:b.branch,message:`Phân môn ${b.branch}: chưa có dữ liệu Bài; mọi câu nhập sẽ ở trạng thái "Chưa gắn Bài"`});
+   else if(b.yccd_unmapped)issues.push({code:'PARTIAL_LESSON_LINKS',severity:'info',branch:b.branch,message:`Phân môn ${b.branch}: ${b.yccd_unmapped}/${b.yccds} YCCĐ chưa gắn Bài`});
+   if(b.ordinal_missing)issues.push({code:'ORDINAL_MISSING',severity:'warning',branch:b.branch,message:`Phân môn ${b.branch}: ${b.ordinal_missing} YCCĐ thiếu số thứ tự nguồn; mã câu trỏ tới chúng sẽ không đọc được`});
+  }
+  if(questions.on_retired_yccd)issues.push({code:'QUESTIONS_ON_RETIRED',severity:'warning',message:`${questions.on_retired_yccd} câu đang gắn YCCĐ đã ngừng dùng`});
+  items.push({subject_id:p.subject_id,subject_name:p.subject_name,grade:p.grade,version:version?{id:version.id,code:version.version_code}:null,branches,questions,issues});
+ }
+ return {items};
 }

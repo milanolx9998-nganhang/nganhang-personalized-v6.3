@@ -1,5 +1,38 @@
 # AI Work Log
 
+## 2026-09-23 — V6.6.5.1 hotfix theo audit `3ab8f7f` + nạp Bài khối 7
+
+**P1 — trusted source hardening**
+- Tải tệp mới ghi đè ánh xạ vừa nhận diện (`setSheet`/`setColumns` chạy sau `readJob`) → bỏ.
+- `mapImport` tin `source_profile` client gửi → nay máy chủ tự `detectTrustedProfile()` lại trên
+  workbook đã lưu, bắt sheet thuộc hồ sơ, bắt khối khớp version, **dùng header/cột tự suy ra**,
+  lệch thì 409 (`TRUSTED_SOURCE_NOT_DETECTED` / `_SHEET_UNKNOWN` / `_GRADE_MISMATCH`).
+- Giao diện bỏ fallback `trusted.sheets[0]`; không có sheet đúng khối thì chặn hẳn.
+- Thêm 2 ca âm vào `v665-bootstrap.test.js` (7/7).
+
+**P2 — power workflow**
+- Nối `inferNumberingMode`/`checkNumbering` vào màn nhập qua `job.numbering` (tính khi đọc, không cần
+  migration); ghi `numbering_mode` khi confirm.
+- Shift+tick chọn khoảng (`selection.selectRange`, mốc neo trong `useRef`).
+- `RejectReasonPopover` — 7 lý do có `reason_code`, thay `window.prompt` ở cả Kho và Duyệt.
+- Thanh bulk gọn dính đáy (`.bulk-bar`); checklist/lý do/preflight chỉ mở theo thao tác.
+- Phím `E` mở rà soát chi tiết.
+
+**Dữ liệu khối 7 (theo yêu cầu của người dùng)**
+- Hai nguồn đánh số YCCĐ khác nhau: CSDL đánh 1..n trong từng Outcome (10 Outcome Vật lí), tệp mới
+  đánh STT 19–49 toàn khối (13 Outcome). Đối chiếu **31/31 khớp nguyên văn**.
+- **Giữ nguyên cấu trúc CSDL**, chỉ dùng tệp mới cho phần thiếu là Bài + liên kết Bài↔YCCĐ, vì đổi
+  cách đánh số sẽ làm mọi mã câu khối 7 đã viết trỏ sai. Đây là quyết định của người phụ trách
+  chương trình, đã nêu rõ cho người dùng.
+- Ghép bằng **nguyên văn**, không bằng số. Dữ liệu trích sẵn thành
+  `backend/src/db/seed-data/khtn7-vatli-lessons.json` (commit cùng mã, vì DB không đi theo git) +
+  script idempotent `npm run seed:khtn7-lessons`. Đã nạp local: 13 Bài, 31 liên kết.
+
+**Kiểm chứng:** 196 pass / 3 fail (3 lỗi có sẵn từ trước).
+
+**Bẫy đã gặp:** đổi class `.bulk-toolbar` → `.bulk-bar` làm assertion trong `pilot.test.js` kiểm một
+class không còn tồn tại (vẫn xanh nhưng mất ý nghĩa). Đã sửa selector cho đúng.
+
 ## 2026-09-22 — V6.6.5 hotfix theo audit `2f7ace2` (3 P1 + 3 P2)
 
 **Bối cảnh:** audit GitHub phát hiện Curriculum Auto Resolver chưa an toàn để nạp 4 file chính thức.
@@ -128,3 +161,59 @@ trên máy chủ để kết luận sự cố deploy.
 **Kiểm tra/verify:** không chạy build/test trong lượt này — chỉ đọc, không sửa code nên không cần.
 
 **Việc tiếp theo (nếu user chọn xử lý):** ưu tiên xác nhận `qtiImport.js` + 6 file frontend mồ côi trước khi xoá (cross-check import thật, không chỉ agent-grep); cân nhắc bump `package.json` version lên 6.6.3 cho khớp migration/git log; dọn `artifacts/` cũ.
+
+## 2026-09-23 — Luật no-polling: global rule + AGENTS.md cho repo
+
+**Yêu cầu:** user hỏi luật "NEVER poll a backgrounded job" có thiết lập được cho mọi project không, kể cả project đã triển khai; sau đó yêu cầu thêm vào repo này.
+
+**Bối cảnh chi phí:** mỗi tool call gửi lại toàn bộ context lên API. Vòng lặp `sleep 5 + check` trong 3 phút ≈ 36 lượt; context 40k tokens ⇒ ~1.44M input tokens đốt vô nghĩa, đồng thời đẩy context chạm trần gây compaction giữa task.
+
+**Thay đổi ngoài repo (global, mọi project của user):**
+- Tạo mới `~/.claude/rules/no-poll-background-jobs.md`. Thư mục `~/.claude/rules/*.md` được harness nạp mỗi phiên, độc lập cwd — đây là điểm chèn global đúng (cùng cơ chế với `lsp-first.md`, `skill-routing.md`). `~/.claude/CLAUDE.md` không tồn tại, không dùng.
+
+**Thay đổi trong repo:**
+- Tạo mới `AGENTS.md` (51 dòng, trước đó repo chưa có). Nội dung: thứ tự đọc continuity files; block **Async Tasks & No-Polling** (luật + anti-pattern + ngoại lệ CI/deploy chờ một lần dài); quy ước điều hướng LSP/`.codegraph` trước grep; nghĩa vụ cập nhật `AI_WORK_LOG.md`/`AI_HANDOFF.md`; nhắc chỉ commit/push khi được yêu cầu.
+- Lý do cần bản trong repo: rule global chỉ áp cho Claude Code của user này. Cursor/Codex/Hermes và người clone repo không đọc `~/.claude/rules/` — `AGENTS.md` là lớp phủ cho họ.
+
+**Quyết định:** không đóng thành skill. Skill nạp theo trigger, có thể không kích hoạt đúng lúc agent sắp spam poll; rule file nạp vô điều kiện mỗi phiên, đúng lớp hơn cho luật hành vi luôn-bật.
+
+**Kiểm tra/verify:** không chạy build/test — chỉ thêm file tài liệu, không đụng code. `git status`: `AGENTS.md` untracked; `AI_HANDOFF.md`/`AI_WORK_LOG.md` modified. Hiệu lực nạp của rule global chỉ xác nhận được ở phiên Claude Code mới, chưa kiểm chứng trong phiên này.
+
+**Việc tiếp theo:** commit `AGENTS.md` khi user yêu cầu; nếu dùng Cursor trong repo thì mirror block no-polling sang `.cursorrules`.
+
+## 2026-09-23 — V6.6.5.2: nhập Word thông minh + tự nhận chương trình + duyệt theo ngoại lệ; đề xuất giao diện
+
+**Yêu cầu:** "fix đi e" theo `V6_6_5_2_FULL_SMART_WORD_IMPORT_AUTO_CURRICULUM_REVIEW_PROMPT.md`, sau đó đề xuất giao diện/thao tác tối ưu (nhanh, hàng loạt, tinh chỉnh từng câu trong lô).
+
+**Điều hướng:** codegraph/LSP không dùng được cho JS minified 1-dòng; dùng grep có giới hạn + đọc lát cắt.
+
+**Tệp đổi (backend):** `db/migration-v6652-import-context.sql` (mới) + `db/upgrade.js`; `services/questionCode.js` (`isCodeAttempt`); `services/practice/importAdapters.js`; `services/curriculumResolver.js` (retired + `codeForMetadata` + `master_data_missing` + `applyResolution` mới + giữ `replacement`); `services/practice/imports.js` (viết lại staging: context/expectations, severity, settle, duplicates %, partial numbering, bank từ context); `services/questionReview.js` + `practice/bulkWorkflow.js` + `routes/practice.js` (`reason_codes`); `services/practice/questions.js` (`CHECK_SQL`, `exception`, `ids`, bất biến mã–phân loại); `services/practice/questionQueue.js` (`checks`); `services/curriculumMaster/service.js` (trusted server-owned, `masterDataHealth`) + `routes/curriculumMaster.js` (`/health`); `services/curriculumMaster/lessonSeed.js` (mới) + `db/seed-khtn7-vatli-lessons.js`.
+**Tệp đổi (frontend):** `ImportCenter.jsx` (viết lại), `workspace/MachineChecks.jsx` (mới), `ReviewWorkspace.jsx`, `queue/BulkQuestionToolbar.jsx`, `queue/QuestionQueue.jsx`, `Banks.jsx`, `workspace/RejectReasonPopover.jsx`, `curriculum/CurriculumManager.jsx`, `curriculum/MasterDataHealth.jsx` (mới), `styles/question-queue.css`.
+**Khác:** `scripts/generate-templates.mjs` + `templates/question-import-khtn.docx`; test mới `test/practice/word-import-v6652.test.js`, `test/integration/v6652-import.test.js`; sửa `v665-resolver` (xung đột = ERROR), `v665-bootstrap` (bypass null → 409); docs `docs/V6_6_5_2_SMART_WORD_IMPORT.md`, cập nhật `docs/KHTN7_VATLI_BAI_YCCD.md`.
+
+**Kiểm tra:** `npm run migrate` local OK; unit 113/113; pilot 34/34; v63 47/50 (đúng 3 lỗi baseline #30/#47/#50); v664 12/12; bootstrap 7/7; resolver 10/10; v6652 14/14; frontend build OK; seed KHTN7 `--dry-run` mặc định dừng NO_PUBLISHED_VERSION, `--allow-legacy` → 13 Bài / 31 liên kết đã có.
+
+**Lỗi gặp & xử lý:** upload rate limit 10/phút/người (429) trong test → chia tải sang tài khoản admin, không nới giới hạn; trigger CSDL `CURRICULUM_REQUIRES_DRAFT` → fixture dựng ở DRAFT rồi mới PUBLISH; resolver làm rơi `replacement` → trả kèm.
+
+**Quyết định:** backend không bắt buộc Môn/Khối (giữ tương thích API cũ), UI bắt buộc; ack chỉ tắt cảnh báo cần-xem; hàng loạt trong staging chỉ còn Bài (+ mức/dạng cho câu không mã).
+
+**Đề xuất giao diện:** canvas Design 4 màn (Bàn làm việc hợp nhất có phạm vi "câu này / cả lô" + "chỉnh riêng" + hoàn tác; Nhập theo nhóm vấn đề; Duyệt theo ngoại lệ; Bảng lệnh Ctrl K + phím tắt): https://claude.ai/artifact/AXCT9nbHYPpaSCHZR9jsUv (riêng tư).
+
+**Việc tiếp theo:** user duyệt đề xuất → triển khai; commit/push khi user yêu cầu; thu hồi GitHub PAT.
+
+## 2026-09-23 — V6.6.6: triển khai đầy đủ đề xuất giao diện (bàn làm việc hợp nhất)
+
+**Yêu cầu:** "duyệt, làm full nhé" — triển khai cả 4 màn của canvas đề xuất.
+
+**Điều hướng:** grep có giới hạn + đọc lát cắt (LSP không có; không tìm thấy `codegraph.py` để rebuild).
+
+**Tệp đổi (backend):** `services/practice/quickEdit.js` (mới), `routes/practice.js` (quick-edit, preflight, view-counts), `services/practice/questionQueue.js` (`workViews`, `viewCounts`), `services/practice/questions.js` (`created_after`, `returned`), `services/practice/lessonAssignment.js` (`before_topic_id`, `current_version_id`).
+**Tệp đổi (frontend):** `Banks.jsx` (viết lại), `ReviewWorkspace.jsx` (viết lại), `ImportCenter.jsx` (nhóm vấn đề + bảng lệnh), mới: `workspace/QuickInspector.jsx`, `CommandPalette.jsx`, `WorkViews.jsx`, `UndoToast.jsx`, `useHotkeys.js`; sửa `workspace/RejectReasonPopover.jsx` (`ReasonChips`, `suggestedReasons`), `queue/QuestionQueue.jsx` (`sync/refresh`, nhãn chỉnh riêng), `queue/BulkQuestionToolbar.jsx` (`requestedAction`, `onClear`), `styles/question-queue.css`.
+**Test mới:** `test/integration/v666-workbench.test.js` (7 ca, có Playwright). **Doc:** `docs/V6_6_6_UNIFIED_WORKBENCH.md`.
+
+**Kiểm tra:** unit 113/113; pilot 34/34; v63 47/50 (3 lỗi baseline); v664 12/12; bootstrap 7/7; resolver 10/10; v6652 14/14; v666 7/7; build OK.
+
+**Lỗi gặp & xử lý:** `current_version_id` là UUID, zod đòi số → 400 → đổi sang `z.string().uuid()` và so sánh chuỗi. Lưới giữa hẹp khi có rail → rail 196px, preview 300–360px, dưới 1280px rail gập thành hàng nút.
+
+**Việc tiếp theo:** commit/push khi user yêu cầu; thu hồi GitHub PAT.
+

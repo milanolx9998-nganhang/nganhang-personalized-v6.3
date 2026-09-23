@@ -299,6 +299,18 @@ test('V665 bootstrap: máy chủ tự kiểm hồ sơ nguồn, không tin client
   });
   expect(unknown, 409);
   assert.equal(unknown.data.details.code, 'TRUSTED_SOURCE_GRADE_MISMATCH');
+
+  // V6.6.5.2 §62 — bỏ source_profile (null hoặc không gửi) cũng không vòng qua được kiểm tra khối:
+  // máy chủ tự nhận ra sheet thuộc bộ nguồn chính thức.
+  for (const source_profile of [null, undefined]) {
+    const bypass = await req('PUT', '/curriculum/import/' + job.id + '/map', {
+      sheet: sheet7.sheet, header_row: sheet7.header_row, columns: sheet7.columns,
+      topic_as_outcome: true, ...(source_profile === null ? {source_profile: null} : {}), revision: job.revision,
+    });
+    expect(bypass, 409);
+    assert.equal(bypass.data.details.code, 'TRUSTED_SOURCE_GRADE_MISMATCH');
+  }
+  assert.equal((await db.query('SELECT count(*)::int n FROM curriculum_import_rows WHERE import_job_id=$1', [job.id])).rows[0].n, 0);
 });
 
 test('V665 bootstrap: máy chủ dùng ánh xạ tự suy ra, bỏ qua header/cột sai do client gửi', {skip}, async () => {

@@ -7,9 +7,11 @@ const {Document,Packer,Paragraph,TextRun,Table,TableRow,TableCell,WidthType}=req
 const root=fileURLToPath(new URL('../templates/',import.meta.url));fs.mkdirSync(root,{recursive:true});
 const p=text=>new Paragraph({children:[new TextRun({text,font:'Lexend',size:24})],spacing:{after:120}});
 const paragraphs=[
- 'MẪU CẤU TRÚC NHẬP — THAY BẰNG CÂU HỎI ĐÃ ĐƯỢC NHÀ TRƯỜNG DUYỆT',
- 'Mã Outcome/YCCĐ bên dưới là ví dụ cấu trúc, không phải dữ liệu chương trình chính thức.',
- 'Chọn đúng môn, khối, chuyên đề trong bước xem trước. Không tự điền mức độ khi chưa xác định.',
+ 'MẪU WORD NHẬP CÂU HỎI — THAY CÁC CÂU VÍ DỤ BẰNG CÂU HỎI THẬT',
+ 'Mã Outcome/YCCĐ trong ví dụ chỉ minh họa cấu trúc, không phải dữ liệu chương trình chính thức.',
+ 'Mã câu: Câu <Phân môn L/H/S>. <Outcome>. <YCCĐ>. <Mức NB/TH/VD/VDC>. <Số>. <Dạng TN/ĐS/TLN/GN/TL>. Khối KHÔNG ghi trong mã.',
+ 'Khi tải lên chỉ cần chọn Môn và Khối. Hệ thống tự đọc Outcome, YCCĐ, mức, dạng từ mã và tự gắn Bài nếu dữ liệu nền đã liên kết.',
+ '(Tùy chọn) Có thể thêm một dòng đầu tệp dạng “Bài: tên bài” để hệ thống đối chiếu; mã câu vẫn được ưu tiên.',
  'Câu L. 1. 1. NB. 1. TN',
  '[Nội dung phần dẫn câu trắc nghiệm]',
  'A. [Nội dung phương án A]','B. [Nội dung phương án B]','C. [Nội dung phương án C]','D. [Nội dung phương án D]',

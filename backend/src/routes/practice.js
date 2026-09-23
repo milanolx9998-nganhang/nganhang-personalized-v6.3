@@ -26,7 +26,8 @@ import {studentAssignment} from '../services/practice/studentDto.js';
 import {attemptMedia} from '../services/practice/privateMedia.js';
 import {saveAssignment,listAssignments} from '../services/practice/assignments.js';
 import {questionList,persistQuestion,transition,personalBank} from '../services/practice/questions.js';
-import {questionQueue,selectionIds,authorOptions} from '../services/practice/questionQueue.js';
+import {questionQueue,selectionIds,authorOptions,viewCounts} from '../services/practice/questionQueue.js';
+import {quickEdit,quickEditPreflight} from '../services/practice/quickEdit.js';
 import {lessonOptions,bulkAssignLesson} from '../services/practice/lessonAssignment.js';
 import {bulkPreflight,bulkWorkflow,BULK_ACTIONS,MAX_BULK_IDS} from '../services/practice/bulkWorkflow.js';
 import {parseJob,getJob,editJob,confirmJob,listJobs} from '../services/practice/imports.js';
@@ -121,10 +122,24 @@ const bulkBody=z.object({
  ids:z.array(z.number().int().positive()).min(1).max(MAX_BULK_IDS),
  action:z.enum(BULK_ACTIONS),
  reason:z.string().trim().max(1000).optional().default(''),
+ reason_codes:z.array(z.string().max(40)).max(10).optional().default([]),
  target_bank_id:z.number().int().positive().nullable().optional().default(null),
  expected_versions:z.record(z.string()).nullable().optional().default(null),
 }).strict();
 r.get('/questions/queue',wrap(async(req,res)=>res.json(await questionQueue(req.user,req.query))));
+r.get('/questions/view-counts',wrap(async(req,res)=>res.json(await viewCounts(req.user))));
+// V6.6.6 — sửa nhanh mức/Bài từ bàn làm việc; preflight chạy cùng đường trong giao dịch luôn hoàn tác.
+const quickEditBody=z.object({
+ ids:z.array(z.number().int().positive()).min(1).max(MAX_BULK_IDS).optional(),
+ changes:z.object({cognitive_level:z.number().int().min(1).max(4).optional(),topic_id:z.number().int().positive().nullable().optional()}).strict().optional(),
+ items:z.array(z.object({id:z.number().int().positive(),cognitive_level:z.number().int().min(1).max(4).optional(),topic_id:z.number().int().positive().nullable().optional()}).strict()).min(1).max(MAX_BULK_IDS).optional(),
+ regenerate_code:z.boolean().optional().default(false),
+ allow_unlinked:z.boolean().optional().default(false),
+ reason:z.string().trim().max(1000).optional().default(''),
+ expected_versions:z.record(z.string().uuid()).nullable().optional().default(null),
+}).strict().refine(b=>b.items?!b.ids&&!b.changes:!!(b.ids&&b.changes),{message:'Gửi ids + changes, hoặc items — không trộn hai dạng'});
+r.post('/questions/quick-edit/preflight',wrap(async(req,res)=>res.json(await quickEditPreflight(req.user,quickEditBody.parse(req.body)))));
+r.post('/questions/quick-edit',wrap(async(req,res)=>res.json(await quickEdit(req.user,quickEditBody.parse(req.body)))));
 r.get('/questions/selection-ids',wrap(async(req,res)=>res.json(await selectionIds(req.user,req.query))));
 r.get('/questions/author-options',wrap(async(req,res)=>res.json(await authorOptions(req.user,req.query))));
 const idList=z.object({ids:z.array(z.number().int().positive()).min(1).max(MAX_BULK_IDS)}).strict();

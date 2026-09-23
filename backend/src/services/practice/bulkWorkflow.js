@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import {tx,dryRun} from '../../db/pool.js';
-import {versionWorkflow,reviewPolicy} from '../questionReview.js';
+import {versionWorkflow,reviewPolicy,checkReasonCodes} from '../questionReview.js';
 import {validateCurriculum} from '../curriculum.js';
 import {validateQuestion} from './grading.js';
 import {transition} from './questions.js';
@@ -13,10 +13,10 @@ export const MAX_BULK_IDS = 500;
 
 // Bulk never reaches SQL directly: every business action lands on the same domain entry point the
 // single-question workflow uses, so policy, audit and version immutability cannot be bypassed.
-function runAction(client, user, id, action, {reason, targetBankId}) {
+function runAction(client, user, id, action, {reason, reasonCodes, targetBankId}) {
   if (action === 'archive') return transition(client, user, id, 'archived', {reason, targetBankId});
   if (action === 'activate') return transition(client, user, id, 'active', {reason, targetBankId});
-  return versionWorkflow(client, user, id, action, {reason, targetBankId});
+  return versionWorkflow(client, user, id, action, {reason, reason_codes: reasonCodes, targetBankId});
 }
 
 const reasonCode = e => e.code
@@ -60,12 +60,13 @@ async function deepReviewSignals(client, user, row, action, expected) {
 // real one and aborts everything if a single item is not eligible.
 export async function evaluateBulk(client, user, body) {
   const {action, reason = '', target_bank_id = null, expected_versions = null} = body || {};
+  const reasonCodes = checkReasonCodes(body?.reason_codes);
   staff(user);
   if (!BULK_ACTIONS.includes(action)) fail('Thao tác hàng loạt không hợp lệ');
   const ids = [...new Set((body?.ids || []).map(Number).filter(Number.isInteger))];
   if (!ids.length) fail('Chọn ít nhất một câu hỏi');
   if (ids.length > MAX_BULK_IDS) fail(`Tối đa ${MAX_BULK_IDS} câu mỗi thao tác`);
-  if (NEEDS_REASON.has(action) && !String(reason).trim()) fail('Cần lý do trả sửa / từ chối');
+  if (NEEDS_REASON.has(action) && !String(reason).trim() && !reasonCodes.length) fail('Cần lý do trả sửa / từ chối');
   if (action === 'approve' && !expected_versions) fail('Thiếu phiên bản đã xem; tải lại danh sách trước khi duyệt', 409);
 
   const rows = (await client.query(`SELECT q.id,q.question_code,q.subject_id,q.grade,q.branch_id,q.topic_id,q.outcome_id,q.yccd_id,
@@ -91,7 +92,7 @@ export async function evaluateBulk(client, user, body) {
           message: signals.map(s => s.message).join('; '), signals: signals.map(s => s.code),
         });
       } else {
-        await runAction(client, user, id, action, {reason, targetBankId: target_bank_id});
+        await runAction(client, user, id, action, {reason, reasonCodes, targetBankId: target_bank_id});
         eligible.push({question_id: id, question_code: row.question_code});
       }
     } catch (e) {
@@ -117,7 +118,7 @@ export async function bulkWorkflow(user, body) {
     const questionIds = plan.eligible.map(e => e.question_id);
     await log(client, user, 'QUESTION_BULK_WORKFLOW', batchId, {
       action: body.action, question_ids: questionIds, target_bank_id: body.target_bank_id || null,
-      reason: body.reason || '', count: questionIds.length, result: 'APPLIED',
+      reason: body.reason || '', reason_codes: checkReasonCodes(body.reason_codes), count: questionIds.length, result: 'APPLIED',
     });
     return {ok: true, batch_id: batchId, action: body.action, applied: questionIds.length, question_ids: questionIds};
   });

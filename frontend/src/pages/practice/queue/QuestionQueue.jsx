@@ -3,6 +3,7 @@ import {api} from '../../../api/client.js';
 import {base, ErrorBox} from '../shared.jsx';
 import {Rich} from '../Rich.jsx';
 import {questionStatus, lessonAndCurriculum, curriculumLabel, levelLabel, formLabel, LESSON_STATUS} from '../workspace/labels.js';
+import MachineChecks from '../workspace/MachineChecks.jsx';
 
 export const LIFECYCLE = {draft: 'Bản nháp', pending_review: 'Chờ duyệt', approved: 'Đã duyệt', active: 'Đang dùng', archived: 'Lưu trữ'};
 export const REVIEW_STATUS = {DRAFT: 'Nháp', PENDING_REVIEW: 'Chờ duyệt', APPROVED: 'Đã duyệt', REJECTED: 'Từ chối', SUPERSEDED: 'Đã thay'};
@@ -70,6 +71,25 @@ export function useSelection() {
       return result;
     },
     clear: () => { setMap({}); setScope(null); anchor.current = null; },
+    // Câu vừa sửa có phiên bản mới: cập nhật phiên bản đã "thấy" cho câu đang nằm trong lô.
+    sync: rows => setMap(m => {
+      let changed = false;
+      const next = {...m};
+      for (const r of rows || []) {
+        const key = String(r.id);
+        if (key in next && r.current_version_id && next[key] !== r.current_version_id) { next[key] = r.current_version_id; changed = true; }
+      }
+      return changed ? next : m;
+    }),
+    refresh: items => setMap(m => {
+      let changed = false;
+      const next = {...m};
+      for (const i of items || []) {
+        const key = String(i.question_id);
+        if (key in next && i.current_version_id && next[key] !== i.current_version_id) { next[key] = i.current_version_id; changed = true; }
+      }
+      return changed ? next : m;
+    }),
   };
 }
 
@@ -79,7 +99,7 @@ export function StatusPill({row}) {
 }
 
 // Mặc định chỉ sáu cột. Mọi metadata khác nằm trong preview, không nhồi vào dòng.
-export function QuestionQueueTable({rows, selection, activeId, onActivate, pageSize, onPageSize, total, offset, onOffset}) {
+export function QuestionQueueTable({rows, selection, activeId, onActivate, pageSize, onPageSize, total, offset, onOffset, badges = {}}) {
   const allOnPage = rows.length > 0 && rows.every(r => selection.has(r.id));
   return (
     <div className="queue-table-wrap">
@@ -108,11 +128,12 @@ export function QuestionQueueTable({rows, selection, activeId, onActivate, pageS
                        onClick={e => { if (e.shiftKey) { e.preventDefault(); selection.selectRange(rows, row.id, row.current_version_id); } }}
                        onChange={e => { if (!e.nativeEvent.shiftKey) selection.toggle(row.id, row.current_version_id); }}/>
               </td>
-              <td data-label="Mã" className="queue-code">{row.display_code}</td>
+              <td data-label="Mã" className="queue-code">{row.display_code}{badges[row.id] && <span className="row-badge">{badges[row.id]}</span>}</td>
               <td data-label="Nội dung" className="queue-stem">{row.stem_excerpt}</td>
               <td data-label="Bài · YCCĐ">{lessonAndCurriculum(row)}</td>
               <td data-label="Mức">{levelLabel(row)}</td>
-              <td data-label="Trạng thái"><StatusPill row={row}/></td>
+              <td data-label="Trạng thái"><StatusPill row={row}/>{failingChecks(row) > 0 &&
+                <small className="row-issue" title="Số mục kiểm tra máy chưa đạt">! {failingChecks(row)} mục cần xem</small>}</td>
             </tr>
           ))}
         </tbody>
@@ -135,6 +156,9 @@ export function QuestionQueueTable({rows, selection, activeId, onActivate, pageS
 // Full content (answers included) is never in the queue payload; it comes from the compare endpoint,
 // which enforces content.view_answer on its own. A teacher without that capability still gets a
 // usable preview from the summary fields instead of an error wall.
+// Số mục kiểm tra máy chưa đạt (null = không áp dụng, không tính).
+export const failingChecks = row => Object.values(row?.checks || {}).filter(v => v === false).length;
+
 export function QuestionPreviewPane({row, onDeepReview, actions}) {
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState('');
@@ -155,6 +179,7 @@ export function QuestionPreviewPane({row, onDeepReview, actions}) {
         <h3>{row.display_code}</h3>
         <StatusPill row={row}/>
       </header>
+      <MachineChecks checks={row.checks} compact/>
       {actions}
       {error && <div className="warn-box"><p>Không mở được nội dung đầy đủ: {error}</p><p>{row.stem_excerpt}</p></div>}
       {!detail && !error && <p role="status">Đang tải nội dung…</p>}

@@ -255,7 +255,11 @@ test('V665: mã và metadata lệch nhau thì báo cho người dùng chọn, kh
   const fields = item.validation.resolution.conflicts.map(c => c.field);
   assert.equal(fields.includes('type'), true, JSON.stringify(item.validation.resolution.conflicts));
   assert.equal(fields.includes('cognitive_level'), true);
-  assert.equal(item.validation.status, 'NEEDS_REVIEW');
+  // V6.6.5.2 §50 — xung đột mã–phân loại chưa xử lý là lỗi chặn; người dùng chọn "Theo mã" hoặc sửa mã.
+  assert.equal(item.validation.status, 'ERROR');
+  assert.equal(item.validation.issues.some(i => i.code === 'CODE_METADATA_CONFLICT' && i.severity === 'blocking'), true);
+  // Thông báo cho người đọc: nhãn nghiệp vụ, không lộ id nội bộ.
+  assert.equal(item.validation.errors.some(e => /#\d+/.test(e)), false, JSON.stringify(item.validation.errors));
   // Giá trị người dùng khai vẫn giữ nguyên: hệ thống không chọn hộ bên nào.
   assert.equal(item.draft.type, 'multiple_choice');
   assert.equal(item.draft.cognitive_level, 3);

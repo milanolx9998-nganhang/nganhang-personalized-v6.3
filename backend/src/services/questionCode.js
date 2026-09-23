@@ -17,6 +17,11 @@ const LEGACY = /^Câu[.\s]*([LHS])[.\s]*(\d+)[.\s]*(\d+)[.\s]*(NB|TH|VD|VDC)[.\s
 
 const clean = value => String(value ?? '').replace(/ /g, ' ').trim().replace(/\s+/g, ' ');
 
+// Người soạn có ý định viết mã theo quy ước hiện hành: "Câu" rồi một chữ cái phân môn và dấu chấm.
+// Phân biệt với "Câu 1." (đánh số thường) và với mã cũ kiểu "KHTN.M1.12" — hai loại đó không phải
+// mã hiện hành nên đi đường metadata, còn mã hiện hành viết sai thì phải chặn để người soạn sửa.
+export const isCodeAttempt = value => /^Câu[\s.]+[A-Za-zĐđ]\s*\./u.test(clean(value));
+
 export function buildDisplayCode({branch_code, outcome_number, yccd_number, declared_level, content_number, question_form}) {
   return `Câu ${branch_code}. ${outcome_number}. ${yccd_number}. ${declared_level}. ${content_number}. ${question_form}`;
 }

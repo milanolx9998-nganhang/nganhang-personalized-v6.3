@@ -27,6 +27,20 @@ cd backend && node src/db/seed-khtn7-vatli-lessons.js --dry-run
 Script **idempotent**: chạy lại không sinh dữ liệu trùng (đã kiểm: lần hai báo
 `topics_reused: 13, links_already_present: 31`).
 
+**Từ V6.6.5.2** script chỉ liên kết vào **bản chương trình PUBLISHED mới nhất** của KHTN khối 7
+(đúng bản mà resolver đọc mã câu). Nếu máy chủ chưa có bản PUBLISHED nào, script **dừng** với
+`[NO_PUBLISHED_VERSION]`. Hai cách xử lý:
+
+1. Công bố bản chương trình KHTN 7 (Chương trình → Import → Công bố), rồi chạy lại lệnh trên; hoặc
+2. nếu máy chủ còn dùng dữ liệu cũ chưa gắn phiên bản (như máy local hiện tại), chạy tường minh:
+
+```bash
+cd backend && node src/db/seed-khtn7-vatli-lessons.js --allow-legacy
+```
+
+Nguyên văn YCCĐ khớp **nhiều** YCCĐ trong bản hiệu lực thì script dừng với `[AMBIGUOUS_YCCD_TEXT]`
+và liệt kê — không chọn đại hàng đầu tiên. Bài chỉ được dùng lại khi trùng môn + khối + phân môn + tên.
+
 ---
 
 ## 2. Quyết định quan trọng: giữ nguyên cách đánh số hiện có

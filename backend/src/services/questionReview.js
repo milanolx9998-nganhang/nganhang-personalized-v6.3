@@ -37,12 +37,22 @@ export async function openReviewCase(client,user,q,raw){
  if(['CURRICULUM_MISMATCH','OUTCOME_RETIRED','YCCD_RETIRED'].includes(reason))await client.query("UPDATE questions SET metadata_status='NEEDS_REVIEW' WHERE id=$1",[q.id]);
  await log(client,user,'QUESTION_REVIEW_OPEN',q.id,{case_id:row.id,reason,severity});return row;
 }
-export async function versionWorkflow(client,user,id,action,{reason='',version_id=null,targetBankId=null}={}){
+// Lý do trả sửa có cấu trúc (§56–57): mã cố định để thống kê và lọc; ghi chú tự do là tùy chọn.
+export const RETURN_REASON_CODES=['LEVEL_MISMATCH','CURRICULUM_MISMATCH','INSUFFICIENT_DATA','WEAK_DISTRACTORS','ANSWER_MISMATCH','MEDIA_PROBLEM','DUPLICATE_SUSPECT'];
+export function checkReasonCodes(codes){
+ if(codes==null)return [];
+ if(!Array.isArray(codes))fail('Mã lý do phải là danh sách');
+ const unique=[...new Set(codes.map(String))];
+ const bad=unique.filter(c=>!RETURN_REASON_CODES.includes(c));if(bad.length)fail('Mã lý do không hợp lệ: '+bad.join(', '));
+ return unique;
+}
+export async function versionWorkflow(client,user,id,action,{reason='',reason_codes=null,version_id=null,targetBankId=null}={}){
+ const codes=checkReasonCodes(reason_codes);reason=String(reason||'');
  const q=await reviewQuestionAccess(client,user,id,action==='approve'?'approve':['reject','request_changes'].includes(action)?'review':'write');
  const v=(await client.query('SELECT * FROM question_versions WHERE id=$1 AND question_id=$2 FOR UPDATE',[version_id||q.current_version_id,id])).rows[0];if(!v)fail('Không tìm thấy phiên bản',404);
  const policy=await reviewPolicy(client,q.subject_id);
  if(v.id!==q.current_version_id)fail('Chỉ xử lý bản đang làm việc; lịch sử giữ nguyên',409);
- if(['reject','request_changes'].includes(action)&&!reason.trim())fail('Cần lý do trả sửa / từ chối');
+ if(['reject','request_changes'].includes(action)&&!reason.trim()&&!codes.length)fail('Cần lý do trả sửa / từ chối');
  if(action==='submit'){
   if(v.review_status!=='DRAFT')fail('Chỉ nháp được gửi duyệt',409);
   await client.query("UPDATE question_versions SET review_status='PENDING_REVIEW' WHERE id=$1",[v.id]);
@@ -63,7 +73,7 @@ export async function versionWorkflow(client,user,id,action,{reason='',version_i
   await client.query('UPDATE question_versions SET review_status=$1,reviewed_by=$2,reviewed_at=now() WHERE id=$3',[action==='reject'?'REJECTED':'DRAFT',user.id,v.id]);
   await client.query("UPDATE questions SET lifecycle=CASE WHEN active_version_id IS NULL THEN 'draft' ELSE 'active' END WHERE id=$1",[id]);
  }else fail('Thao tác duyệt không hợp lệ');
- await log(client,user,'QUESTION_VERSION_'+action.toUpperCase(),id,{version:v.id,reason});return {ok:true};
+ await log(client,user,'QUESTION_VERSION_'+action.toUpperCase(),id,{version:v.id,reason,...(codes.length?{reason_codes:codes}:{})});return {ok:true};
 }
 export async function resolveReviewCase(client,user,id,raw){
  const c=(await client.query('SELECT * FROM question_review_cases WHERE id=$1 FOR UPDATE',[id])).rows[0];if(!c)fail('Không tìm thấy hồ sơ',404);

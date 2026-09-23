@@ -1,4 +1,4 @@
-import {useState} from 'react';
+import {useEffect, useState} from 'react';
 import {api} from '../../../api/client.js';
 import {base, ErrorBox} from '../shared.jsx';
 import RejectReasonPopover from '../workspace/RejectReasonPopover.jsx';
@@ -15,6 +15,8 @@ const CHECKLIST = [
   'Bài, YCCĐ và mức nhận thức phù hợp',
   'Hình, công thức, bảng và lời giải hiển thị đủ',
 ];
+
+const rest = plan => plan ? [...plan.requires_deep_review, ...plan.blocked].map(r => r.question_id) : [];
 
 function PlanReport({plan, onRetryEligible}) {
   if (!plan) return null;
@@ -41,7 +43,7 @@ function PlanReport({plan, onRetryEligible}) {
   );
 }
 
-export default function BulkQuestionToolbar({selection, actions, banks = [], onDone, extraActions}) {
+export default function BulkQuestionToolbar({selection, actions, banks = [], onDone, extraActions, onFocusIds, requestedAction, onClear}) {
   // Thanh luôn gọn: chọn một thao tác mới mở panel chứa checklist, lý do và kết quả kiểm tra.
   const [action, setAction] = useState(null);
   const [reason, setReason] = useState('');
@@ -54,6 +56,10 @@ export default function BulkQuestionToolbar({selection, actions, banks = [], onD
   const [message, setMessage] = useState('');
 
   const close = () => { setAction(null); setPlan(null); setChecked([]); setReason(''); setReasonCodes([]); };
+  // Bảng lệnh (Ctrl+K) mở thẳng một thao tác của thanh này.
+  useEffect(() => {
+    if (requestedAction && actions.includes(requestedAction.action)) { setAction(requestedAction.action); setPlan(null); setChecked([]); }
+  }, [requestedAction]); // eslint-disable-line react-hooks/exhaustive-deps
   const checklistDone = action !== 'approve' || checked.length === CHECKLIST.length;
   const reasonDone = !NEEDS_REASON.has(action) || reason.trim().length > 0;
   const ready = selection.count > 0 && checklistDone && reasonDone;
@@ -62,6 +68,7 @@ export default function BulkQuestionToolbar({selection, actions, banks = [], onD
     ids,
     action,
     reason: reason.trim(),
+    reason_codes: reasonCodes,
     target_bank_id: targetBank ? Number(targetBank) : null,
     expected_versions: Object.fromEntries(ids.map(id => [String(id), selection.map[String(id)]])),
   });
@@ -99,7 +106,7 @@ export default function BulkQuestionToolbar({selection, actions, banks = [], onD
             </button>
           ))}
           {extraActions}
-          <button className="btn" onClick={() => { selection.clear(); close(); }}>Bỏ chọn</button>
+          <button className="btn" onClick={() => { (onClear || selection.clear)(); close(); }}>Bỏ chọn</button>
         </div>
       </div>
       {message && <p className="ok-box" role="status">{message}</p>}
@@ -143,13 +150,16 @@ export default function BulkQuestionToolbar({selection, actions, banks = [], onD
 
           <div className="practice-actions">
             <button className="btn" disabled={busy || !ready} onClick={preflight}>Kiểm tra trước</button>
+            {/* §59 — lô lẫn câu sạch và câu có vấn đề: xử lý ngay phần sạch, mở riêng phần còn lại để xem. */}
             <button className="btn primary"
-                    disabled={busy || !ready || !plan || !plan.eligible.length || plan.blocked.length > 0 || plan.requires_deep_review.length > 0}
-                    onClick={() => execute()}>
-              {ACTION_LABELS[action]} {plan?.eligible.length || selection.count} câu
+                    disabled={busy || !ready || !plan || !plan.eligible.length}
+                    onClick={() => execute(plan.eligible.map(e => e.question_id))}>
+              {ACTION_LABELS[action]} {plan?.eligible.length ?? selection.count} câu{rest(plan).length ? ' đủ điều kiện' : ''}
             </button>
+            {rest(plan).length > 0 && onFocusIds &&
+              <button className="btn" onClick={() => { onFocusIds(rest(plan)); close(); }}>Xem {rest(plan).length} câu còn lại</button>}
           </div>
-          <PlanReport plan={plan} onRetryEligible={() => execute(plan.eligible.map(e => e.question_id))}/>
+          <PlanReport plan={plan}/>
         </section>
       )}
     </>

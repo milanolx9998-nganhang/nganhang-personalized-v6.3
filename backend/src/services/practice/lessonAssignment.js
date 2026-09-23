@@ -89,7 +89,8 @@ export async function bulkAssignLesson(user, {assignments = [], reason = '', all
           question_version_id: row.current_version_id,
           change_reason: reason || 'Gán Bài cho câu hỏi theo YCCĐ',
         }, {id});
-        applied.push({question_id: id, question_code: row.display_code, topic_id: topicId});
+        const version = (await client.query('SELECT current_version_id FROM questions WHERE id=$1', [id])).rows[0]?.current_version_id;
+        applied.push({question_id: id, question_code: row.display_code, topic_id: topicId, before_topic_id: row.topic_id ?? null, current_version_id: version});
       } catch (e) {
         await client.query('ROLLBACK TO SAVEPOINT lesson_item');
         blocked.push({question_id: id, question_code: row.display_code, reason_code: e.code || 'RULE_VIOLATION', message: e.message});
