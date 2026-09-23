@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import {tx, dryRun} from '../../db/pool.js';
+import {pool, tx, dryRun} from '../../db/pool.js';
 import {resolveLesson} from '../curriculumResolver.js';
 import {persistQuestion, questionScope, QUESTION_FROM} from './questions.js';
 import {staff} from './authorization.js';
@@ -106,8 +106,11 @@ export async function evaluateQuickEdit(client, user, body = {}, options = {}) {
     const next = {...content, question_version_id: row.current_version_id,
       change_reason: String(body.reason || '').trim() || 'Sửa nhanh phân loại từ bàn làm việc'};
     let dirty = false;
-    if (Object.hasOwn(changes, 'cognitive_level') && changes.cognitive_level && changes.cognitive_level !== before.cognitive_level) {
-      next.cognitive_level = changes.cognitive_level; dirty = true;
+    // Mức ba trạng thái: không có khóa = không sửa; 1..4 = đặt mức; null = "chưa có mức". API công khai chỉ
+    // nhận 1..4 (pickChanges); null chỉ đến từ hoàn tác, để trả đúng trạng thái trước thao tác.
+    if (Object.hasOwn(changes, 'cognitive_level') && (changes.cognitive_level || restore)
+        && (changes.cognitive_level ?? null) !== before.cognitive_level) {
+      next.cognitive_level = changes.cognitive_level ?? null; dirty = true;
     }
     if (Object.hasOwn(changes, 'topic_id') && changes.topic_id !== before.topic_id) {
       // Bài mới phải liên kết với YCCĐ của câu, như khi gán Bài hàng loạt.
@@ -121,6 +124,11 @@ export async function evaluateQuickEdit(client, user, body = {}, options = {}) {
       next.topic_id = changes.topic_id;
       next.lesson_status = (restore && changes.lesson_status) || (changes.topic_id ? 'MANUAL' : 'UNMAPPED');
       dirty = true;
+    }
+    // Hoàn tác trả đúng mã hiển thị cũ. Mã cũ chỉ là mã nội bộ (câu chưa có mã hiển thị) thì bỏ mã hiển thị.
+    if (restore && Object.hasOwn(changes, 'display_code')) {
+      const target = changes.display_code && changes.display_code !== row.question_code ? changes.display_code : null;
+      if (target !== (next.display_code || null)) { next.display_code = target; dirty = true; }
     }
     if (!dirty) { unchanged.push({question_id: id, question_code: code}); continue; }
     if (regenerate) next.regenerate_code = true;
@@ -157,6 +165,14 @@ export async function recordEditOperation(client, user, kind, items) {
      VALUES($1,$2,$3,$4,now()+make_interval(mins => $5)) RETURNING expires_at`,
     [id, user.id, kind, JSON.stringify(items.map(i => ({question_id: i.question_id, before: i.before, after: i.after, after_version_id: i.current_version_id}))), UNDO_WINDOW_MINUTES])).rows;
   return {undo_token: id, undo_expires_at: rows[0].expires_at};
+}
+
+// Thao tác hoàn tác chỉ dùng được 30 phút; giữ thêm 30 ngày để tra cứu rồi xóa (chạy lúc khởi động + mỗi ngày).
+export const EDIT_OPERATION_RETENTION_DAYS = 30;
+export async function pruneEditOperations(client = pool) {
+  return (await client.query(
+    `DELETE FROM question_edit_operations WHERE expires_at < now() - make_interval(days => $1)`,
+    [EDIT_OPERATION_RETENTION_DAYS])).rowCount;
 }
 
 export async function quickEdit(user, body) {
@@ -200,8 +216,9 @@ export async function undoEditOperation(user, id) {
         {code: 'UNDO_STALE', question_ids: stale.map(i => i.question_id)});
     }
     const entries = items.map(i => ({id: i.question_id, changes: {
-      ...(i.before.cognitive_level ? {cognitive_level: i.before.cognitive_level} : {}),
+      cognitive_level: i.before.cognitive_level ?? null,
       topic_id: i.before.topic_id ?? null, lesson_status: i.before.lesson_status ?? null,
+      display_code: i.before.display_code ?? null,
     }}));
     const regenerate = items.some(i => i.before.display_code !== i.after?.display_code);
     const plan = await evaluateQuickEdit(client, user, {regenerate_code: regenerate, reason: 'Hoàn tác thao tác ' + op.kind}, {entries, restore: true});

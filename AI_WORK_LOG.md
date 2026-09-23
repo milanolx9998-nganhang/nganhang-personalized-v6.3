@@ -260,3 +260,18 @@ dọn DB `permission denied to terminate process` → chỉ dừng kết nối c
 
 **Việc tiếp theo:** user chạy `node scripts/cleanup-test-databases.mjs --apply` (238 DB ≈ 3,2 GB + 274 tệp/thư mục, không hoàn tác);
 thu hồi PAT GitHub; commit khi user yêu cầu; deploy xong chạy `npm run migrate` (migration v6661).
+
+## 2026-09-23 — V6.6.6.2: sửa theo audit `c92054a` (AUDIT_COMMIT_C92054A_V6661.md)
+
+**Yêu cầu:** "tiếp" — 3 lỗi audit (hoàn tác mức null; gửi duyệt lô nhập > 500; thống kê gắn Bài chỉ 100 câu) + P3 (retention thao tác hoàn tác, version dòng khởi động).
+
+**Skills:** không dùng (danh sách sửa rõ phạm vi).
+
+**Đổi:** `quickEdit.js` (mức ba trạng thái khi hoàn tác, trả lại mã hiển thị cũ, `pruneEditOperations`); `imports.js` (`lessonSummary` trong `confirmJob`, `submitImportJob` chia ≤500/transaction); `routes/practice.js` (`POST /imports/:id/submit`);
+`server.js` (VERSION từ package.json, dọn thao tác hoàn tác lúc khởi động + mỗi 24 giờ); `ImportCenter.jsx` (gửi qua API mới, `lessons` từ máy chủ); test `v666-workbench` (+1), `v6652-import` (+1 lô 501 câu). Tài liệu `docs/V6_6_6_2_AUDIT_C92054A_FIXES.md`. Không migration mới.
+
+**Kiểm tra (tuần tự):** unit 115/115; security 27/27; pilot 34/34; v63 47/50 (3 baseline); v664 12/12; bootstrap 7/7; resolver 10/10; v6652 18/18; workbench 10/10; ui-gallery 1/1; build OK. DB tạm không tăng (238).
+
+**Kết quả:** 3 lỗi audit + 2 mục P3 đóng; exception-counts ~1,1 s ở 20k vẫn chỉ theo dõi. Chưa commit. Codegraph chưa rebuild (không có `codegraph.py` trên máy).
+
+**Việc tiếp theo:** UAT lô Word thật; user chạy cleanup `--apply`; thu hồi PAT GitHub; commit khi user yêu cầu.

@@ -393,6 +393,41 @@ test('V6661: Chương / Chủ đề là tùy chọn thêm — đối chiếu v�
   assert.equal(item.validation.issues.some(i => i.code === 'OPTIONAL_CHAPTER_MISMATCH'), false);
 });
 
+test('V6662: lô nhập 501 câu — thống kê gắn Bài tính cả lô, gửi duyệt không vướng giới hạn 500', async () => {
+  const SIZE = 501;
+  const codes = Array.from({length: SIZE}, (_, i) => `Câu L. 1. 3. NB. ${2001 + i}. TN`);
+  const job = await uploadWord(codes, {subject_id: subjectId, grade: 7, bank_id: bankId}, {token: tokens.admin});
+  assert.equal(job.items.length, SIZE);
+  const ids = job.items.filter(i => i.decision !== 'skip').map(i => i.id);
+  assert.equal(ids.length, SIZE);
+  const confirmed = await req('POST', `/practice/imports/${job.id}/confirm`, {ids});
+  expect(confirmed, 200);
+  assert.equal(confirmed.data.imported, SIZE);
+  // Thống kê gắn Bài do máy chủ tính trên cả lô, không dừng ở 100 câu của một trang hàng đợi.
+  assert.deepEqual(confirmed.data.lessons, {assigned: SIZE, unassigned: 0});
+  const unassign = confirmed.data.question_ids.slice(0, 150);
+  await db.query('UPDATE questions SET topic_id=NULL WHERE id=ANY($1::int[])', [unassign]);
+  const again = await req('POST', `/practice/imports/${job.id}/confirm`, {ids});
+  expect(again, 200);
+  assert.deepEqual(again.data.lessons, {assigned: SIZE - 150, unassigned: 150});
+
+  // Gửi duyệt cả lô: máy chủ chia ≤ 500 câu mỗi phần, không trả lỗi giới hạn thao tác hàng loạt.
+  const sent = await req('POST', `/practice/imports/${job.id}/submit`, {});
+  expect(sent, 200);
+  assert.equal(sent.data.requested, SIZE);
+  assert.equal(sent.data.submitted + sent.data.not_submitted, SIZE);
+  assert.equal(sent.data.submitted, SIZE, JSON.stringify(sent.data.blocked.slice(0, 3)));
+  const pending = (await db.query(`SELECT count(*)::int AS n FROM questions q JOIN question_versions v ON v.id=q.current_version_id
+    WHERE q.id=ANY($1::int[]) AND v.review_status='PENDING_REVIEW'`, [confirmed.data.question_ids])).rows[0].n;
+  assert.equal(pending, SIZE);
+  // Gửi lại: không câu nào gửi thêm, không lỗi.
+  const twice = await req('POST', `/practice/imports/${job.id}/submit`, {});
+  expect(twice, 200);
+  assert.equal(twice.data.submitted, 0);
+  // Người khác không gửi được lô của người nhập.
+  expect(await req('POST', `/practice/imports/${job.id}/submit`, {}, tokens.author), 403);
+});
+
 test('V6652 seed: chỉ liên kết vào bản PUBLISHED mới nhất; nguyên văn trùng thì dừng', async () => {
   const code = 'V6652SEED';
   const sid = (await db.query("INSERT INTO subjects(code,name,department_id,is_integrated) VALUES($1,'Môn seed V6652',$2,true) RETURNING id", [code, departmentId])).rows[0].id;

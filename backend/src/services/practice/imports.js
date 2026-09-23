@@ -14,6 +14,7 @@ import {normalizeQuestion} from './grading.js';
 import {persistQuestion} from './questions.js';
 import {openReviewCase} from '../questionReview.js';
 import {staff,subjectAccess} from './authorization.js';
+import {evaluateBulk,MAX_BULK_IDS} from './bulkWorkflow.js';
 import {fail,log} from './config.js';
 const root=path.resolve(process.env.UPLOAD_DIR||'uploads');
 async function parseInWorker(file,sheetName=''){return new Promise((resolve,reject)=>{const worker=new Worker(new URL('./importWorker.js',import.meta.url),{workerData:{path:file.path,filename:file.originalname,sheetName},resourceLimits:{maxOldGenerationSizeMb:256}});const timer=setTimeout(()=>{worker.terminate();reject(new Error('Tệp quá phức tạp; thời gian phân tích vượt 60 giây'));},60000);worker.once('message',msg=>{clearTimeout(timer);msg.error?reject(new Error(msg.error)):resolve(msg.result);});worker.once('error',e=>{clearTimeout(timer);reject(e);});});}
@@ -306,10 +307,16 @@ export async function editJob(user,id,changes){staff(user);return tx(async clien
  return {ok:true};
 });}
 
+// Thống kê gắn Bài cho CẢ lô đã nhập, tính ở máy chủ — không đếm trên một trang của hàng đợi.
+async function lessonSummary(client,jobId){
+ return (await client.query(`SELECT count(*) FILTER (WHERE q.topic_id IS NOT NULL)::int AS assigned,count(*) FILTER (WHERE q.topic_id IS NULL)::int AS unassigned
+  FROM questions q WHERE q.id IN (SELECT result_question_id FROM import_items WHERE job_id=$1 AND result_question_id IS NOT NULL)`,[jobId])).rows[0];
+}
+
 export async function confirmJob(user,id,ids,bankId){staff(user);return tx(async client=>{
  await client.query('SELECT id FROM import_jobs WHERE id=$1 FOR UPDATE',[id]);const job=await getJob(user,id,client);
  // §31 — the caller needs the batch back, not just a count, so the UI can open exactly what was imported.
- if(job.status==='confirmed'){const done=job.items.filter(i=>i.result_question_id);return {ok:true,job_id:id,imported:done.length,question_ids:done.map(i=>i.result_question_id)};}
+ if(job.status==='confirmed'){const done=job.items.filter(i=>i.result_question_id);return {ok:true,job_id:id,imported:done.length,question_ids:done.map(i=>i.result_question_id),lessons:await lessonSummary(client,id)};}
  const checksum=crypto.createHash('sha256').update(await storage.get(sourceKey(job.source_path))).digest('hex');
  const items=job.items.filter(i=>ids.includes(i.id)&&i.decision!=='skip');if(!items.length)fail('Chọn ít nhất một câu hợp lệ');
  const context=job.context||{},targetBank=bankId||context.bank_id||undefined;
@@ -336,5 +343,27 @@ export async function confirmJob(user,id,ids,bankId){staff(user);return tx(async
     question_version_id:fresh.current_version_id});
   }
  }
- await client.query("UPDATE import_jobs SET status='confirmed',confirmed_at=now() WHERE id=$1",[id]);await log(client,user,'IMPORT_CONFIRM',id,{count:items.length});return {ok:true,job_id:id,imported:items.length,question_ids:questionIds};
+ await client.query("UPDATE import_jobs SET status='confirmed',confirmed_at=now() WHERE id=$1",[id]);await log(client,user,'IMPORT_CONFIRM',id,{count:items.length});return {ok:true,job_id:id,imported:items.length,question_ids:questionIds,lessons:await lessonSummary(client,id)};
 });}
+
+// Gửi duyệt mọi câu của một lần nhập đã xác nhận. Máy chủ tự chia phần ≤ MAX_BULK_IDS, mỗi phần một transaction:
+// câu đủ điều kiện được gửi, câu chưa đủ giữ nguyên và được trả kèm lý do — lô nhập lớn đến đâu cũng gửi được.
+export async function submitImportJob(user,id){
+ staff(user);const job=await getJob(user,id);
+ if(job.status!=='confirmed')fail('Lần nhập chưa được xác nhận',409);
+ const ids=[...new Set(job.items.map(i=>i.result_question_id).filter(Boolean))];
+ const submitted=[],notSubmitted=[];
+ for(let start=0;start<ids.length;start+=MAX_BULK_IDS){
+  const chunk=ids.slice(start,start+MAX_BULK_IDS);
+  const plan=await tx(async client=>{
+   const p=await evaluateBulk(client,user,{ids:chunk,action:'submit'});
+   if(p.eligible.length)await log(client,user,'QUESTION_BULK_WORKFLOW',crypto.randomUUID(),{action:'submit',source_ref:'IMPORT:'+id,
+    question_ids:p.eligible.map(e=>e.question_id),count:p.eligible.length,result:'APPLIED'});
+   return p;
+  });
+  submitted.push(...plan.eligible.map(e=>e.question_id));
+  notSubmitted.push(...plan.blocked,...plan.requires_deep_review);
+ }
+ await log(pool,user,'IMPORT_SUBMIT',id,{requested:ids.length,submitted:submitted.length,not_submitted:notSubmitted.length});
+ return {ok:true,job_id:id,requested:ids.length,submitted:submitted.length,not_submitted:notSubmitted.length,question_ids:submitted,blocked:notSubmitted};
+}

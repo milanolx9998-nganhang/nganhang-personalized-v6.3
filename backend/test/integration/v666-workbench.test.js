@@ -192,6 +192,23 @@ test('V666.1: không còn cờ allow_unlinked; hoàn tác chỉ người làm, t
   assert.equal(stored.items[0].before.topic_id, lessons['Bài 8']);
 });
 
+test('V666.2: hoàn tác trả mức về "chưa có" (null), đúng mã và Bài như trước thao tác', async () => {
+  const q = await createQuestion({level: null, topic: lessons['Bài 8']});
+  assert.equal(q.level, null, 'Câu bắt đầu chưa có mức');
+  const edit = await req('POST', '/practice/questions/quick-edit', {ids: [q.id], changes: {cognitive_level: 2}, regenerate_code: true}, tokens.author);
+  expect(edit, 200);
+  assert.equal((await state(q.id)).level, 'M2');
+  const undo = await req('POST', `/practice/questions/edit-operations/${edit.data.undo_token}/undo`, {}, tokens.author);
+  expect(undo, 200);
+  assert.equal(undo.data.restored, 1);
+  const back = await state(q.id);
+  assert.equal(back.level, null, 'Hoàn tác phải trả mức về null');
+  assert.equal(back.code, q.code, 'Mã hiển thị trở về như trước');
+  assert.equal(back.topic_id, q.topic_id);
+  // API công khai vẫn không cho xóa mức; null chỉ đi qua đường hoàn tác của máy chủ.
+  expect(await req('POST', '/practice/questions/quick-edit', {ids: [q.id], changes: {cognitive_level: null}}, tokens.author), 400);
+});
+
 test('V666.1: kiểm tra máy so cả phân môn L/H/S của mã với Outcome thật', async () => {
   const q = await createQuestion({yccd: 3, level: 1, topic: lessons['Bài 9']});
   // Giả lập dữ liệu cũ bị sai: mã ghi phân môn H nhưng YCCĐ thuộc phân môn L.

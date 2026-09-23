@@ -404,17 +404,14 @@ export default function ImportCenter() {
       .then(ok => ok && setCodeDraft(null));
   }
 
-  // Gửi thật các câu vừa nhập đi duyệt: kiểm tra trước ở máy chủ (cùng đường với thao tác hàng loạt),
-  // gửi phần đủ điều kiện, và nói rõ câu nào chưa gửi được thay vì chỉ mở một trang khác.
+  // Gửi thật các câu vừa nhập đi duyệt. Máy chủ tự chia phần ≤ 500 câu, gửi phần đủ điều kiện và báo phần
+  // chưa gửi được — lô nhập lớn hơn giới hạn thao tác hàng loạt vẫn gửi được trong một lần bấm.
   async function submitImported() {
-    const ids = result?.question_ids || [];
-    if (!ids.length) return;
+    if (!result?.job_id || !result?.imported) return;
     setBusy(true); setError('');
     try {
-      const plan = await api.post(`${base}/questions/bulk-preflight`, {ids, action: 'submit'});
-      const eligible = plan.eligible.map(e => e.question_id);
-      if (eligible.length) await api.post(`${base}/questions/bulk-workflow`, {ids: eligible, action: 'submit'});
-      setResult(r => ({...r, submitted: eligible.length, notSubmitted: ids.length - eligible.length}));
+      const sent = await api.post(`${base}/imports/${result.job_id}/submit`, {});
+      setResult(r => ({...r, submitted: sent.submitted, notSubmitted: sent.not_submitted}));
     } catch (e) { setError(e.message); }
     finally { setBusy(false); }
   }
@@ -424,12 +421,8 @@ export default function ImportCenter() {
     const summary = {...counts};
     try {
       const done = await api.post(`${base}/imports/${job.id}/confirm`, {ids: confirmable});
-      let lessons = {assigned: null, unassigned: null};
-      try {
-        const queue = await api.get(`${base}/questions/queue?import_job_id=${done.job_id}&limit=100`);
-        const rows = queue.items || [];
-        lessons = {assigned: rows.filter(r => r.topic_name).length, unassigned: rows.filter(r => !r.topic_name).length};
-      } catch { /* số liệu phụ; không chặn màn hình kết quả */ }
+      // Máy chủ đếm gắn Bài trên cả lô (không đếm trên một trang của hàng đợi).
+      const lessons = done.lessons || {assigned: null, unassigned: null};
       setResult({...done, lessons, summary, skipped: items.length - confirmable.length});
       setJob(null); setSelected([]); setActiveId(null);
     } catch (e) { setError(e.message); }

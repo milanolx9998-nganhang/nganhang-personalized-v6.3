@@ -11,6 +11,7 @@ import { fileURLToPath } from 'url';
 import fs from 'fs';
 import crypto from 'node:crypto';
 import {pool} from './db/pool.js';
+import {pruneEditOperations} from './services/practice/quickEdit.js';
 import {auth} from './middleware/auth.js';
 import {csrfGuard} from './middleware/session.js';
 import {staffMedia} from './services/practice/privateMedia.js';
@@ -35,6 +36,8 @@ import reportsRoutes from './routes/reports.js';
 import uploadsRoutes from './routes/uploads.js';
 import tagsRoutes from './routes/tags.js';
 import analysisRoutes from './routes/analysis.js';
+// Một nguồn phiên bản cho /api/health và dòng khởi động.
+const VERSION = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -58,7 +61,7 @@ if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 for(const folder of ['images','media'])app.use('/uploads/'+folder,auth,(req,res,next)=>{if(req.user.must_change_password)return res.sendStatus(403);staffMedia(req,res).catch(next);});
 
 app.get('/api/health', async (_req, res) => {
-  try{await pool.query('SELECT 1');await storage.health();res.json({ status: 'ok', database:'ok', storage:'ok',...publicProfile(), timestamp: new Date().toISOString(), version: '6.6.6' });}catch{res.status(503).json({status:'unavailable'});}
+  try{await pool.query('SELECT 1');await storage.health();res.json({ status: 'ok', database:'ok', storage:'ok',...publicProfile(), timestamp: new Date().toISOString(), version: VERSION });}catch{res.status(503).json({status:'unavailable'});}
 });
 
 app.use('/api',csrfGuard);
@@ -102,9 +105,13 @@ app.use(errorHandler);
   try {
     await testConnection();
     console.log('✓ Kết nối PostgreSQL thành công');
+    // Dọn thao tác hoàn tác đã hết hạn quá lâu; lỗi (vd. chưa chạy migration) không chặn khởi động.
+    const prune = () => pruneEditOperations().catch(e => console.warn('Không dọn được thao tác hoàn tác cũ:', e.message));
+    prune();
+    setInterval(prune, 24 * 60 * 60 * 1000).unref();
     app.listen(PORT, HOST, () => {
       console.log(`
-Ngân hàng V6.6.5 (${profile.name}) đang chạy tại:
+Ngân hàng V${VERSION} (${profile.name}) đang chạy tại:
   http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}
 
 HTTP trực tiếp chỉ phục vụ kiểm tra local hoặc mạng nội bộ container.

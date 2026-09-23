@@ -1,6 +1,6 @@
 # AI HANDOFF
 
-Cập nhật: 2026-09-23 · Phiên bản mã: **6.6.6** (+ V6.6.6.1 chưa commit) (root/backend/frontend + `/api/health`)
+Cập nhật: 2026-09-23 · Phiên bản mã: **6.6.6** (V6.6.6.1 đã commit `c92054a`; + V6.6.6.2 chưa commit) (root/backend/frontend + `/api/health`)
 HEAD khi bắt đầu vòng này: `d01b801d129c179314a385796ae1e2f3751db1ba`
 
 ## Trạng thái hiện tại
@@ -19,7 +19,16 @@ Nội dung vòng V6.6.5:
 
 **Migration V6.6.5 là additive và đã áp lên DB local.** Máy chủ thật sẽ tự áp khi deploy.
 
-## V6.6.6.1 — Sửa theo audit `a34aab4` (đã xong, chưa commit)
+## V6.6.6.2 — Sửa theo audit `c92054a` (đã xong, chưa commit)
+
+Chi tiết: `docs/V6_6_6_2_AUDIT_C92054A_FIXES.md`.
+- Hoàn tác trả được mức `null` và đúng mã hiển thị cũ (API công khai vẫn chỉ nhận 1..4).
+- `POST /practice/imports/:id/submit`: gửi duyệt cả lô nhập, máy chủ chia ≤500 câu mỗi transaction, trả `submitted / not_submitted / blocked`.
+- `confirmJob` trả `lessons: {assigned, unassigned}` cho cả lô.
+- Dọn `question_edit_operations` hết hạn > 30 ngày (khởi động + mỗi 24 giờ). Dòng khởi động/health lấy version từ package.json.
+- Không migration mới. Còn theo dõi: exception-counts ~1,1 s ở 20k.
+
+## V6.6.6.1 — Sửa theo audit `a34aab4` (đã commit ở `c92054a`)
 
 Chi tiết + số đo: `docs/V6_6_6_1_AUDIT_A34AAB4_FIXES.md`. Điểm chính:
 - **Bỏ hẳn `allow_unlinked`** (gửi lên → 400). Hoàn tác sửa nhanh / gán Bài qua `undo_token` do máy chủ lưu ở
