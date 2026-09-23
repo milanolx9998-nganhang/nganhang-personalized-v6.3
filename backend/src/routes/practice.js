@@ -27,7 +27,7 @@ import {attemptMedia} from '../services/practice/privateMedia.js';
 import {saveAssignment,listAssignments} from '../services/practice/assignments.js';
 import {questionList,persistQuestion,transition,personalBank} from '../services/practice/questions.js';
 import {questionQueue,selectionIds,authorOptions,viewCounts,exceptionCounts} from '../services/practice/questionQueue.js';
-import {quickEdit,quickEditPreflight} from '../services/practice/quickEdit.js';
+import {quickEdit,quickEditPreflight,undoEditOperation} from '../services/practice/quickEdit.js';
 import {lessonOptions,bulkAssignLesson} from '../services/practice/lessonAssignment.js';
 import {bulkPreflight,bulkWorkflow,BULK_ACTIONS,MAX_BULK_IDS} from '../services/practice/bulkWorkflow.js';
 import {parseJob,getJob,editJob,confirmJob,listJobs} from '../services/practice/imports.js';
@@ -135,12 +135,13 @@ const quickEditBody=z.object({
  changes:z.object({cognitive_level:z.number().int().min(1).max(4).optional(),topic_id:z.number().int().positive().nullable().optional()}).strict().optional(),
  items:z.array(z.object({id:z.number().int().positive(),cognitive_level:z.number().int().min(1).max(4).optional(),topic_id:z.number().int().positive().nullable().optional()}).strict()).min(1).max(MAX_BULK_IDS).optional(),
  regenerate_code:z.boolean().optional().default(false),
- allow_unlinked:z.boolean().optional().default(false),
  reason:z.string().trim().max(1000).optional().default(''),
  expected_versions:z.record(z.string().uuid()).nullable().optional().default(null),
 }).strict().refine(b=>b.items?!b.ids&&!b.changes:!!(b.ids&&b.changes),{message:'Gửi ids + changes, hoặc items — không trộn hai dạng'});
 r.post('/questions/quick-edit/preflight',wrap(async(req,res)=>res.json(await quickEditPreflight(req.user,quickEditBody.parse(req.body)))));
 r.post('/questions/quick-edit',wrap(async(req,res)=>res.json(await quickEdit(req.user,quickEditBody.parse(req.body)))));
+// Hoàn tác do máy chủ cấp quyền: chỉ nhận mã thao tác, không nhận giá trị cũ từ client.
+r.post('/questions/edit-operations/:id/undo',wrap(async(req,res)=>res.json(await undoEditOperation(req.user,z.string().uuid().parse(req.params.id)))));
 r.get('/questions/selection-ids',wrap(async(req,res)=>res.json(await selectionIds(req.user,req.query))));
 r.get('/questions/author-options',wrap(async(req,res)=>res.json(await authorOptions(req.user,req.query))));
 const idList=z.object({ids:z.array(z.number().int().positive()).min(1).max(MAX_BULK_IDS)}).strict();
@@ -148,7 +149,6 @@ r.post('/questions/lesson-options',wrap(async(req,res)=>res.json(await lessonOpt
 r.post('/questions/assign-lesson',wrap(async(req,res)=>res.json(await bulkAssignLesson(req.user,z.object({
  assignments:z.array(z.object({question_ids:z.array(z.number().int().positive()).min(1),topic_id:z.number().int().positive()}).strict()).min(1).max(100),
  reason:z.string().trim().max(1000).optional().default(''),
- allow_unlinked:z.boolean().optional().default(false),
 }).strict().parse(req.body)))));
 r.post('/questions/bulk-preflight',wrap(async(req,res)=>res.json(await bulkPreflight(req.user,bulkBody.parse(req.body)))));
 r.post('/questions/bulk-workflow',wrap(async(req,res)=>res.json(await bulkWorkflow(req.user,bulkBody.parse(req.body)))));

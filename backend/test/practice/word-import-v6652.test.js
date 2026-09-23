@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import AdmZip from 'adm-zip';
 import {parseDocx, parseKhtnCode} from '../../src/services/practice/importAdapters.js';
 import {isCodeAttempt} from '../../src/services/questionCode.js';
-import {splitMetadata, batchNumbering, issueSeverity} from '../../src/services/practice/imports.js';
+import {splitMetadata, batchNumbering, issueSeverity, subjectMatches} from '../../src/services/practice/imports.js';
 
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j2ioAAAAASUVORK5CYII=', 'base64');
 const p = text => `<w:p><w:r><w:t xml:space="preserve">${text}</w:t></w:r></w:p>`;
@@ -98,4 +98,20 @@ test('V6652: lô có câu không mã thì chế độ đánh số chỉ áp cho 
   assert.equal(numbering.mode, 'CUSTOM', 'Không suy chế độ cho cả lô khi có câu không mã');
   assert.equal(numbering.issues.some(i => i.code === 'PARTIAL_CODE_COVERAGE'), true);
   assert.equal(batchNumbering([{draft: {}}]).coded_mode, null);
+});
+
+test('V6661: so tên môn đầu tệp với môn của phiên — mã, tên, không dấu, viết tắt', () => {
+  const khtn = {code: 'KHTN', name: 'Khoa học tự nhiên'};
+  for (const declared of ['KHTN', 'khtn', 'Khoa học tự nhiên', 'khoa hoc tu nhien', 'KHTN 7', 'Môn Khoa học tự nhiên'])
+    assert.equal(subjectMatches(declared, khtn), true, declared);
+  for (const declared of ['Toán', 'Ngữ văn', 'Vật lí 10'])
+    assert.equal(subjectMatches(declared, khtn), false, declared);
+  assert.equal(subjectMatches('Khoa học tự nhiên', {code: 'KHTN', name: 'KHTN'}), true, 'Tên đầy đủ khớp mã viết tắt');
+});
+
+test('V6661: Chương / Chủ đề là kỳ vọng tùy chọn, cắt độ dài và bỏ giá trị rỗng', () => {
+  assert.deepEqual(splitMetadata({expectations: {chapter: '  Chủ đề 4: Tốc độ '}}).expectations, {chapter: 'Chủ đề 4: Tốc độ'});
+  assert.deepEqual(splitMetadata({expectations: {chapter: '   '}}).expectations, {});
+  assert.equal(splitMetadata({expectations: {chapter: 'x'.repeat(500)}}).expectations.chapter.length, 200);
+  assert.equal(issueSeverity('OPTIONAL_CHAPTER_MISMATCH'), 'review');
 });

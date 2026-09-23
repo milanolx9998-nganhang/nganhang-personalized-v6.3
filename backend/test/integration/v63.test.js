@@ -15,6 +15,7 @@ import bcrypt from 'bcryptjs';
 import XLSX from 'xlsx';
 import AdmZip from 'adm-zip';
 import {chromium} from 'playwright';
+import {cleanupIntegration} from './helpers/cleanup.js';
 const source=process.env.DB_NAME;
 if(source!=='nganhang_personalized_v63')throw Error('Chỉ chạy V6.3 integration từ bản sao riêng');
 const name='nganhang_v63_test_'+Date.now(),dir=path.resolve('../artifacts'),origin='http://127.0.0.1:3103',pw=crypto.randomBytes(18).toString('base64url');
@@ -56,7 +57,7 @@ test.before(async()=>{
  for(const actor of Object.keys(users)){const r=await req('POST','/auth/login',{username:'v63_'+actor,password:pw},'none');expect(r,200);tokens[actor]=r.data.token;}
  fs.writeFileSync(path.join(dir,'v63-test-database.json'),JSON.stringify({source,test_database:name},null,2));
 });
-test.after(async()=>{server?.kill();await db?.end();await sourcePool.end();});
+test.after(()=>cleanupIntegration({server,db,adminPool:sourcePool,name,dump:path.join(dir,name+'.dump'),uploadsDir:path.join(dir,name+'-uploads')}));
 function matrix(cells,extra={}){return {name:'V63 Ma trận chính xác',subject_id:master.subject_id,grade:7,matrix_type:'TRUONG',total_score:1,ratio_m1:0,ratio_m2:0,ratio_m3:100,ratio_m4:0,yccd_scope:[master.yccd_id],cells:cells.map(c=>({...master,question_count:2,score_per_question:.5,q_type:'mcq4',cognitive_level:'M3',...c})),...extra};}
 async function question(level,type='multiple_choice',extra={}){
  const payload={...master,topic_id:topic,type,cognitive_level:level,stem:'TEST V63 '+type+' '+level+' '+crypto.randomUUID(),bank_id:school,options:['A','B','C','D'].map(id=>({id,text:'Phương án '+id})),answer:{correct:'B'},...extra};

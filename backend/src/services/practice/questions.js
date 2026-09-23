@@ -71,12 +71,15 @@ export const QUESTION_FROM='FROM questions q JOIN banks b ON b.id=q.bank_id LEFT
 // Kiểm tra máy cho từng câu (§34, §61): chỉ trả đúng/sai, không bao giờ trả nội dung đáp án.
 // Dùng chung cho dải kiểm tra trong hàng đợi và cho bộ lọc ngoại lệ, để "Sạch" ở hai nơi là một.
 const DC="COALESCE(q.normalized_content->>'display_code','')";
-const CODED=`(${DC} ~ '^Câu [LHS]\. [0-9]+\. [0-9]+\. (NB|TH|VD|VDC)\. [0-9]+\. (TN|ĐS|TLN|GN|TL)$')`;
+// Trong template literal phải viết \\. để SQL nhận \. (dấu chấm thật); \. sẽ bị JS nuốt thành "." (khớp mọi ký tự).
+const CODED=`(${DC} ~ '^Câu [LHS]\\. [0-9]+\\. [0-9]+\\. (NB|TH|VD|VDC)\\. [0-9]+\\. (TN|ĐS|TLN|GN|TL)$')`;
 const OPEN_CASE=reason=>`EXISTS(SELECT 1 FROM question_review_cases rc WHERE rc.question_id=q.id AND rc.status IN('OPEN','IN_REVIEW') AND rc.reason_code='${reason}')`;
 export const CHECK_SQL={
  coded:CODED,
  code:`(NOT ${CODED} OR (split_part(${DC},'. ',6)=CASE q.q_type::text WHEN 'mcq4' THEN 'TN' WHEN 'true_false' THEN 'ĐS' WHEN 'short' THEN 'TLN' WHEN 'matching' THEN 'GN' WHEN 'essay' THEN 'TL' END
   AND EXISTS(SELECT 1 FROM curriculum_yccds cy JOIN curriculum_outcomes co ON co.id=cy.outcome_id WHERE cy.id=q.yccd_id
+   AND COALESCE(CASE COALESCE(co.source_branch_code,co.domain_code) WHEN 'VL' THEN 'L' WHEN 'HH' THEN 'H' WHEN 'SH' THEN 'S' ELSE COALESCE(co.source_branch_code,co.domain_code) END,
+                substring(${DC} from '^Câu ([LHS])\\.'))=substring(${DC} from '^Câu ([LHS])\\.')
    AND COALESCE(co.source_ordinal::text,split_part(${DC},'. ',2))=split_part(${DC},'. ',2) AND COALESCE(cy.source_ordinal::text,split_part(${DC},'. ',3))=split_part(${DC},'. ',3))))`,
  curriculum:"(q.outcome_id IS NOT NULL AND q.yccd_id IS NOT NULL AND COALESCE(q.metadata_status::text,'')<>'NEEDS_REVIEW')",
  lesson:"(q.topic_id IS NOT NULL AND COALESCE(q.lesson_status,'') NOT IN('UNMAPPED','AMBIGUOUS'))",
@@ -87,22 +90,45 @@ export const CHECK_SQL={
  media:`(NOT ${OPEN_CASE('MEDIA_PROBLEM')})`,
  duplicate:`(NOT ${OPEN_CASE('DUPLICATE_SUSPECT')})`,
 };
-const CLEAN_SQL=`(${['code','curriculum','lesson','level','form','answer','explanation','media','duplicate'].map(k=>CHECK_SQL[k]).join(' AND ')} AND NOT COALESCE(q.quarantined,false)
- AND NOT EXISTS(SELECT 1 FROM question_review_cases rc WHERE rc.question_id=q.id AND rc.status IN('OPEN','IN_REVIEW')))`;
-// Bộ lọc ngoại lệ của màn duyệt (§60): Sạch / Cần xem mức / Chưa gắn Bài / Nghi trùng / Lỗi metadata / Media.
-export const EXCEPTION_SQL={
- clean:CLEAN_SQL,
- level:`NOT ${CHECK_SQL.level}`,
- lesson:`NOT ${CHECK_SQL.lesson}`,
- duplicate:`NOT ${CHECK_SQL.duplicate}`,
- metadata:`(NOT ${CHECK_SQL.curriculum} OR NOT ${CHECK_SQL.code} OR NOT ${CHECK_SQL.form} OR NOT ${CHECK_SQL.answer})`,
- media:`NOT ${CHECK_SQL.media}`,
+// Hai mệnh đề phụ cho nhóm "Sạch": câu bị cách ly, và câu còn hồ sơ rà soát mở bất kỳ.
+export const ROW_FLAG_SQL={
+ quarantined:'COALESCE(q.quarantined,false)',
+ open_case:"EXISTS(SELECT 1 FROM question_review_cases rc WHERE rc.question_id=q.id AND rc.status IN('OPEN','IN_REVIEW'))",
 };
-export async function questionScope(user,query,capability='content.read'){
+// Công thức từng nhóm ngoại lệ viết MỘT lần, theo tên kiểm tra. Dùng cho cả bộ lọc hàng đợi (thay tên bằng
+// biểu thức SQL) và bộ đếm chip (thay tên bằng cột đã tính sẵn) — hai nơi không thể lệch nhau (V6.6.6.1).
+const EXCEPTION_FORMULA={
+ clean:c=>`(${['code','curriculum','lesson','level','form','answer','explanation','media','duplicate'].map(k=>c[k]).join(' AND ')} AND NOT ${c.quarantined} AND NOT ${c.open_case})`,
+ level:c=>`NOT ${c.level}`,
+ lesson:c=>`NOT ${c.lesson}`,
+ duplicate:c=>`NOT ${c.duplicate}`,
+ metadata:c=>`(NOT ${c.curriculum} OR NOT ${c.code} OR NOT ${c.form} OR NOT ${c.answer})`,
+ media:c=>`NOT ${c.media}`,
+};
+const INLINE={...CHECK_SQL,...ROW_FLAG_SQL};
+// Bộ lọc ngoại lệ của màn duyệt (§60): Sạch / Cần xem mức / Chưa gắn Bài / Nghi trùng / Lỗi metadata / Media.
+export const EXCEPTION_SQL=Object.fromEntries(Object.entries(EXCEPTION_FORMULA).map(([k,f])=>[k,f(INLINE)]));
+// Cùng công thức trên các cột đã tính sẵn (alias.<tên kiểm tra>) — cho truy vấn đếm tính mỗi câu một lần.
+export const exceptionOverColumns=alias=>{
+ const cols=Object.fromEntries(Object.keys(INLINE).map(k=>[k,`${alias}.${k}`]));
+ return Object.fromEntries(Object.entries(EXCEPTION_FORMULA).map(([k,f])=>[k,f(cols)]));
+};
+// Phạm vi truy cập (kho, môn/khối được phân quyền) — tách riêng để các truy vấn đếm của bàn làm việc
+// áp một lần rồi đếm nhiều bộ lọc trong cùng một lượt quét (V6.6.6.1).
+export async function questionAccessScope(user,capability='content.read'){
  const a=await getEffectiveAccess(user),params=[a.org.banks.filter(b=>bankDecision(a,'read',b).allowed).map(b=>b.id)],where=['q.bank_id=ANY($1::int[])'];
  if(user.role==='admin'){where.length=0;params.length=0;}
  const scope=await getSubjectFilterSQL(user,'q',params.length+1,capability);if(scope.clause){params.push(...scope.params);params.push(user.id);where.push(`(${scope.clause} OR (q.subject_id IS NULL AND q.creator_id=$${params.length}))`);}
  if(capability!=='content.read'){const read=await getSubjectFilterSQL(user,'q',params.length+1,'content.read');if(read.clause){where.push(read.clause);params.push(...read.params);}}
+ return {where,params};
+}
+export async function questionScope(user,query,capability='content.read'){
+ const {where,params}=await questionAccessScope(user,capability);
+ await applyQuestionFilters(query,where,params);
+ return {where,params};
+}
+// Bộ lọc của người dùng: đẩy mệnh đề vào `where`, tham số vào `params` (dùng chung mảng tham số).
+export async function applyQuestionFilters(query,where,params){
  for(const [field,column] of Object.entries({bank_id:'q.bank_id',subject_id:'q.subject_id',topic_id:'q.topic_id',yccd_id:'q.yccd_id',outcome_id:'q.outcome_id',grade:'q.grade',cognitive_level:'q.cognitive_level',q_type:'q.q_type',lifecycle:'q.lifecycle'}))if(query[field]){params.push(query[field]);where.push(`${column}=$${params.length}`);}
  if(query.content_scope_v2){const compiled=compileQuestionScopeSQL(await resolveContentScope(query.content_scope_v2),'q',params.length+1);where.push(compiled.sql);params.push(...compiled.params);}
  if(query.branch_id){params.push(query.branch_id);where.push('q.branch_id=$'+params.length);}
@@ -124,7 +150,6 @@ export async function questionScope(user,query,capability='content.read'){
  // Mở đúng một tập câu (vd. "Xem 8 câu" còn lại sau khi duyệt nhanh); phạm vi truy cập ở trên vẫn áp dụng.
  if(query.ids){const ids=String(query.ids).split(',').map(Number).filter(n=>Number.isInteger(n)&&n>0).slice(0,500);params.push(ids);where.push('q.id=ANY($'+params.length+'::int[])');}
  if(query.search){params.push('%'+query.search+'%');where.push(`(q.stem_text ILIKE $${params.length} OR q.question_code ILIKE $${params.length} OR q.normalized_content->>'display_code' ILIKE $${params.length})`);}
- return {where,params};
 }
 export async function questionList(user,query,capability='content.read'){
  const {where,params}=await questionScope(user,query,capability);

@@ -9,6 +9,7 @@ import path from 'node:path';
 import {spawn, spawnSync} from 'node:child_process';
 import pg from 'pg';
 import bcrypt from 'bcryptjs';
+import {cleanupIntegration} from './helpers/cleanup.js';
 
 const source = process.env.DB_NAME;
 if (!source?.startsWith('nganhang_personalized')) throw new Error('Integration tests require an isolated personalized database');
@@ -129,11 +130,8 @@ test.before(async () => {
   tokens.author = await login('v665_author');
 });
 
-test.after(async () => {
-  server?.kill();
-  await db?.end();
-  await adminPool.end();
-});
+// Dừng server, đóng pool, xóa database tạm + dump + uploads tạm (KEEP_ARTIFACTS=1 để giữ lại).
+test.after(() => cleanupIntegration({server, db, adminPool, name, dump, uploadsDir}));
 
 // Tạo một lần nhập staging với các mã câu cho trước, dùng đúng đường enrich của backend.
 async function stageImport(codes, {grade, token = tokens.author, actor = users.author}) {

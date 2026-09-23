@@ -1,5 +1,5 @@
 import {pool} from '../../db/pool.js';
-import {questionScope, QUESTION_FROM, CHECK_SQL, EXCEPTION_SQL} from './questions.js';
+import {questionScope, questionAccessScope, applyQuestionFilters, QUESTION_FROM, CHECK_SQL, ROW_FLAG_SQL, exceptionOverColumns} from './questions.js';
 import {MAX_BULK_IDS} from './bulkWorkflow.js';
 import {fail} from './config.js';
 
@@ -80,10 +80,17 @@ export async function questionQueue(user, query) {
   const limit = Math.min(100, Math.max(1, Number(query.limit) || 30));
   const offset = Math.max(0, Number(query.offset) || 0);
   params.push(limit, offset);
+  // Lấy id của trang và tổng trước (không tính cột nặng), rồi chỉ tính cột tóm tắt + kiểm tra máy cho đúng
+  // các câu trong trang. Trước đây cột kiểm tra bị tính cho mọi câu khớp bộ lọc (V6.6.6.1, đo ở 20.000 câu).
   const rows = (await pool.query(
-    `SELECT ${SUMMARY_COLUMNS},count(*) OVER()::int AS total ${QUESTION_FROM} ${SUMMARY_JOINS}
-     ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
-     ORDER BY q.id DESC LIMIT $${params.length - 1} OFFSET $${params.length}`, params)).rows;
+    `WITH page AS (
+       SELECT q.id, count(*) OVER()::int AS total ${QUESTION_FROM}
+       ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
+       ORDER BY q.id DESC LIMIT $${params.length - 1} OFFSET $${params.length})
+     SELECT ${SUMMARY_COLUMNS}, page.total
+     FROM page JOIN questions q ON q.id=page.id JOIN banks b ON b.id=q.bank_id
+     LEFT JOIN question_versions v ON v.id=q.current_version_id ${SUMMARY_JOINS}
+     ORDER BY q.id DESC`, params)).rows;
   const withAuthor = seesAuthor(user);
   return {
     total: rows[0]?.total || 0,
@@ -141,15 +148,20 @@ export function workViews(user) {
   return views;
 }
 
+// Một lượt quét cho mọi góc nhìn: phạm vi truy cập áp một lần, mỗi góc nhìn là một count(*) FILTER.
+// Mệnh đề lọc sinh từ đúng hàm lọc của hàng đợi, nên số đếm luôn bằng tổng khi bấm vào góc nhìn.
 export async function viewCounts(user) {
   if (user.role === 'student') fail('Không đủ quyền', 403);
-  const out = [];
-  for (const view of workViews(user)) {
-    const {where, params} = await questionScope(user, view.query);
-    const n = (await pool.query(`SELECT count(*)::int n ${QUESTION_FROM} ${where.length ? 'WHERE ' + where.join(' AND ') : ''}`, params)).rows[0].n;
-    out.push({...view, query: new URLSearchParams(view.query).toString(), count: n});
+  const views = workViews(user);
+  const {where, params} = await questionAccessScope(user);
+  const columns = [];
+  for (const [i, view] of views.entries()) {
+    const clauses = [];
+    await applyQuestionFilters(view.query, clauses, params);
+    columns.push(`count(*) FILTER (WHERE ${clauses.length ? clauses.join(' AND ') : 'true'})::int AS v${i}`);
   }
-  return out;
+  const row = (await pool.query(`SELECT ${columns.join(',')} ${QUESTION_FROM} ${where.length ? 'WHERE ' + where.join(' AND ') : ''}`, params)).rows[0];
+  return views.map((view, i) => ({...view, query: new URLSearchParams(view.query).toString(), count: row['v' + i]}));
 }
 
 // V6.6.6 — số câu của từng bộ lọc ngoại lệ trong cùng bộ lọc hiện tại (một truy vấn), để chip lọc
@@ -159,6 +171,20 @@ export async function exceptionCounts(user, query) {
   const scope = {...query};
   for (const key of ['exception', 'ids', 'limit', 'offset']) delete scope[key];
   const {where, params} = await questionScope(user, scope);
-  const columns = ['count(*)::int AS total', ...Object.entries(EXCEPTION_SQL).map(([key, sql]) => `count(*) FILTER (WHERE ${sql})::int AS ${key}`)];
-  return (await pool.query(`SELECT ${columns.join(',')} ${QUESTION_FROM} ${where.length ? 'WHERE ' + where.join(' AND ') : ''}`, params)).rows[0];
+  // Mỗi kiểm tra tính một lần cho mỗi câu trong truy vấn con, rồi đếm các nhóm trên cột đã tính.
+  // Trước đây mỗi nhóm tự tính lại mọi kiểm tra (~2,2 giây ở 20.000 câu).
+  // Ba cờ về hồ sơ rà soát mở (nghi trùng, ảnh, có hồ sơ bất kỳ) lấy từ MỘT lần gom theo câu thay vì ba
+  // truy vấn con mỗi câu; nghĩa y hệt các NOT EXISTS trong CHECK_SQL / ROW_FLAG_SQL.
+  const flagSql = {...CHECK_SQL, ...ROW_FLAG_SQL,
+    duplicate: '(NOT COALESCE(oc.dup,false))', media: '(NOT COALESCE(oc.media,false))', open_case: '(oc.question_id IS NOT NULL)'};
+  const flags = Object.entries(flagSql).map(([key, sql]) => `${sql} AS ${key}`).join(',\n ');
+  const groups = exceptionOverColumns('f');
+  const columns = ['count(*)::int AS total', ...Object.entries(groups).map(([key, sql]) => `count(*) FILTER (WHERE ${sql})::int AS ${key}`)];
+  // MATERIALIZED: không cho PostgreSQL "làm phẳng" truy vấn con rồi thế ngược biểu thức vào từng bộ đếm
+  // (khi đó mỗi nhóm lại tính lại mọi kiểm tra).
+  return (await pool.query(`WITH oc AS (
+      SELECT question_id, bool_or(reason_code='DUPLICATE_SUSPECT') AS dup, bool_or(reason_code='MEDIA_PROBLEM') AS media
+      FROM question_review_cases WHERE status IN('OPEN','IN_REVIEW') GROUP BY question_id),
+    f AS MATERIALIZED (SELECT ${flags} ${QUESTION_FROM} LEFT JOIN oc ON oc.question_id=q.id ${where.length ? 'WHERE ' + where.join(' AND ') : ''})
+    SELECT ${columns.join(',')} FROM f`, params)).rows[0];
 }

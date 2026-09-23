@@ -10,6 +10,7 @@ import path from 'node:path';
 import {spawn, spawnSync} from 'node:child_process';
 import pg from 'pg';
 import bcrypt from 'bcryptjs';
+import {cleanupIntegration} from './helpers/cleanup.js';
 
 const source = process.env.DB_NAME;
 if (!source?.startsWith('nganhang_personalized')) throw new Error('Integration tests require an isolated personalized database');
@@ -114,11 +115,8 @@ test.before(async () => {
   tokens.outsider = await login('v666_outsider');
 });
 
-test.after(async () => {
-  server?.kill();
-  await db?.end();
-  await adminPool.end();
-});
+// Dừng server, đóng pool, xóa database tạm + dump + uploads tạm (KEEP_ARTIFACTS=1 để giữ lại).
+test.after(() => cleanupIntegration({server, db, adminPool, name, dump, uploadsDir}));
 
 test('V666: tạo tay có YCCĐ + số thì có mã chuẩn', async () => {
   const q = await createQuestion({yccd: 3, level: 1, topic: lessons['Bài 9']});
@@ -148,15 +146,65 @@ test('V666: đổi mức câu có mã phải tạo lại mã; hoàn tác trả �
   assert.equal(after.level, 'M3');
   assert.equal(after.code, item.after.display_code);
 
-  // Hoàn tác đúng dạng giao diện gửi (items + regenerate + allow_unlinked).
-  const undo = await req('POST', '/practice/questions/quick-edit', {
-    items: [{id: q.id, cognitive_level: item.before.cognitive_level}], regenerate_code: true, allow_unlinked: true, reason: 'Hoàn tác',
-  }, tokens.author);
+  // V6.6.6.1 — hoàn tác chỉ bằng mã thao tác máy chủ cấp; không gửi lại giá trị cũ.
+  assert.match(done.data.undo_token, /^[0-9a-f-]{36}$/);
+  const undo = await req('POST', `/practice/questions/edit-operations/${done.data.undo_token}/undo`, {}, tokens.author);
   expect(undo, 200);
   const back = await state(q.id);
   assert.equal(back.level, 'M1');
   assert.equal(back.code, q.code);
   assert.equal(back.topic_id, lessons['Bài 9']);
+  assert.equal(back.lesson_status, q.lesson_status, 'Khôi phục đúng trạng thái gắn Bài cũ');
+  const again = await req('POST', `/practice/questions/edit-operations/${done.data.undo_token}/undo`, {}, tokens.author);
+  expect(again, 409);
+  assert.equal(again.data.details.code, 'ALREADY_UNDONE');
+});
+
+test('V666.1: không còn cờ allow_unlinked; hoàn tác chỉ người làm, trong hạn, khi câu chưa bị sửa tiếp', async () => {
+  const q = await createQuestion({yccd: 1, level: 1, topic: lessons['Bài 8']});
+  // Cờ vượt kiểm tra cũ bị từ chối ngay ở lớp kiểm dữ liệu.
+  expect(await req('POST', '/practice/questions/quick-edit', {ids: [q.id], changes: {topic_id: lessons['Bài 10']}, allow_unlinked: true}, tokens.author), 400);
+  expect(await req('POST', '/practice/questions/assign-lesson', {assignments: [{question_ids: [q.id], topic_id: lessons['Bài 10']}], allow_unlinked: true}, tokens.author), 400);
+  assert.equal((await state(q.id)).topic_id, lessons['Bài 8']);
+
+  // Người khác không dùng được mã hoàn tác.
+  const edit = await req('POST', '/practice/questions/quick-edit', {ids: [q.id], changes: {topic_id: null}}, tokens.author);
+  expect(edit, 200);
+  expect(await req('POST', `/practice/questions/edit-operations/${edit.data.undo_token}/undo`, {}, tokens.admin), 404);
+  expect(await req('POST', `/practice/questions/edit-operations/${crypto.randomUUID()}/undo`, {}, tokens.author), 404);
+
+  // Câu đã bị sửa tiếp sau thao tác → không hoàn tác để khỏi ghi đè.
+  const later = await req('POST', '/practice/questions/quick-edit', {ids: [q.id], changes: {topic_id: lessons['Bài 8']}}, tokens.author);
+  expect(later, 200);
+  const stale = await req('POST', `/practice/questions/edit-operations/${edit.data.undo_token}/undo`, {}, tokens.author);
+  expect(stale, 409);
+  assert.equal(stale.data.details.code, 'UNDO_STALE');
+
+  // Quá hạn → từ chối.
+  await db.query("UPDATE question_edit_operations SET expires_at=now()-interval '1 minute' WHERE id=$1", [later.data.undo_token]);
+  const expired = await req('POST', `/practice/questions/edit-operations/${later.data.undo_token}/undo`, {}, tokens.author);
+  expect(expired, 409);
+  assert.equal(expired.data.details.code, 'UNDO_EXPIRED');
+  // Bản lưu thao tác nằm ở máy chủ, không nhận giá trị cũ từ client.
+  const stored = (await db.query('SELECT actor_id,kind,items FROM question_edit_operations WHERE id=$1', [edit.data.undo_token])).rows[0];
+  assert.equal(stored.actor_id, users.author);
+  assert.equal(stored.kind, 'QUICK_EDIT');
+  assert.equal(stored.items[0].before.topic_id, lessons['Bài 8']);
+});
+
+test('V666.1: kiểm tra máy so cả phân môn L/H/S của mã với Outcome thật', async () => {
+  const q = await createQuestion({yccd: 3, level: 1, topic: lessons['Bài 9']});
+  // Giả lập dữ liệu cũ bị sai: mã ghi phân môn H nhưng YCCĐ thuộc phân môn L.
+  const wrong = q.code.replace(/^Câu L\./, 'Câu H.');
+  await db.query("UPDATE questions SET normalized_content=jsonb_set(normalized_content,'{display_code}',to_jsonb($2::text)) WHERE id=$1", [q.id, wrong]);
+  const row = (await req('GET', `/practice/questions/queue?ids=${q.id}`, undefined, tokens.author)).data.items[0];
+  assert.equal(row.checks.code, false, 'Sai phân môn phải làm kiểm tra mã không đạt');
+  const clean = await req('GET', `/practice/questions/queue?ids=${q.id}&exception=clean`, undefined, tokens.author);
+  assert.equal(clean.data.total, 0, 'Câu sai phân môn không được vào nhóm Sạch');
+  const meta = await req('GET', `/practice/questions/queue?ids=${q.id}&exception=metadata`, undefined, tokens.author);
+  assert.equal(meta.data.total, 1);
+  await db.query("UPDATE questions SET normalized_content=jsonb_set(normalized_content,'{display_code}',to_jsonb($2::text)) WHERE id=$1", [q.id, q.code]);
+  assert.equal((await req('GET', `/practice/questions/queue?ids=${q.id}`, undefined, tokens.author)).data.items[0].checks.code, true);
 });
 
 test('V666: cả lô — câu không mã đổi ngay, câu có mã tách riêng; tất cả hoặc không', async () => {
@@ -197,9 +245,11 @@ test('V666: Bài — chỉ Bài liên kết YCCĐ; bỏ Bài về “chưa gắn
   expect(assigned, 200);
   assert.equal(assigned.data.items[0].before_topic_id, null);
   assert.match(assigned.data.items[0].current_version_id, /^[0-9a-f-]{36}$/);
-  expect(await req('POST', '/practice/questions/quick-edit', {items: [{id: q.id, topic_id: null}], allow_unlinked: true}, tokens.author), 200);
+  assert.match(assigned.data.undo_token, /^[0-9a-f-]{36}$/);
+  expect(await req('POST', `/practice/questions/edit-operations/${assigned.data.undo_token}/undo`, {}, tokens.author), 200);
   s = await state(q.id);
   assert.equal(s.topic_id, null, 'Hoàn tác gán Bài trả về đúng trạng thái trước');
+  assert.equal(s.lesson_status, 'UNMAPPED');
 });
 
 test('V666: phiên bản cũ, câu đang chờ duyệt và câu ngoài phạm vi đều bị chặn', async () => {
@@ -232,6 +282,13 @@ test('V666: “Việc của tôi” đếm đúng bằng hàng đợi cùng bộ
     assert.equal(queue.data.total, view.count, view.key);
   }
   assert.equal(r.data.find(v => v.key === 'today').count > 0, true);
+  const counts = await req('GET', '/practice/questions/exception-counts', undefined, tokens.author);
+  expect(counts, 200);
+  for (const key of ['clean', 'level', 'lesson', 'duplicate', 'metadata', 'media']) {
+    const queue = await req('GET', `/practice/questions/queue?exception=${key}&limit=1`, undefined, tokens.author);
+    assert.equal(queue.data.total, counts.data[key], 'exception ' + key);
+  }
+  assert.equal((await req('GET', '/practice/questions/queue?limit=1', undefined, tokens.author)).data.total, counts.data.total);
   const admin = await req('GET', '/practice/questions/view-counts');
   assert.equal(admin.data.some(v => v.key === 'pending'), true);
 });

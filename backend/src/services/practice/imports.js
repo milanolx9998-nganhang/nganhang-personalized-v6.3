@@ -12,6 +12,7 @@ import fs from 'node:fs/promises';
 import {pool,tx} from '../../db/pool.js';
 import {normalizeQuestion} from './grading.js';
 import {persistQuestion} from './questions.js';
+import {openReviewCase} from '../questionReview.js';
 import {staff,subjectAccess} from './authorization.js';
 import {fail,log} from './config.js';
 const root=path.resolve(process.env.UPLOAD_DIR||'uploads');
@@ -27,7 +28,7 @@ const SEVERITY={
  INVALID_CODE:'blocking',UNKNOWN_OUTCOME:'blocking',UNKNOWN_YCCD:'blocking',GRADE_CONTEXT_MISSING:'blocking',
  CODE_METADATA_CONFLICT:'blocking',CURRICULUM_RETIRED:'blocking',SESSION_CONTEXT_MISMATCH:'blocking',
  LESSON_UNMAPPED:'review',LESSON_AMBIGUOUS:'review',LESSON_NOT_LINKED:'review',DUPLICATE_SUSPECT:'review',
- OPTIONAL_LESSON_MISMATCH:'review',OPTIONAL_BRANCH_MISMATCH:'review',OPTIONAL_LEVEL_MISMATCH:'review',OPTIONAL_TYPE_MISMATCH:'review',
+ OPTIONAL_LESSON_MISMATCH:'review',OPTIONAL_CHAPTER_MISMATCH:'review',OPTIONAL_BRANCH_MISMATCH:'review',OPTIONAL_LEVEL_MISMATCH:'review',OPTIONAL_TYPE_MISMATCH:'review',
  METADATA_INCOMPLETE:'review',
  LEGACY_CODE_FORMAT:'info',LESSON_KEPT_BY_CODE:'info',NOTE:'info',
 };
@@ -54,6 +55,8 @@ export function splitMetadata(meta={}){
   branch_code:['L','H','S'].includes(e.branch_code)?e.branch_code:null,
   cognitive_level:[1,2,3,4].includes(Number(e.cognitive_level))?Number(e.cognitive_level):null,
   type:Object.values(FORMS).includes(e.type)?e.type:null,
+  // Chương / Chủ đề (topics.chapter): thu hẹp danh sách Bài và đối chiếu Bài theo mã (V6.6.6.1).
+  chapter:typeof e.chapter==='string'&&e.chapter.trim()?e.chapter.trim().slice(0,200):null,
  }).filter(([,v])=>v!=null));
  return {
   subject_id:Number(meta.subject_id)||null,
@@ -156,6 +159,8 @@ async function enrich(client,draft,{context={},expectations={},bulk={}}={}){
   if(expectations.branch_code&&code.branch_code!==expectations.branch_code)push(issue('OPTIONAL_BRANCH_MISMATCH',`Câu thuộc phân môn ${curriculum.branch?.name||code.branch_code} trong phiên được giới hạn ${expectations.branch_code}`,{expected:expectations.branch_code,actual:code.branch_code}));
   // Chưa có Bài theo liên kết thì đã có cảnh báo LESSON_*; ở đó giao diện cho "Gắn Bài đã chọn".
   if(expectations.topic_id&&q.topic_id&&q.topic_id!==expectations.topic_id)push(issue('OPTIONAL_LESSON_MISMATCH','Mã câu dẫn tới Bài khác với Bài đã chọn cho phiên',{expected:expectations.topic_id,actual:q.topic_id}));
+  if(expectations.chapter&&q.topic_id){const chapter=(await client.query('SELECT chapter FROM topics WHERE id=$1',[q.topic_id])).rows[0]?.chapter||null;
+   if(chapter!==expectations.chapter)push(issue('OPTIONAL_CHAPTER_MISMATCH',`Mã câu dẫn tới Bài thuộc ${chapter||'chương khác'}, phiên nhập chọn ${expectations.chapter}`,{expected:expectations.chapter,actual:chapter}));}
   if(expectations.cognitive_level&&LEVELS.indexOf(code.declared_level)+1!==expectations.cognitive_level)push(issue('OPTIONAL_LEVEL_MISMATCH',`Mã ghi mức ${code.declared_level}, phiên kỳ vọng ${LEVELS[expectations.cognitive_level-1]}`,{expected:expectations.cognitive_level,actual:code.declared_level}));
   if(expectations.type&&FORMS[code.question_form]!==expectations.type)push(issue('OPTIONAL_TYPE_MISMATCH',`Mã ghi dạng ${code.question_form}, phiên kỳ vọng ${FORM_OF[expectations.type]}`,{expected:expectations.type,actual:FORMS[code.question_form]}));
 
@@ -247,15 +252,25 @@ export function batchNumbering(items){
 }
 
 // Cảnh báo cấp lần nhập: cách đánh số, và thông tin đầu tệp Word lệch ngữ cảnh phiên.
+// So tên môn đầu tệp với môn của phiên: không dấu, không phân biệt hoa thường; chấp nhận mã môn, tên
+// môn, tên viết tắt theo chữ cái đầu ("Khoa học tự nhiên" ↔ "KHTN") hoặc một bên chứa bên kia.
+const foldText=text=>String(text||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/Đ/g,'D').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+export function subjectMatches(declared,subject){
+ const d=foldText(declared);if(!d||!subject)return true;
+ const names=[subject.code,subject.name].map(foldText).filter(Boolean);
+ const initials=names.map(n=>n.split(' ').filter(Boolean).map(w=>w[0]).join(''));
+ return names.some(n=>n===d||n.includes(d)||d.includes(n))||initials.includes(d.replace(/ /g,''))||names.includes(d.split(' ').map(w=>w[0]).join(''));
+}
 function jobWarnings(job){
  const out=[...(job.numbering?.issues||[])];
  const doc=job.context?.document||{};
+ if(doc.subject_text&&job.subject&&!subjectMatches(doc.subject_text,job.subject))out.push({code:'DOCUMENT_SUBJECT_MISMATCH',message:`Đầu tệp ghi “Môn: ${doc.subject_text}”, nhưng phiên nhập đang là môn ${job.subject.name}`});
  if(doc.grade&&job.context?.grade&&doc.grade!==job.context.grade)out.push({code:'DOCUMENT_CONTEXT_MISMATCH',message:`Đầu tệp ghi khối ${doc.grade}, nhưng phiên nhập đang là khối ${job.context.grade}`});
  if(doc.lesson_name&&!doc.lesson_topic_id)out.push({code:'DOCUMENT_LESSON_UNKNOWN',message:`Đầu tệp ghi “Bài: ${doc.lesson_name}” nhưng không tìm thấy đúng một Bài như vậy trong môn/khối đã chọn`});
  return out;
 }
 
-export async function getJob(user,id,client=pool){const job=(await client.query('SELECT * FROM import_jobs WHERE id=$1',[id])).rows[0];if(!job||job.created_by!==user.id&&user.role!=='admin')fail('Không có quyền với lần nhập này',403);job.items=(await client.query('SELECT * FROM import_items WHERE job_id=$1 ORDER BY sequence',[id])).rows;job.numbering=batchNumbering(job.items);job.warnings=jobWarnings(job);return job;}
+export async function getJob(user,id,client=pool){const job=(await client.query('SELECT * FROM import_jobs WHERE id=$1',[id])).rows[0];if(!job||job.created_by!==user.id&&user.role!=='admin')fail('Không có quyền với lần nhập này',403);job.items=(await client.query('SELECT * FROM import_items WHERE job_id=$1 ORDER BY sequence',[id])).rows;job.subject=job.context?.subject_id?(await client.query('SELECT id,code,name FROM subjects WHERE id=$1',[job.context.subject_id])).rows[0]||null:null;job.numbering=batchNumbering(job.items);job.warnings=jobWarnings(job);return job;}
 // §30 — reloading the browser must not lose a staging job. Visibility matches getJob(): a teacher
 // only ever sees their own jobs, so the list cannot be used to discover someone else's batch.
 export async function listJobs(user,query={}){
@@ -311,6 +326,15 @@ export async function confirmJob(user,id,ids,bankId){staff(user);return tx(async
   const result=await persistQuestion(client,user,q,{id:duplicateId,bankId:targetBank,source:{type:job.parser_type,path:job.source_path,locator:q.source_locator,checksum}});
   await client.query('UPDATE import_items SET result_question_id=$1 WHERE id=$2',[result.id,item.id]);questionIds.push(result.id);
   await log(client,user,'IMPORT_DUPLICATE_DECISION',item.id,{decision:item.decision,candidates:item.duplicate_candidates.map(c=>c.id)});
+  // Tín hiệu nghi trùng không được mất sau khi nhập: người nhập chọn "nhập thành câu mới" thì câu mang theo
+  // một hồ sơ rà soát DUPLICATE_SUSPECT, nên không lọt vào "Sạch" và hiện trong "Nghi trùng" ở màn Duyệt.
+  if(item.decision==='import'&&item.duplicate_candidates?.length){
+   const best=[...item.duplicate_candidates].sort((a,b)=>(b.similarity||0)-(a.similarity||0))[0];
+   const fresh=(await client.query('SELECT id,subject_id,current_version_id FROM questions WHERE id=$1',[result.id])).rows[0];
+   await openReviewCase(client,user,fresh,{reason_code:'DUPLICATE_SUSPECT',severity:'P2',source_ref:'IMPORT:'+id,
+    note:`Nhập từ tệp ${job.source_name} dù nghi trùng ${best.display_code||best.question_code||('#'+best.id)} (${best.similarity??'?'}%); người nhập chọn nhập thành câu mới.`,
+    question_version_id:fresh.current_version_id});
+  }
  }
  await client.query("UPDATE import_jobs SET status='confirmed',confirmed_at=now() WHERE id=$1",[id]);await log(client,user,'IMPORT_CONFIRM',id,{count:items.length});return {ok:true,job_id:id,imported:items.length,question_ids:questionIds};
 });}

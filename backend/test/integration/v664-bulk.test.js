@@ -9,6 +9,7 @@ import path from 'node:path';
 import {spawn, spawnSync} from 'node:child_process';
 import pg from 'pg';
 import bcrypt from 'bcryptjs';
+import {cleanupIntegration} from './helpers/cleanup.js';
 
 const source = process.env.DB_NAME;
 if (!source?.startsWith('nganhang_personalized')) throw new Error('Integration tests require an isolated personalized database');
@@ -120,11 +121,8 @@ test.before(async () => {
   assert.equal(authorMe.data.capabilities['content.approve'], false, 'Tác giả không được có content.approve');
 });
 
-test.after(async () => {
-  server?.kill();
-  await db?.end();
-  await adminPool.end();
-});
+// Dừng server, đóng pool, xóa database tạm + dump + uploads tạm (KEEP_ARTIFACTS=1 để giữ lại).
+test.after(() => cleanupIntegration({server, db, adminPool, name, dump, uploadsDir}));
 
 test('V664: queue summary không lộ đáp án và selection-ids trả phiên bản đang xem', async () => {
   const q = await makeQuestion();

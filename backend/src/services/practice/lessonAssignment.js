@@ -4,6 +4,7 @@ import {persistQuestion, questionScope, QUESTION_FROM} from './questions.js';
 import {staff} from './authorization.js';
 import {fail, log} from './config.js';
 import {MAX_BULK_IDS} from './bulkWorkflow.js';
+import {snapshot, afterState, recordEditOperation} from './quickEdit.js';
 
 // Gán Bài là thay đổi phân loại, không phải chuyển trạng thái. Vì vậy nó đi qua persistQuestion —
 // đúng đường mà trình soạn thảo dùng — để giữ phân loại thay đổi, nhật ký metadata và hồ sơ rà soát.
@@ -13,6 +14,7 @@ async function scopedQuestions(client, user, ids) {
   params.push(ids);
   const rows = (await client.query(
     `SELECT q.id,q.question_code,q.yccd_id,q.topic_id,q.subject_id,q.grade,q.current_version_id,q.normalized_content,
+            q.lesson_status,q.cognitive_level::text AS level_col,
             COALESCE(q.normalized_content->>'display_code',q.question_code) AS display_code
      ${QUESTION_FROM} ${where.length ? 'WHERE ' + where.join(' AND ') + ' AND' : 'WHERE'} q.id=ANY($${params.length}::int[])`,
     params)).rows;
@@ -56,7 +58,9 @@ export async function lessonOptions(user, ids) {
 
 // assignments: [{question_ids:[...], topic_id}] — người dùng đã xác nhận từng nhóm YCCĐ.
 // Bài được gán phải thực sự liên kết với YCCĐ của câu, trừ khi người dùng ghi đè tường minh.
-export async function bulkAssignLesson(user, {assignments = [], reason = '', allow_unlinked = false}) {
+// Bài được gán phải liên kết với YCCĐ của câu. Không có cờ vượt kiểm tra từ phía client (V6.6.6.1);
+// muốn quay lại Bài cũ thì dùng mã hoàn tác của chính thao tác này.
+export async function bulkAssignLesson(user, {assignments = [], reason = ''}) {
   staff(user);
   const pairs = [];
   for (const group of assignments) {
@@ -74,7 +78,7 @@ export async function bulkAssignLesson(user, {assignments = [], reason = '', all
       const row = found.get(id);
       if (!row) { blocked.push({question_id: id, question_code: null, reason_code: 'OUT_OF_SCOPE', message: 'Câu ngoài phạm vi được phân quyền'}); continue; }
       if (row.topic_id === topicId) { continue; }
-      if (!allow_unlinked && row.yccd_id) {
+      if (row.yccd_id) {
         const lesson = await resolveLesson(client, row.yccd_id, {subject_id: row.subject_id, grade: row.grade});
         if (!lesson.candidates.some(t => t.id === topicId)) {
           blocked.push({question_id: id, question_code: row.display_code, reason_code: 'LESSON_NOT_LINKED', message: 'Bài đã chọn chưa liên kết với YCCĐ của câu'});
@@ -89,8 +93,9 @@ export async function bulkAssignLesson(user, {assignments = [], reason = '', all
           question_version_id: row.current_version_id,
           change_reason: reason || 'Gán Bài cho câu hỏi theo YCCĐ',
         }, {id});
-        const version = (await client.query('SELECT current_version_id FROM questions WHERE id=$1', [id])).rows[0]?.current_version_id;
-        applied.push({question_id: id, question_code: row.display_code, topic_id: topicId, before_topic_id: row.topic_id ?? null, current_version_id: version});
+        const after = await afterState(client, id);
+        applied.push({question_id: id, question_code: row.display_code, topic_id: topicId, before_topic_id: row.topic_id ?? null,
+          current_version_id: after.current_version_id, before: snapshot(row), after: snapshot(after)});
       } catch (e) {
         await client.query('ROLLBACK TO SAVEPOINT lesson_item');
         blocked.push({question_id: id, question_code: row.display_code, reason_code: e.code || 'RULE_VIOLATION', message: e.message});
@@ -99,6 +104,7 @@ export async function bulkAssignLesson(user, {assignments = [], reason = '', all
     }
     if (blocked.length) fail('Còn câu chưa gán được Bài — không đổi câu nào', 409, {applied, blocked, atomic: true});
     await log(client, user, 'QUESTION_BULK_LESSON', 'bulk', {count: applied.length, reason, question_ids: applied.map(a => a.question_id)});
-    return {ok: true, assigned: applied.length, items: applied};
+    const undo = await recordEditOperation(client, user, 'ASSIGN_LESSON', applied);
+    return {ok: true, assigned: applied.length, items: applied, ...(undo || {})};
   });
 }

@@ -340,6 +340,9 @@ export default function ImportCenter() {
   const jobContext = job?.context || {};
   const lessonSubject = job ? jobContext.subject_id : context.subject_id, lessonGrade = job ? jobContext.grade : context.grade;
   const topics = useMemo(() => (catalog.data?.topics || []).filter(t => t.subject_id === lessonSubject && t.grade === lessonGrade), [catalog.data, lessonSubject, lessonGrade]);
+  // Chương / Chủ đề lấy từ chính danh sách Bài của môn + khối; chọn Chương thì thu hẹp danh sách Bài.
+  const chapters = useMemo(() => [...new Set(topics.map(t => t.chapter).filter(Boolean))], [topics]);
+  const lessonChoices = expectations.chapter ? topics.filter(t => t.chapter === expectations.chapter) : topics;
   const topicName = id => topics.find(t => t.id === id)?.name;
   const subjectName = id => subjects.find(s => s.id === id)?.name;
 
@@ -399,6 +402,21 @@ export default function ImportCenter() {
     // Đổi mã thì để mã mới quyết định lại Outcome/YCCĐ/Mức/Dạng/Bài, tránh xung đột với giá trị theo mã cũ.
     patchDraft(item, {display_code: code, code_raw: null, outcome_id: null, yccd_id: null, cognitive_level: null, type: null, q_type: null, topic_id: null, lesson_status: null})
       .then(ok => ok && setCodeDraft(null));
+  }
+
+  // Gửi thật các câu vừa nhập đi duyệt: kiểm tra trước ở máy chủ (cùng đường với thao tác hàng loạt),
+  // gửi phần đủ điều kiện, và nói rõ câu nào chưa gửi được thay vì chỉ mở một trang khác.
+  async function submitImported() {
+    const ids = result?.question_ids || [];
+    if (!ids.length) return;
+    setBusy(true); setError('');
+    try {
+      const plan = await api.post(`${base}/questions/bulk-preflight`, {ids, action: 'submit'});
+      const eligible = plan.eligible.map(e => e.question_id);
+      if (eligible.length) await api.post(`${base}/questions/bulk-workflow`, {ids: eligible, action: 'submit'});
+      setResult(r => ({...r, submitted: eligible.length, notSubmitted: ids.length - eligible.length}));
+    } catch (e) { setError(e.message); }
+    finally { setBusy(false); }
   }
 
   async function confirm() {
@@ -465,6 +483,7 @@ export default function ImportCenter() {
   const step = result ? 3 : job ? 2 : 1;
   const expectationChips = [
     jobContext.expectations?.branch_code && 'Phân môn ' + BRANCHES[jobContext.expectations.branch_code],
+    jobContext.expectations?.chapter && jobContext.expectations.chapter,
     jobContext.expectations?.topic_id && (topicName(jobContext.expectations.topic_id) || 'Bài đã chọn'),
     jobContext.expectations?.cognitive_level && 'Mức ' + LEVEL_NAMES[jobContext.expectations.cognitive_level - 1],
     jobContext.expectations?.type && 'Dạng ' + TYPES[jobContext.expectations.type],
@@ -491,8 +510,15 @@ export default function ImportCenter() {
           {result.lessons.assigned !== null && (
             <p>{result.lessons.assigned} câu đã gắn Bài · {result.lessons.unassigned} câu chưa gắn Bài.</p>
           )}
+          {result.submitted != null && (
+            <p className="ok-box" role="status">Đã gửi {result.submitted} câu đi duyệt{result.notSubmitted ? ` · ${result.notSubmitted} câu chưa gửi được (mở để xem lý do)` : ''}.</p>
+          )}
           <div className="practice-actions">
-            <Link className="btn primary" to={`/practice/reviews?tab=author&import_job_id=${result.job_id}`}>Gửi {result.imported} câu đi duyệt</Link>
+            {result.submitted == null
+              ? <button className="btn primary" disabled={busy} onClick={submitImported}>Gửi {result.imported} câu đi duyệt</button>
+              : <Link className="btn primary" to={`/practice/reviews?tab=${result.notSubmitted ? 'author' : 'pending'}&import_job_id=${result.job_id}`}>
+                  {result.notSubmitted ? `Mở ${result.notSubmitted} câu chưa gửi` : 'Mở màn Duyệt'}
+                </Link>}
             {result.lessons.unassigned > 0 &&
               <Link className="btn" to={`/practice/banks?import_job_id=${result.job_id}&lesson_status=UNASSIGNED`}>
                 Gắn Bài cho {result.lessons.unassigned} câu
@@ -536,11 +562,18 @@ export default function ImportCenter() {
                   {Object.entries(BRANCHES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </select>
               </label>
+              <label>Chương / Chủ đề
+                <select aria-label="Chương kỳ vọng" value={expectations.chapter || ''} disabled={!chapters.length}
+                        onChange={e => setExpectations({...expectations, chapter: e.target.value || null, topic_id: null})}>
+                  <option value="">{context.subject_id && context.grade && !chapters.length ? 'Chưa có dữ liệu Chương' : 'Không chọn'}</option>
+                  {chapters.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </label>
               <label>Bài
-                <select aria-label="Bài kỳ vọng" value={expectations.topic_id || ''} disabled={!topics.length}
+                <select aria-label="Bài kỳ vọng" value={expectations.topic_id || ''} disabled={!lessonChoices.length}
                         onChange={e => setExpectations({...expectations, topic_id: Number(e.target.value) || null})}>
                   <option value="">{context.subject_id && context.grade && !topics.length ? 'Chưa có dữ liệu Bài cho môn/khối này' : 'Không chọn'}</option>
-                  {topics.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  {lessonChoices.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                 </select>
               </label>
               <label>Mức

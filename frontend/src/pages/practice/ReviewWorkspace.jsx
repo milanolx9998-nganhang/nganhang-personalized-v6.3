@@ -10,7 +10,7 @@ import {useQueue, useSelection, QuestionQueueTable, QuestionPreviewPane} from '.
 import WorkspaceShell from './workspace/WorkspaceShell.jsx';
 import SimpleFilterBar from './workspace/SimpleFilterBar.jsx';
 import {REJECT_REASONS, ReasonChips, composeReason, suggestedReasons} from './workspace/RejectReasonPopover.jsx';
-import QuickInspector, {LEVEL_CODES, undoBody, undoLessonBody} from './workspace/QuickInspector.jsx';
+import QuickInspector, {LEVEL_CODES, undoOperation} from './workspace/QuickInspector.jsx';
 import LessonAssignDialog from './workspace/LessonAssignDialog.jsx';
 import CommandPalette from './workspace/CommandPalette.jsx';
 import UndoToast, {useUndo} from './workspace/UndoToast.jsx';
@@ -88,7 +88,7 @@ function CleanBatch({search, reloadKey, onDone, onFocusIds}) {
   const ready = checked.length === CLEAN_CHECKLIST.length;
   return (
     <section className="practice-card clean-batch" aria-label="Duyệt nhanh phần sạch">
-      <p className="quick-label">Phần sạch · máy đã kiểm đủ 9 mục</p>
+      <p className="quick-label">Phần sạch · mọi kiểm tra áp dụng đều đạt</p>
       {done != null && <p className="ok-box" role="status">Đã duyệt {done} câu sạch.</p>}
       {!data.total && <p>Không còn câu sạch nào đang chờ trong bộ lọc này.</p>}
       {data.total > 0 && <>
@@ -212,11 +212,11 @@ function QuestionTab({tab, params, setParams, user}) {
     } finally { setBusy(false); }
   }, [rows, reload, undo]);
 
-  const onApplied = useCallback(({message, items}) => {
+  const onApplied = useCallback(({message, items, undoToken}) => {
     setError('');
     selection.refresh(items);
-    undo.push(message, items.length ? async () => {
-      const back = await api.post(base + '/questions/quick-edit', undoBody(items));
+    undo.push(message, undoToken ? async () => {
+      const back = await undoOperation(undoToken);
       selection.refresh(back.items || []);
       reload();
     } : null);
@@ -340,8 +340,8 @@ function QuestionTab({tab, params, setParams, user}) {
       {lessonIds && <LessonAssignDialog ids={lessonIds} onClose={() => setLessonIds(null)}
                                         onDone={result => {
                                           selection.refresh(result.items || []);
-                                          undo.push(`Đã gắn Bài cho ${result.assigned} câu.`, result.items?.length ? async () => {
-                                            await api.post(base + '/questions/quick-edit', undoLessonBody(result)); reload();
+                                          undo.push(`Đã gắn Bài cho ${result.assigned} câu.`, result.undo_token ? async () => {
+                                            await undoOperation(result.undo_token); reload();
                                           } : null);
                                           reload();
                                         }}/>}

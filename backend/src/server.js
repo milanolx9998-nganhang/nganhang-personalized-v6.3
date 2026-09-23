@@ -58,7 +58,7 @@ if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 for(const folder of ['images','media'])app.use('/uploads/'+folder,auth,(req,res,next)=>{if(req.user.must_change_password)return res.sendStatus(403);staffMedia(req,res).catch(next);});
 
 app.get('/api/health', async (_req, res) => {
-  try{await pool.query('SELECT 1');await storage.health();res.json({ status: 'ok', database:'ok', storage:'ok',...publicProfile(), timestamp: new Date().toISOString(), version: '6.6.5-pilot' });}catch{res.status(503).json({status:'unavailable'});}
+  try{await pool.query('SELECT 1');await storage.health();res.json({ status: 'ok', database:'ok', storage:'ok',...publicProfile(), timestamp: new Date().toISOString(), version: '6.6.6' });}catch{res.status(503).json({status:'unavailable'});}
 });
 
 app.use('/api',csrfGuard);

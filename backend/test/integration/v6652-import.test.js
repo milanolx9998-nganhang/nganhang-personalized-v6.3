@@ -12,6 +12,7 @@ import pg from 'pg';
 import bcrypt from 'bcryptjs';
 import AdmZip from 'adm-zip';
 import {seedLessons} from '../../src/services/curriculumMaster/lessonSeed.js';
+import {cleanupIntegration} from './helpers/cleanup.js';
 
 const source = process.env.DB_NAME;
 if (!source?.startsWith('nganhang_personalized')) throw new Error('Integration tests require an isolated personalized database');
@@ -145,11 +146,8 @@ test.before(async () => {
   tokens.author = await login('v6652_author');
 });
 
-test.after(async () => {
-  server?.kill();
-  await db?.end();
-  await adminPool.end();
-});
+// Dừng server, đóng pool, xóa database tạm + dump + uploads tạm (KEEP_ARTIFACTS=1 để giữ lại).
+test.after(() => cleanupIntegration({server, db, adminPool, name, dump, uploadsDir}));
 
 test('V6652: chỉ Môn + Khối + tệp Word — mã tự ra Outcome/YCCĐ và tự gắn Bài', async () => {
   const job = await uploadWord(['Câu L. 1. 3. NB. 1. TN'], {subject_id: subjectId, grade: 7});
@@ -349,6 +347,50 @@ test('V6652: sức khỏe dữ liệu nền chỉ ra phân môn chưa có Bài v
   assert.equal(g9.issues.some(i => i.code === 'NO_PUBLISHED_VERSION'), true);
   assert.equal(g9.issues.some(i => i.code === 'NO_LESSON_LINKS' && i.branch === 'H'), true);
   assert.equal(g9.branches.find(b => b.branch === 'L').yccd_unmapped, 0);
+});
+
+// V6.6.6.1 — các ca sau tải bằng tài khoản quản trị (giới hạn 10 lần tải/phút/người là bảo vệ thật).
+test('V6661: đầu tệp Word ghi "Môn:" khác môn của phiên thì cảnh báo cả lần nhập', async () => {
+  const job = await uploadWord(['Câu L. 1. 1. NB. 9. TN'], {subject_id: subjectId, grade: 7}, {header: ['Môn: Toán', 'Khối: 7'], token: tokens.admin});
+  const warning = job.warnings.find(w => w.code === 'DOCUMENT_SUBJECT_MISMATCH');
+  assert(warning, JSON.stringify(job.warnings));
+  assert.match(warning.message, /Toán/);
+  assert.equal(job.context.document.subject_text, 'Toán');
+});
+
+test('V6661: nghi trùng mà vẫn "nhập thành câu mới" thì câu mang theo hồ sơ rà soát, không lọt vào Sạch', async () => {
+  const stem = 'Câu kiểm thử trùng lặp cố định ' + crypto.randomUUID().slice(0, 8);
+  const original = await req('POST', '/practice/questions', {
+    subject_id: subjectId, grade: 7, stem, bank_id: bankId, cognitive_level: 1, type: 'multiple_choice',
+    options: ['A', 'B', 'C', 'D'].map(k => ({id: k, text: k === 'A' ? 'Một' : k === 'B' ? 'Hai' : k === 'C' ? 'Ba' : 'Bốn'})), answer: {correct: 'B'}, explanation: 'Lời giải',
+  });
+  expect(original, 201);
+  const job = await uploadWord([['Câu L. 1. 2. NB. 8. TN', {stem}]], {subject_id: subjectId, grade: 7, bank_id: bankId}, {token: tokens.admin});
+  const [item] = job.items;
+  assert.equal(item.duplicate_candidates.some(c => c.id === original.data.id), true, JSON.stringify(item.duplicate_candidates));
+  assert.equal(item.validation.issues.some(i => i.code === 'DUPLICATE_SUSPECT'), true);
+  const confirmed = await req('POST', `/practice/imports/${job.id}/confirm`, {ids: [item.id]});
+  expect(confirmed, 200);
+  const id = confirmed.data.question_ids[0];
+  const cases = (await db.query("SELECT reason_code,status,source_ref FROM question_review_cases WHERE question_id=$1", [id])).rows;
+  assert.equal(cases.length, 1);
+  assert.equal(cases[0].reason_code, 'DUPLICATE_SUSPECT');
+  assert.equal(cases[0].status, 'OPEN');
+  assert.equal(cases[0].source_ref, 'IMPORT:' + job.id);
+  assert.equal((await req('GET', `/practice/questions/queue?ids=${id}&exception=duplicate`)).data.total, 1, 'Hiện trong nhóm Nghi trùng');
+  assert.equal((await req('GET', `/practice/questions/queue?ids=${id}&exception=clean`)).data.total, 0, 'Không lọt vào nhóm Sạch');
+});
+
+test('V6661: Chương / Chủ đề là tùy chọn thêm — đối chiếu với Bài theo mã, bỏ được cho cả lô', async () => {
+  await db.query("UPDATE topics SET chapter='Chủ đề 4: Tốc độ' WHERE id=ANY($1::int[])", [[lessons['Bài 8. Tốc độ chuyển động'], lessons['Bài 9. Đo tốc độ']]]);
+  const job = await uploadWord(['Câu L. 1. 3. NB. 11. TN'], {subject_id: subjectId, grade: 7, expectations: {chapter: 'Chủ đề 5: Âm thanh'}}, {token: tokens.admin});
+  let [item] = job.items;
+  assert.equal(job.context.expectations.chapter, 'Chủ đề 5: Âm thanh');
+  assert.equal(item.validation.issues.some(i => i.code === 'OPTIONAL_CHAPTER_MISMATCH'), true, JSON.stringify(item.validation.issues));
+  assert.equal(item.draft.topic_id, lessons['Bài 9. Đo tốc độ'], 'Bài theo mã giữ nguyên');
+  expect(await req('PUT', '/practice/imports/' + job.id, {expectations: {chapter: 'Chủ đề 4: Tốc độ'}}), 200);
+  [item] = (await req('GET', '/practice/imports/' + job.id)).data.items;
+  assert.equal(item.validation.issues.some(i => i.code === 'OPTIONAL_CHAPTER_MISMATCH'), false);
 });
 
 test('V6652 seed: chỉ liên kết vào bản PUBLISHED mới nhất; nguyên văn trùng thì dừng', async () => {

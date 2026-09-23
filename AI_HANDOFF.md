@@ -1,6 +1,6 @@
 # AI HANDOFF
 
-Cập nhật: 2026-09-23 · Phiên bản mã: **6.6.5** (+ V6.6.5.2 chưa commit) (root/backend/frontend + `/api/health`)
+Cập nhật: 2026-09-23 · Phiên bản mã: **6.6.6** (+ V6.6.6.1 chưa commit) (root/backend/frontend + `/api/health`)
 HEAD khi bắt đầu vòng này: `d01b801d129c179314a385796ae1e2f3751db1ba`
 
 ## Trạng thái hiện tại
@@ -18,6 +18,18 @@ Nội dung vòng V6.6.5:
 4. **Gán Bài hàng loạt** theo nhóm YCCĐ, đi qua `persistQuestion`.
 
 **Migration V6.6.5 là additive và đã áp lên DB local.** Máy chủ thật sẽ tự áp khi deploy.
+
+## V6.6.6.1 — Sửa theo audit `a34aab4` (đã xong, chưa commit)
+
+Chi tiết + số đo: `docs/V6_6_6_1_AUDIT_A34AAB4_FIXES.md`. Điểm chính:
+- **Bỏ hẳn `allow_unlinked`** (gửi lên → 400). Hoàn tác sửa nhanh / gán Bài qua `undo_token` do máy chủ lưu ở
+  `question_edit_operations`: `POST /practice/questions/edit-operations/:id/undo`, chỉ người làm, trong 30 phút,
+  từ chối nếu câu đã bị sửa tiếp (`UNDO_STALE`). **Migration mới `migration-v6661-edit-ops.sql` — deploy xong phải `npm run migrate`.**
+- Kiểm tra máy so phân môn L/H/S của mã với Outcome; công thức nhóm ngoại lệ một chỗ (`EXCEPTION_FORMULA`).
+- Import: cảnh báo "Môn:" lệch, Chương kỳ vọng, câu nghi trùng vẫn nhập → hồ sơ `DUPLICATE_SUSPECT`; nút gửi duyệt sau nhập gửi thật.
+- Test tích hợp tự xóa DB/dump/uploads tạm (`KEEP_ARTIFACTS=1` để giữ). Tồn đọng cũ chờ user:
+  `node scripts/cleanup-test-databases.mjs --apply` (238 DB ≈ 3,2 GB).
+- Test tải `v6661-scale.test.js` (20k câu): đếm chip ~1,1 s là API nặng nhất.
 
 ## V6.6.6b — Đồng bộ giao diện toàn web (đã xong, chưa commit)
 
@@ -134,7 +146,7 @@ tích hợp gây fail dây chuyền giả. Chạy từng file một.
 ## Việc tiếp theo
 
 1. Thu hồi và thay GitHub token (ưu tiên cao nhất, tồn hai vòng).
-2. Commit + push V6.6.5.2 (khi user yêu cầu). Sau deploy: `npm run migrate`; seed KHTN7 cần bản
+2. Commit V6.6.6.1 + dọn DB tạm (`scripts/cleanup-test-databases.mjs --apply`, user tự chạy). Commit + push V6.6.5.2 (khi user yêu cầu). Sau deploy: `npm run migrate`; seed KHTN7 cần bản
    PUBLISHED hoặc `--allow-legacy`.
 3. ~~Triển khai đề xuất giao diện~~ — xong ở V6.6.6. Tiếp theo có thể: lưu "chỉnh riêng" phía máy chủ
    nếu cần giữ qua phiên; hoàn tác nhiều bước; điều tra 3 test lỗi có sẵn.

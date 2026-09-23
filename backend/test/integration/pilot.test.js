@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import {cleanupIntegration} from './helpers/cleanup.js';
 import test from 'node:test';import assert from 'node:assert/strict';import crypto from 'node:crypto';import fs from 'node:fs';import path from 'node:path';import {spawn,spawnSync} from 'node:child_process';import pg from 'pg';import bcrypt from 'bcryptjs';import XLSX from 'xlsx';import AdmZip from 'adm-zip';
 const source=process.env.DB_NAME;if(!source?.startsWith('nganhang_personalized'))throw new Error('Integration tests require an isolated personalized database');
 const name='nganhang_pilot_test_'+Date.now();const adminPool=new pg.Pool({host:process.env.DB_HOST,port:process.env.DB_PORT,database:source,user:process.env.DB_USER,password:process.env.DB_PASSWORD});
@@ -69,7 +70,7 @@ test('Trình duyệt tick nhiều bài, tìm/bỏ chọn, chuyển YCCĐ và t�
 
  }finally{await b.close();}
 });
-test.after(async()=>{if(server)server.kill();await db?.end();await adminPool.end();});
+test.after(()=>cleanupIntegration({server,db,adminPool,name,dump,uploadsDir:path.join(artifacts,'integration-uploads-'+name)}));
 test('Các API V4 và health vẫn đọc được',async()=>{for(const url of ['/health','/users','/taxonomy/subjects','/questions','/matrix','/exams','/reports/dashboard','/analysis/summary','/tags']){const r=await req('GET',url);assert.equal(r.status,200,url+': '+JSON.stringify(r.data));}});
 test('Tạo 20 câu đa mức, duyệt và version',async()=>{const bank=(await req('GET','/practice/banks')).data.find(b=>b.kind==='school');for(let i=0;i<20;i++){const result=await req('POST','/practice/questions',{subject_id:subjectId,topic_id:topicId,grade:9,outcome_id:masterOutcome,yccd_id:masterYccd,type:'multiple_choice',cognitive_level:i%4+1,stem:'Câu kiểm thử độc lập '+i,options:['A','B','C','D'].map(id=>({id,text:'Phương án '+id})),answer:{correct:'B'},bank_id:bank.id});assert.equal(result.status,201,JSON.stringify(result.data));questionIds.push(result.data.id);versionIds.push(result.data.current_version_id);for(const status of ['pending_review','approved','active'])assert.equal((await req('POST',`/practice/questions/${result.data.id}/workflow`,{status})).status,200);}});
 test('Preview 20 câu đúng 25/25/25/25; tạo challenge không lộ đáp án',async()=>{const config={subject_id:subjectId,topic_ids:[topicId],grade:9,count:20,percent:[25,25,25,25],types:['multiple_choice'],mode:'challenge'};const a=await req('POST','/practice/attempts',config,studentToken);assert.equal(a.status,201,JSON.stringify(a.data));attemptId=a.data.id;const view=await req('GET','/practice/attempts/'+attemptId,undefined,studentToken);assert.equal(view.data.items.length,20);assert(view.data.items.every(i=>!i.question.answer&&!i.question.explanation));});

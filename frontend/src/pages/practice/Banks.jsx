@@ -12,7 +12,7 @@ import SimpleFilterBar from './workspace/SimpleFilterBar.jsx';
 import LessonAssignDialog from './workspace/LessonAssignDialog.jsx';
 import RejectReasonPopover from './workspace/RejectReasonPopover.jsx';
 import WorkViews, {useWorkViews} from './workspace/WorkViews.jsx';
-import QuickInspector, {LEVEL_CODES, undoBody, undoLessonBody} from './workspace/QuickInspector.jsx';
+import QuickInspector, {LEVEL_CODES, undoOperation} from './workspace/QuickInspector.jsx';
 import CommandPalette from './workspace/CommandPalette.jsx';
 import UndoToast, {useUndo} from './workspace/UndoToast.jsx';
 import {useHotkeys} from './workspace/useHotkeys.js';
@@ -114,27 +114,25 @@ export default function Banks() {
   const clearSelection = () => { selection.clear(); setOverrides({}); setScope('one'); };
 
   // Kết quả sửa nhanh: cập nhật phiên bản trong lô, ghi lệnh hoàn tác, tải lại danh sách và bộ đếm.
-  const onApplied = useCallback(({message, items}) => {
+  const undoWith = useCallback(token => token ? async () => {
+    const back = await undoOperation(token);
+    selection.refresh(back.items || []);
+    refreshAll();
+  } : null, [selection, refreshAll]);
+
+  const onApplied = useCallback(({message, items, undoToken}) => {
     setError('');
     selection.refresh(items);
-    undo.push(message, items.length ? async () => {
-      const result = await api.post(base + '/questions/quick-edit', undoBody(items));
-      selection.refresh(result.items || []);
-      refreshAll();
-    } : null);
+    undo.push(message, undoWith(undoToken));
     refreshAll();
-  }, [selection, undo, refreshAll]);
+  }, [selection, undo, refreshAll, undoWith]);
 
   const onLessonDone = useCallback(result => {
     setError('');
     selection.refresh(result.items || []);
-    undo.push(`Đã gắn Bài cho ${result.assigned} câu.`, result.items?.length ? async () => {
-      const back = await api.post(base + '/questions/quick-edit', undoLessonBody(result));
-      selection.refresh(back.items || []);
-      refreshAll();
-    } : null);
+    undo.push(`Đã gắn Bài cho ${result.assigned} câu.`, undoWith(result.undo_token));
     refreshAll();
-  }, [selection, undo, refreshAll]);
+  }, [selection, undo, refreshAll, undoWith]);
 
   async function assignLesson(topic, ids) {
     if (!ids.length) { setError('Không còn câu nào để gắn (mọi câu đã chỉnh riêng).'); return; }

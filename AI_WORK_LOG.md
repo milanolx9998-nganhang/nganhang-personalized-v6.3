@@ -229,3 +229,34 @@ trên máy chủ để kết luận sự cố deploy.
 
 **Việc tiếp theo:** user xem ảnh `artifacts/ui-*.png`; commit/push khi user yêu cầu.
 
+
+## 2026-09-23 — V6.6.6.1: sửa theo audit `a34aab4` (AUDIT_HEAD_A34AAB4_V666_UI_POLISH.md)
+
+**Yêu cầu:** "fix tiep" toàn bộ mục audit (P1 `allow_unlinked`, P1/2 phân môn L/H/S, P2 copy "đủ 9 mục",
+dọn DB test, hiệu năng đếm, nút gửi duyệt sau nhập, "Môn:" Word, nghi trùng, P3 Chương, badge PROD, version, chồng nhóm, đa cỡ màn).
+
+**Skills:** không dùng (việc sửa theo danh sách audit, phạm vi rõ).
+
+**Đổi:** migration `migration-v6661-edit-ops.sql` (bảng `question_edit_operations` + 2 index; đã áp local) + `upgrade.js`;
+`quickEdit.js` (undo token máy chủ: đúng người / 30 phút / chưa hoàn tác / chưa bị sửa tiếp — so cả phiên bản lẫn trạng thái);
+`lessonAssignment.js`; `routes/practice.js` (bỏ `allow_unlinked`, route undo); `questions.js` (kiểm phân môn,
+sửa regex `\\.`, `EXCEPTION_FORMULA`, `ROW_FLAG_SQL`, `exceptionOverColumns`); `questionQueue.js` (queue CTE trang,
+view-counts 1 truy vấn, exception-counts CTE MATERIALIZED + JOIN hồ sơ); `imports.js` (Môn:, Chương, nghi trùng → hồ sơ
+`DUPLICATE_SUSPECT`); `server.js` + 3 package.json → 6.6.6. Frontend: QuickInspector/Banks/ReviewWorkspace (undo token, copy),
+ImportCenter (Chương, gửi duyệt thật), ExceptionChips (ghi chú chồng nhóm), EnvironmentBadge (PROD nhỏ), theme.css.
+Test: `helpers/cleanup.js` (mới, áp cho mọi test tích hợp kể cả pilot/v63), `v6661-scale.test.js` (mới), cập nhật
+v666-workbench / v6652-import / v666-ui-gallery / unit word-import; `scripts/cleanup-test-databases.mjs` (mới).
+Tài liệu: `docs/V6_6_6_1_AUDIT_A34AAB4_FIXES.md`.
+
+**Kiểm tra (tuần tự):** unit 115/115; security 27/27; pilot 34/34; v63 47/50 (3 lỗi baseline #30/#47/#50); v664 12/12;
+bootstrap 7/7; resolver 10/10; v6652 17/17; v666-workbench 9/9; ui-gallery 1/1; scale 20k 1/1
+(queue 87/64 ms, view-counts 62/78, exception-counts 1060/1113, ngưỡng 1500); frontend build OK.
+
+**Lỗi gặp & xử lý:** `\.` trong template literal bị JS nuốt → viết `\\.`; đếm chip 2,2 s → CTE MATERIALIZED + JOIN hồ sơ ~1,1 s;
+dọn DB `permission denied to terminate process` → chỉ dừng kết nối của chính role + thử DROP lại; undo không bắt được câu
+đã đổi Bài tiếp (đổi Bài không sinh phiên bản) → so thêm trạng thái. Codegraph: không tìm thấy `codegraph.py` trên máy → chưa rebuild `.codegraph`.
+
+**Kết quả:** 12/13 mục audit đóng; mục đa cỡ màn đóng phần máy, UAT mắt người + lô Word thật còn chờ người.
+
+**Việc tiếp theo:** user chạy `node scripts/cleanup-test-databases.mjs --apply` (238 DB ≈ 3,2 GB + 274 tệp/thư mục, không hoàn tác);
+thu hồi PAT GitHub; commit khi user yêu cầu; deploy xong chạy `npm run migrate` (migration v6661).

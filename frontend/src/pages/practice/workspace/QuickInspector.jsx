@@ -10,22 +10,11 @@ import {base} from '../shared.jsx';
 export const LEVEL_CODES = ['NB', 'TH', 'VD', 'VDC'];
 export const levelIndex = row => Number(String(row?.cognitive_level || '').replace(/^M/, '')) || null;
 
-// Thân yêu cầu hoàn tác: đưa từng câu về đúng giá trị trước khi sửa.
-export function undoBody(items) {
-  const restore = items.map(i => {
-    const out = {id: i.question_id};
-    if (i.before.cognitive_level && i.before.cognitive_level !== i.after.cognitive_level) out.cognitive_level = i.before.cognitive_level;
-    if (i.before.topic_id !== i.after.topic_id) out.topic_id = i.before.topic_id;
-    return out;
-  }).filter(o => Object.keys(o).length > 1);
-  return {items: restore, regenerate_code: items.some(i => i.before.display_code !== i.after.display_code),
-    allow_unlinked: true, reason: 'Hoàn tác sửa nhanh'};
-}
-
-// Hoàn tác gán Bài hàng loạt (assign-lesson trả before_topic_id cho từng câu).
-export function undoLessonBody(result) {
-  return {items: (result.items || []).map(i => ({id: i.question_id, topic_id: i.before_topic_id ?? null})),
-    allow_unlinked: true, reason: 'Hoàn tác gán Bài'};
+// Hoàn tác do máy chủ cấp quyền (V6.6.6.1): mỗi lệnh sửa nhanh / gán Bài trả về undo_token; hoàn tác chỉ
+// gửi mã đó. Máy chủ tự khôi phục đúng trạng thái đã lưu — client không gửi giá trị cũ, không có cờ vượt
+// kiểm tra liên kết Bài↔YCCĐ.
+export function undoOperation(token) {
+  return api.post(`${base}/questions/edit-operations/${token}/undo`, {});
 }
 
 const QuickInspector = forwardRef(function QuickInspector(
@@ -56,7 +45,7 @@ const QuickInspector = forwardRef(function QuickInspector(
       const result = await api.post(base + '/questions/quick-edit', body);
       if (single && row && selection.has(row.id) && multi) onOverride(row.id);
       setConflict(null); setPlan(null);
-      onApplied({message: result.applied ? message(result) : 'Không có gì thay đổi.', items: result.items || []});
+      onApplied({message: result.applied ? message(result) : 'Không có gì thay đổi.', items: result.items || [], undoToken: result.undo_token || null});
       return result;
     } catch (e) {
       const first = e.details?.blocked?.[0];

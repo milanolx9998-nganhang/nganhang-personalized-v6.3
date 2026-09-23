@@ -12,6 +12,7 @@ import path from 'node:path';
 import {spawn, spawnSync} from 'node:child_process';
 import pg from 'pg';
 import bcrypt from 'bcryptjs';
+import {cleanupIntegration} from './helpers/cleanup.js';
 
 const SOURCE_DIR = 'G:/tai lieu  oppa/UP SHARE/outcome khtn';
 const workbookPath = grade => `${SOURCE_DIR}/Outcome_YCCD_KHTN_${grade}.xlsx`;
@@ -93,11 +94,8 @@ test.before(async () => {
   assert(token);
 });
 
-test.after(async () => {
-  server?.kill();
-  await db?.end();
-  await adminPool.end();
-});
+// Dừng server, đóng pool, xóa database tạm + dump + uploads tạm (KEEP_ARTIFACTS=1 để giữ lại).
+test.after(() => cleanupIntegration({server, db, adminPool, name, dump, uploadsDir}));
 
 const skip = hasSources ? false : 'Không tìm thấy bộ 4 workbook chính thức trên máy này';
 

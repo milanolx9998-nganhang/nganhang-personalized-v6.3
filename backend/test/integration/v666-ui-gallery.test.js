@@ -10,6 +10,7 @@ import path from 'node:path';
 import {spawn, spawnSync} from 'node:child_process';
 import pg from 'pg';
 import bcrypt from 'bcryptjs';
+import {cleanupIntegration} from './helpers/cleanup.js';
 
 const source = process.env.DB_NAME;
 if (!source?.startsWith('nganhang_personalized')) throw new Error('Integration tests require an isolated personalized database');
@@ -99,7 +100,8 @@ test.before(async () => {
   }
 });
 
-test.after(async () => { server?.kill(); await db?.end(); await adminPool.end(); });
+// Dừng server, đóng pool, xóa database tạm + dump + uploads tạm; ảnh chụp giữ lại (tên cố định).
+test.after(() => cleanupIntegration({server, db, adminPool, name, dump, uploadsDir}));
 
 test('V666 UI: bộ sưu tập các màn chính sau khi đồng bộ giao diện', {timeout: 180000}, async () => {
   const {chromium} = await import('playwright');
@@ -170,6 +172,37 @@ test('V666 UI: bộ sưu tập các màn chính sau khi đồng bộ giao diện
       await page.waitForTimeout(900);
       await shot(key);
     }
+    // V6.6.6.1 — các cỡ màn thường gặp ở trường: nút chính phải nằm trong màn hình và không bị phần tử
+    // khác che (điểm giữa nút là chính nút đó). Đây là kiểm tra che/lệch cơ bản, không thay UAT bằng mắt.
+    const unobstructed = async locator => {
+      const box = await locator.boundingBox();
+      if (!box) return false;
+      const viewport = page.viewportSize();
+      if (box.x < 0 || box.x + box.width > viewport.width + 1) return false;
+      return locator.evaluate(el => {
+        const r = el.getBoundingClientRect();
+        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        return !!hit && (hit === el || el.contains(hit));
+      });
+    };
+    for (const [width, height] of [[1366, 768], [1920, 1080], [768, 1024]]) {
+      await page.setViewportSize({width, height});
+      await page.goto(origin + '/practice/banks?subject_id=' + subjectId);
+      await page.locator('.queue-table tbody tr').first().waitFor();
+      await page.waitForTimeout(300);
+      await page.screenshot({path: path.join(artifacts, `ui-banks-${width}.png`)});
+      for (const locator of [
+        page.getByRole('button', {name: /Thêm câu hỏi/}),
+        page.getByRole('button', {name: /Tìm lệnh/}),
+        page.locator('.queue-table tbody tr').first().locator('input[type=checkbox]'),
+        page.getByRole('group', {name: 'Lọc theo kiểm tra máy'}).getByRole('button', {name: /Tất cả/}),
+      ]) {
+        await locator.scrollIntoViewIfNeeded();
+        assert(await unobstructed(locator), `${width}px: nút/ô bị che hoặc tràn khỏi màn hình`);
+      }
+      assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2), `${width}px: tràn ngang`);
+    }
+
     await page.setViewportSize({width: 390, height: 844});
     await page.goto(origin + '/practice/banks?subject_id=' + subjectId);
     await page.locator('.queue-table tbody tr').first().waitFor();
