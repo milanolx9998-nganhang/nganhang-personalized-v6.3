@@ -1,6 +1,6 @@
 :root {
-  --primary: #6366f1;
-  --primary-hover: #4f46e5;
+  --primary: #1E5A7A;
+  --primary-hover: #153F57;
   --success: #10b981;
   --warning: #f59e0b;
   --danger: #ef4444;
@@ -99,7 +99,7 @@ input:focus, select:focus, textarea:focus {
 .badge.success { background: #d1fae5; color: #065f46; }
 .badge.warning { background: #fef3c7; color: #92400e; }
 .badge.danger  { background: #fee2e2; color: #991b1b; }
-.badge.info    { background: #dbeafe; color: #1e40af; }
+.badge.info    { background: #dbeafe; color: #153F57; }
 .badge.purple  { background: #ede9fe; color: #5b21b6; }
 
 .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
@@ -153,14 +153,14 @@ table tr:hover { background: #fafafa; }
   transition: all 0.1s;
 }
 .sidebar nav a:hover { background: #f3f4f6; text-decoration: none; }
-.sidebar nav a.active { background: #eef2ff; color: var(--primary); border-left-color: var(--primary); font-weight: 500; }
+.sidebar nav a.active { background: #E3EEF3; color: var(--primary); border-left-color: var(--primary); font-weight: 500; }
 .sidebar .user-box { margin-top: auto; padding: 16px 20px; border-top: 1px solid var(--border); }
 .sidebar .user-box .name { font-weight: 500; font-size: 13px; }
 .sidebar .user-box .role { font-size: 11px; color: var(--text-muted); }
 .sidebar .user-box .subject-tag {
   font-size: 11px;
   color: var(--primary);
-  background: #eef2ff;
+  background: #E3EEF3;
   padding: 2px 8px;
   border-radius: 4px;
   margin-top: 4px;
@@ -181,7 +181,7 @@ table tr:hover { background: #fafafa; }
 .page-header h2 { margin: 0; font-size: 22px; }
 
 /* ===== Login ===== */
-.login-bg { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); }
+.login-bg { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #1E5A7A 0%, #8b5cf6 100%); }
 .login-card { width: 380px; background: white; padding: 32px; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
 .login-card h1 { margin: 0 0 4px; text-align: center; color: var(--primary); }
 .login-card p { text-align: center; color: var(--text-muted); margin: 0 0 24px; font-size: 13px; }
@@ -291,11 +291,11 @@ table tr:hover { background: #fafafa; }
 .loading { text-align: center; padding: 30px; color: var(--text-muted); }
 .error-box { background: #fee2e2; color: #991b1b; padding: 10px 14px; border-radius: var(--radius); font-size: 13px; margin-bottom: 12px; }
 .warn-box  { background: #fef3c7; color: #92400e; padding: 10px 14px; border-radius: var(--radius); font-size: 13px; margin-bottom: 12px; }
-.info-box  { background: #dbeafe; color: #1e40af; padding: 10px 14px; border-radius: var(--radius); font-size: 13px; margin-bottom: 12px; }
+.info-box  { background: #dbeafe; color: #153F57; padding: 10px 14px; border-radius: var(--radius); font-size: 13px; margin-bottom: 12px; }
 .ok-box    { background: #d1fae5; color: #065f46; padding: 10px 14px; border-radius: var(--radius); font-size: 13px; margin-bottom: 12px; }
 
 .level-chip { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: 600; }
-.level-chip.M1 { background: #dbeafe; color: #1e40af; }
+.level-chip.M1 { background: #dbeafe; color: #153F57; }
 .level-chip.M2 { background: #d1fae5; color: #065f46; }
 .level-chip.M3 { background: #fef3c7; color: #92400e; }
 .level-chip.M4 { background: #fee2e2; color: #991b1b; }
@@ -313,7 +313,7 @@ table tr:hover { background: #fafafa; }
   gap: 12px;
   padding: 10px 16px;
   margin-bottom: 12px;
-  background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+  background: linear-gradient(135deg, #E3EEF3, #E3EEF3);
   border: 1px solid var(--primary);
   border-radius: var(--radius-lg);
   box-shadow: 0 -2px 12px rgba(99,102,241,0.15);
@@ -323,8 +323,8 @@ table tr:hover { background: #fafafa; }
 @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
 /* Row selected highlight */
-table tr.row-selected { background: #eef2ff !important; }
-table tr.row-selected:hover { background: #e0e7ff !important; }
+table tr.row-selected { background: #E3EEF3 !important; }
+table tr.row-selected:hover { background: #E3EEF3 !important; }
 
 /* Checkbox styling */
 table input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--primary); }

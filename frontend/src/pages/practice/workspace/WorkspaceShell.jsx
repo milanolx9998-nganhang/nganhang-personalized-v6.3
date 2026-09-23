@@ -2,6 +2,7 @@ import {NavLink} from 'react-router-dom';
 import {useAuth, hasAnyCapability} from '../../../hooks/useAuth.js';
 
 // Kho / Nhập / Duyệt là ba việc của cùng một công việc, nên dùng chung một vỏ và một ngôn ngữ.
+// V6.6.6: một thanh đầu trang gọn — tên khu vực, ba thẻ dạng nút, thao tác của trang nằm bên phải.
 const TABS = [
   {to: '/practice/banks', label: 'Kho câu hỏi', capabilities: ['content.read']},
   {to: '/practice/import', label: 'Nhập câu', capabilities: ['content.write']},
@@ -23,14 +24,12 @@ export default function WorkspaceShell({title, description, actions, children}) 
             </NavLink>
           ))}
         </nav>
+        {actions && <div className="workspace-actions">{actions}</div>}
       </header>
-      {(title || actions) && (
+      {(title || description) && (
         <div className="workspace-subhead">
-          <div>
-            {title && <h2>{title}</h2>}
-            {description && <p>{description}</p>}
-          </div>
-          {actions && <div className="practice-actions">{actions}</div>}
+          {title && <h2>{title}</h2>}
+          {description && <p>{description}</p>}
         </div>
       )}
       {children}

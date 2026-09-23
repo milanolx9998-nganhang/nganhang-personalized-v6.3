@@ -104,6 +104,7 @@ nhìn, lọc (ngoại lệ, mức, dạng, Bài), đi tới màn khác, hoàn t�
 | `v665-resolver.test.js` | 10/10 |
 | `v6652-import.test.js` | 14/14 |
 | **`v666-workbench.test.js` (mới)** | **7/7** |
+| **`v666-ui-gallery.test.js` (mới, sau đồng bộ giao diện)** | **1/1** (11 màn + điện thoại) |
 | Frontend build | OK |
 
 `v666-workbench.test.js` kiểm: tạo tay sinh mã chuẩn; đổi mức câu có mã → preflight báo mã đề xuất, thực thi
@@ -120,3 +121,39 @@ nhập → bàn làm việc → phím `3` → "Tạo lại mã theo mức mới"
 - "Chỉnh riêng" là trạng thái của phiên làm việc (không lưu máy chủ): bỏ chọn cả lô thì xóa dấu.
 - Hoàn tác một bước (lệnh gần nhất). Không hoàn tác được lệnh chuyển trạng thái (gửi duyệt/duyệt).
 - Câu đang chờ duyệt không sửa nhanh được (đúng quy trình): người duyệt dùng lý do trả sửa một chạm.
+
+---
+
+## 5. Đồng bộ giao diện toàn web (sau góp ý "chưa đẹp như demo" · "đồng bộ cả web, font chung Lexend")
+
+**Font chung:** Lexend (chữ) + JetBrains Mono (mã câu, số liệu), **đóng gói trong bản build** qua
+`@fontsource/lexend` và `@fontsource/jetbrains-mono` — chạy được trong LAN trường không cần internet, có đủ
+bộ ký tự tiếng Việt. Nạp ở `frontend/src/main.jsx`.
+
+**Một bảng màu cho cả web** (theo demo): mực `#1C1B17`, nền kem `#F4F3EE`, bề mặt trắng, đường kẻ ấm
+`#E2DFD6`, nhấn xanh sâu `#1E5A7A` (nền nhạt `#E3EEF3`), trạng thái đạt `#256D43` / cần xem `#8A4B00` /
+lỗi `#A5281B`, riêng "chỉnh riêng" tím `#6B3FA0`. Trước đây web trộn hai hệ: tím-chàm (phần cũ) và
+teal (luyện tập/hồ sơ) — nay quy về một.
+
+| Tệp | Thay đổi |
+|---|---|
+| `styles/theme.css` (mới) | Token màu + font; nút, ô nhập, thẻ, bảng, huy hiệu, hộp thông báo; thanh bên, trang đăng nhập; toàn bộ bàn làm việc (đầu trang dạng thẻ, chip lọc đen, lưới, thanh lô đen, khung chi tiết, bảng lệnh, toast, Nhập, Duyệt). **Nạp sau cùng** trong `main.jsx` (import của `App.jsx` được đánh giá trước `global.css`, nên đặt ở `App.jsx` sẽ bị đè). |
+| `styles/*.css` | Quy đổi mã màu teal/chàm/xanh xám cũ sang bảng màu mới (≈160 chỗ). |
+| `components/EnvironmentBadge.jsx` | Nhãn môi trường theo bảng màu mới. |
+| `workspace/WorkspaceShell.jsx` | Đầu trang một thanh: tên khu vực · 3 thẻ dạng nút · thao tác trang bên phải. |
+| `workspace/ExceptionChips.jsx` (mới) + API `GET /practice/questions/exception-counts` | Chip lọc có **số câu** từng nhóm (một truy vấn). |
+| `queue/QuestionQueue.jsx` | Lưới như demo: một ô "Câu" gộp mã + trạng thái + nội dung; cột Bài (kèm Outcome·YCCĐ), Mức, Dạng, **Kiểm tra máy** ("✓ đủ 9/9" / "! Bài · Mức"). Khung chi tiết: thanh điều hướng trên, nội dung, kiểm tra, sửa nhanh, **nút chính ở chân**. |
+| `workspace/WorkViews.jsx` | Thêm "Lọc nhanh" theo mức và dạng. Dưới 1600px (app đã có thanh bên 245px) rail gập thành thanh ngang trên lưới. |
+| `ImportCenter.jsx` | Bảng cùng kiểu lưới; thanh "đang chọn" màu đen, nhãn cùng dòng. |
+| `workspace/RejectReasonPopover.jsx` | Chip lý do dùng nhãn ngắn (nhãn đầy đủ khi rê chuột / trình đọc màn hình). |
+
+**Lỗi tìm ra nhờ chụp giao diện tự động:** (1) theme bị `global.css` đè → font vẫn hệ thống; (2) luật
+biểu mẫu cũ ép `display:block` làm lộ ô chọn tệp ẩn → thêm `[hidden]{display:none!important}`;
+(3) luật chia cột của bàn làm việc (từ bản V6.6.6 đầu) lọt xuống điện thoại, bóp danh sách câu còn 2px →
+chỉ áp cột ở màn ≥1025px, có assert chặn tái phát.
+
+**Test mới:** `test/integration/v666-ui-gallery.test.js` — mở đăng nhập, tổng quan, Kho (có chọn lô +
+khung chi tiết), bảng lệnh, Nhập (bắt đầu + kiểm tra), Duyệt (nháp + chờ duyệt), quản trị trường, chương
+trình, Kho trên điện thoại; kiểm font Lexend, không lỗi runtime, không tràn ngang, danh sách câu đủ rộng
+trên điện thoại; ảnh lưu `artifacts/ui-*.png`.
+

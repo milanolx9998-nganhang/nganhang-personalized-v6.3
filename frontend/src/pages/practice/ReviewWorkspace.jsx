@@ -15,6 +15,7 @@ import LessonAssignDialog from './workspace/LessonAssignDialog.jsx';
 import CommandPalette from './workspace/CommandPalette.jsx';
 import UndoToast, {useUndo} from './workspace/UndoToast.jsx';
 import {useHotkeys} from './workspace/useHotkeys.js';
+import ExceptionChips, {useExceptionCounts} from './workspace/ExceptionChips.jsx';
 
 const TABS = [
   {id: 'author', label: 'Bản nháp của tôi', capabilities: ['content.write']},
@@ -165,6 +166,7 @@ function QuestionTab({tab, params, setParams, user}) {
 
   const queue = useQueue(listSearch);
   const reload = useCallback(() => { queue.reload(); setReloadKey(k => k + 1); }, [queue]);
+  const exceptionCounts = useExceptionCounts(search.toString(), reloadKey);
   // Đổi một bộ lọc trên URL; bộ lọc ngoại lệ và tập "câu còn lại" loại trừ nhau.
   const setFilter = (name, value) => {
     const next = new URLSearchParams(params);
@@ -269,24 +271,26 @@ function QuestionTab({tab, params, setParams, user}) {
     return list;
   };
 
+  const inspectorNav = active && (
+    <div className="inspector-nav">
+      <button className="btn icon" disabled={busy || index <= 0} onClick={() => move(-1)} aria-label="Câu trước (K)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <span className="pos">Câu {offset + index + 1} / {total}</span>
+      <button className="btn icon" disabled={busy || index >= rows.length - 1} onClick={() => move(1)} aria-label="Câu sau (J)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+      </button>
+    </div>
+  );
+
   const singleActions = active && (
-    <div className="review-actions">
-      <p className="review-counter">Câu {index + 1} / {rows.length}{total > rows.length ? ` (trang này, tổng ${total})` : ''}</p>
-      <div className="practice-actions">
-        <button className="btn" disabled={busy || index <= 0} onClick={() => move(-1)} aria-label="Câu trước">←</button>
-        {can('submit') && <button className="btn primary" disabled={busy} onClick={() => single(active, 'submit')}>Gửi duyệt <kbd>S</kbd></button>}
-        {can('approve') && <button className="btn primary" disabled={busy} onClick={() => single(active, 'approve')}>Duyệt <kbd>A</kbd></button>}
-        <button className="btn" disabled={busy || index >= rows.length - 1} onClick={() => move(1)} aria-label="Câu sau">→</button>
-      </div>
+    <>
       {can('request_changes') && (
         <div className="reason-inline" ref={chips}>
           <p className="quick-label">Lý do trả sửa {suggested.length > 0 && <span className="muted small">· viền cam là gợi ý từ kiểm tra máy</span>}</p>
           <ReasonChips codes={codes} onChange={setCodes} suggested={suggested}/>
           <label className="sr-only" htmlFor="reason-note">Ghi chú thêm</label>
           <input id="reason-note" type="text" value={note} onChange={e => setNote(e.target.value)} placeholder="Ghi chú thêm (không bắt buộc)"/>
-          <button className="btn" disabled={busy || (!codes.length && !note.trim())} onClick={() => single(active, 'request_changes', codes, note)}>
-            Trả sửa{codes.length ? ` (${codes.length} lý do)` : ''} <kbd>R</kbd>
-          </button>
         </div>
       )}
       {tab === 'author' && canWrite && (
@@ -294,24 +298,28 @@ function QuestionTab({tab, params, setParams, user}) {
                         onOverride={id => setOverrides(o => ({...o, [id]: true}))} scope={scope} onScope={setScope}
                         topics={catalog.data?.topics || []} onApplied={onApplied} onError={setError} onOpenLessonDialog={setLessonIds}/>
       )}
-    </div>
+    </>
+  );
+
+  const inspectorFooter = active && (
+    <>
+      {can('request_changes') && (
+        <button className="btn" disabled={busy || (!codes.length && !note.trim())} onClick={() => single(active, 'request_changes', codes, note)}>
+          Trả sửa{codes.length ? ` (${codes.length})` : ''} <kbd>R</kbd>
+        </button>
+      )}
+      {can('submit') && <button className="btn primary" disabled={busy} onClick={() => single(active, 'submit')}>Gửi duyệt <kbd>S</kbd></button>}
+      {can('approve') && <button className="btn primary" disabled={busy} onClick={() => single(active, 'approve')}>Duyệt &amp; sang câu sau <kbd>A</kbd></button>}
+    </>
   );
 
   return (
     <>
       <SimpleFilterBar params={params} setParams={setParams} catalog={catalog.data} hideKeys={['lifecycle', 'review_status']}/>
-      <div className="exception-filters" role="group" aria-label="Lọc theo ngoại lệ">
-        {EXCEPTIONS.map(([key, label]) => (
-          <button key={key || 'all'} className={'btn' + ((params.get('exception') || '') === key ? ' primary' : '')}
-                  aria-pressed={(params.get('exception') || '') === key}
-                  onClick={() => setFilter('exception', key)}>
-            {label}
-          </button>
-        ))}
-        {params.get('ids') && <button className="btn" onClick={() => setFilter('ids', '')}>
-          Bỏ lọc {params.get('ids').split(',').length} câu đang xem</button>}
-        <button className="btn" onClick={() => setPaletteOpen(true)}>Bảng lệnh <kbd>Ctrl K</kbd></button>
-      </div>
+      <ExceptionChips value={params.get('exception')} counts={exceptionCounts} onPick={key => setFilter('exception', key)}>
+        {params.get('ids') && <button className="chip" onClick={() => setFilter('ids', '')}>Bỏ lọc {params.get('ids').split(',').length} câu đang xem ×</button>}
+        <button className="btn palette-trigger" onClick={() => setPaletteOpen(true)}><span>Tìm lệnh…</span><kbd>Ctrl K</kbd></button>
+      </ExceptionChips>
       {params.get('import_job_id') &&
         <p className="ok-box">Đang xem nhóm câu vừa nhập. Phạm vi môn, khối và kho vẫn áp dụng như bình thường.</p>}
       <ErrorBox error={error || queue.error}/>
@@ -342,7 +350,7 @@ function QuestionTab({tab, params, setParams, user}) {
         <QuestionQueueTable rows={rows} selection={selection} activeId={activeId} onActivate={row => setActiveId(row.id)}
                             badges={Object.fromEntries(Object.keys(overrides).map(id => [id, 'chỉnh riêng']))}
                             pageSize={pageSize} onPageSize={setPageSize} total={total} offset={offset} onOffset={setOffset}/>
-        <QuestionPreviewPane row={active} onDeepReview={row => setDeepId(row.id)} actions={singleActions}/>
+        <QuestionPreviewPane row={active} onDeepReview={row => setDeepId(row.id)} nav={inspectorNav} actions={singleActions} footer={inspectorFooter}/>
       </div>
       {/* Panel rà soát sâu chỉ mở khi người dùng bấm "Xem kỹ" hoặc khi câu có rủi ro. */}
       {deepId && <QuestionReviewPanel id={deepId} onClose={() => setDeepId(null)} onChanged={reload}/>}

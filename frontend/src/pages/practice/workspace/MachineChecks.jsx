@@ -1,6 +1,6 @@
 // Dải kiểm tra máy (§34, §61): mỗi khía cạnh một ô ✓ / ! / –, đọc lướt được trong một giây.
 // Chỉ nói đúng/sai — không bao giờ hiển thị đáp án.
-const LABELS = {
+export const CHECK_LABELS = {
   code: 'Mã', curriculum: 'Chuẩn', lesson: 'Bài', level: 'Mức', form: 'Dạng',
   answer: 'Đáp án', explanation: 'Lời giải', media: 'Ảnh', duplicate: 'Trùng',
 };
@@ -20,7 +20,7 @@ export default function MachineChecks({checks, compact = false}) {
   if (!checks) return null;
   return (
     <ul className={'machine-checks' + (compact ? ' compact' : '')} aria-label="Kiểm tra máy">
-      {Object.entries(LABELS).map(([key, label]) => {
+      {Object.entries(CHECK_LABELS).map(([key, label]) => {
         const value = checks[key];
         if (value === undefined) return null;
         const state = value === null ? 'na' : value ? 'ok' : 'bad';

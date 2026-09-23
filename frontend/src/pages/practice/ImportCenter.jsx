@@ -623,9 +623,9 @@ export default function ImportCenter() {
 
         {/* Hàng loạt chỉ cho những gì không nằm trong mã câu: Bài, mức/dạng của câu không mã, xử lý trùng. */}
         {selected.length > 0 && (
-          <div className="bulk-toolbar import-bulk" role="toolbar" aria-label="Thao tác cho câu đang chọn">
+          <div className="bulk-bar import-bulk" role="toolbar" aria-label="Thao tác cho câu đang chọn">
             <strong>{selected.length} câu đang chọn</strong>
-            <label>Gắn Bài
+            <label className="inline-field">Gắn Bài
               <select aria-label="Bài cho câu đang chọn" value={bulkTopic} onChange={e => setBulkTopic(e.target.value)}>
                 <option value="">Chọn Bài</option>
                 {topics.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -634,7 +634,7 @@ export default function ImportCenter() {
             <button className="btn" disabled={busy || !bulkTopic} title="Câu đã tự gắn Bài theo liên kết chuẩn vẫn giữ Bài theo mã"
                     onClick={() => push({bulk: {topic_id: Number(bulkTopic)}, bulk_ids: selected})}>Áp dụng</button>
             {uncodedSelected > 0 && <>
-              <label>Mức ({uncodedSelected} câu không mã)
+              <label className="inline-field">Mức ({uncodedSelected} câu không mã)
                 <select aria-label="Mức cho câu không mã" value={bulkLevel} onChange={e => setBulkLevel(e.target.value)}>
                   <option value="">Chọn mức</option>
                   {LEVEL_NAMES.map((l, i) => <option key={l} value={i + 1}>{l}</option>)}
@@ -643,7 +643,7 @@ export default function ImportCenter() {
               <button className="btn" disabled={busy || !bulkLevel} onClick={() => push({bulk: {cognitive_level: Number(bulkLevel)}, bulk_ids: selected})}>Áp dụng</button>
             </>}
             {selectedItems.some(i => i.duplicate_candidates.length > 0) && (
-              <label>Câu nghi trùng
+              <label className="inline-field">Câu nghi trùng
                 <select aria-label="Xử lý câu nghi trùng" value="" onChange={e => e.target.value && setDecision(selectedItems.filter(i => i.duplicate_candidates.length).map(i => i.id), e.target.value)}>
                   <option value="">Chọn cách xử lý</option>
                   {Object.entries(DECISIONS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -666,8 +666,8 @@ export default function ImportCenter() {
                              setSelected(e.target.checked ? [...new Set([...selected, ...ids])] : selected.filter(id => !ids.includes(id)));
                            }}/>
                   </th>
-                  <th scope="col">Mã câu</th><th scope="col">Nội dung</th><th scope="col">Outcome · YCCĐ</th>
-                  <th scope="col">Bài</th><th scope="col">Mức</th><th scope="col">Dạng</th><th scope="col">Kết quả</th>
+                  <th scope="col">Câu</th><th scope="col" className="col-lesson">Bài · YCCĐ</th>
+                  <th scope="col" className="col-level">Mức</th><th scope="col" className="col-form">Dạng</th><th scope="col" className="col-result">Kết quả</th>
                 </tr>
               </thead>
               <tbody>
@@ -675,20 +675,24 @@ export default function ImportCenter() {
                   const d = item.draft, r = item.validation.resolution, c = CATEGORIES[categoryOf(item)];
                   const top = issuesOf(item).find(i => i.severity === 'blocking') || issuesOf(item).find(i => i.severity === 'review');
                   return (
-                    <tr key={item.id} className={item.id === activeId ? 'queue-row active' : 'queue-row'}
+                    <tr key={item.id} className={'queue-row' + (item.id === activeId ? ' active' : '') + (selected.includes(item.id) ? ' selected' : '')}
                         onClick={() => { setActiveId(item.id); setEditing(false); setCodeDraft(null); }}>
                       <td className="queue-check" data-label="Chọn" onClick={e => e.stopPropagation()}>
                         <input type="checkbox" aria-label={'Chọn câu ' + item.sequence}
                                disabled={isBlocked(item)} checked={selected.includes(item.id)}
                                onChange={e => setSelected(e.target.checked ? [...selected, item.id] : selected.filter(id => id !== item.id))}/>
                       </td>
-                      <td data-label="Mã câu" className="queue-code">{d.display_code || d.code_raw || '—'}</td>
-                      <td data-label="Nội dung" className="queue-stem">{excerpt(d.stem)}</td>
-                      <td data-label="Outcome · YCCĐ">{r?.outcome ? [r.outcome, r.yccd].filter(Boolean).join(' · ') : '—'}</td>
-                      <td data-label="Bài">{r?.lesson?.name || topicName(d.topic_id) || (r?.lesson_status === 'AMBIGUOUS' ? 'Nhiều Bài' : r?.master_data_missing ? 'Chưa có dữ liệu Bài' : r?.lesson_status === 'UNMAPPED' ? 'Chưa gắn' : '—')}</td>
-                      <td data-label="Mức">{r?.level || LEVEL_NAMES[(d.cognitive_level || 0) - 1] || '—'}</td>
-                      <td data-label="Dạng">{r?.form || FORM_SHORT[d.q_type] || TYPES[d.type] || '—'}</td>
-                      <td data-label="Kết quả">
+                      <td data-label="Câu" className="queue-question">
+                        <div className="q-line"><span className={'q-code' + (d.display_code ? '' : ' is-raw')}>{d.display_code || d.code_raw || 'Câu ' + item.sequence}</span></div>
+                        <div className="q-stem">{excerpt(d.stem, 220)}</div>
+                      </td>
+                      <td data-label="Bài · YCCĐ" className={'col-lesson' + (r?.lesson?.name || topicName(d.topic_id) ? '' : ' is-missing')}>
+                        {r?.lesson?.name || topicName(d.topic_id) || (r?.lesson_status === 'AMBIGUOUS' ? 'Nhiều Bài — cần chọn' : r?.master_data_missing ? 'Chưa có dữ liệu Bài' : r?.lesson_status === 'UNMAPPED' ? 'Chưa gắn Bài' : '—')}
+                        {r?.outcome && <small className="q-curriculum">{[r.outcome, r.yccd].filter(Boolean).join(' · ')}</small>}
+                      </td>
+                      <td data-label="Mức" className="col-level">{r?.level || LEVEL_NAMES[(d.cognitive_level || 0) - 1] || '—'}</td>
+                      <td data-label="Dạng" className="col-form">{r?.form || FORM_SHORT[d.q_type] || TYPES[d.type] || '—'}</td>
+                      <td data-label="Kết quả" className="col-result">
                         <span className={'status-pill tone-' + c.tone}>{c.label}</span>
                         {top && <small className="row-issue">{excerpt(top.message, 60)}</small>}
                       </td>
@@ -697,14 +701,14 @@ export default function ImportCenter() {
                 })}
               </tbody>
             </table>
-            {!visible.length && <p role="status">Không có dòng nào trong nhóm này.</p>}
+            {!visible.length && <p role="status" className="queue-empty">Không có dòng nào trong nhóm này.</p>}
           </div>
 
           <aside className="queue-preview" aria-live="polite">
-            {!active && <p>Chọn một dòng để xem trước.</p>}
-            {active && <>
-              <header className="section-heading">
-                <h3>{active.draft.display_code || active.draft.code_raw || 'Câu ' + active.sequence}</h3>
+            {!active && <p className="queue-preview-empty">Chọn một dòng để xem trước.</p>}
+            {active && <div className="queue-preview-scroll">
+              <header className="preview-head">
+                <span className="q-code">{active.draft.display_code || active.draft.code_raw || 'Câu ' + active.sequence}</span>
                 <span className={'status-pill tone-' + CATEGORIES[categoryOf(active)].tone}>{CATEGORIES[categoryOf(active)].label}</span>
               </header>
               <MachineChecks checks={importChecks(active)} compact/>
@@ -760,7 +764,7 @@ export default function ImportCenter() {
               {editing && <EditDraft item={active} catalog={catalog.data} busy={busy}
                                      onSave={draft => patchDraft(active, draft).then(ok => ok && setEditing(false))}
                                      onClose={() => setEditing(false)}/>}
-            </>}
+            </div>}
           </aside>
         </div>
 

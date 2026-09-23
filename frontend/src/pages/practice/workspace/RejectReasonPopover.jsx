@@ -3,13 +3,13 @@ import {useState} from 'react';
 // Lý do trả sửa có mã, thay cho window.prompt. Mã giúp thống kê được câu hay bị trả vì lỗi gì;
 // phần ghi chú tự do vẫn giữ để người duyệt nói rõ trường hợp cụ thể.
 export const REJECT_REASONS = [
-  {code: 'LEVEL_MISMATCH', label: 'Sai mức độ nhận thức'},
-  {code: 'CURRICULUM_MISMATCH', label: 'Sai hoặc chưa rõ YCCĐ / Bài'},
-  {code: 'INSUFFICIENT_DATA', label: 'Dữ kiện chưa đủ hoặc mơ hồ'},
-  {code: 'WEAK_DISTRACTORS', label: 'Phương án nhiễu chưa tốt'},
-  {code: 'ANSWER_MISMATCH', label: 'Đáp án hoặc lời giải chưa khớp'},
-  {code: 'MEDIA_PROBLEM', label: 'Hình, công thức hoặc bảng có vấn đề'},
-  {code: 'DUPLICATE_SUSPECT', label: 'Nghi trùng với câu đã có'},
+  {code: 'LEVEL_MISMATCH', label: 'Sai mức độ nhận thức', short: 'Sai mức'},
+  {code: 'CURRICULUM_MISMATCH', label: 'Sai hoặc chưa rõ YCCĐ / Bài', short: 'Sai YCCĐ / Bài'},
+  {code: 'INSUFFICIENT_DATA', label: 'Dữ kiện chưa đủ hoặc mơ hồ', short: 'Thiếu dữ kiện'},
+  {code: 'WEAK_DISTRACTORS', label: 'Phương án nhiễu chưa tốt', short: 'Nhiễu yếu'},
+  {code: 'ANSWER_MISMATCH', label: 'Đáp án hoặc lời giải chưa khớp', short: 'Đáp án / lời giải'},
+  {code: 'MEDIA_PROBLEM', label: 'Hình, công thức hoặc bảng có vấn đề', short: 'Hình / công thức'},
+  {code: 'DUPLICATE_SUSPECT', label: 'Nghi trùng với câu đã có', short: 'Nghi trùng'},
 ];
 
 // Ghép mã đã chọn và ghi chú thành một lý do đọc được cho người biên soạn. Mã vẫn được gửi riêng
@@ -69,9 +69,9 @@ export function ReasonChips({codes, onChange, suggested = []}) {
         return (
           <button key={reason.code} type="button" aria-pressed={on}
                   className={'reason-chip' + (on ? ' on' : '') + (suggested.includes(reason.code) ? ' suggested' : '')}
-                  title={suggested.includes(reason.code) ? 'Gợi ý từ kiểm tra máy' : undefined}
+                  title={reason.label + (suggested.includes(reason.code) ? ' · gợi ý từ kiểm tra máy' : '')} aria-label={reason.label}
                   onClick={() => onChange(on ? codes.filter(c => c !== reason.code) : [...codes, reason.code])}>
-            {reason.label}
+            {reason.short}
           </button>
         );
       })}

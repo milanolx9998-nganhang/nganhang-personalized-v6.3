@@ -2,8 +2,8 @@ import {useEffect, useMemo, useRef, useState} from 'react';
 import {api} from '../../../api/client.js';
 import {base, ErrorBox} from '../shared.jsx';
 import {Rich} from '../Rich.jsx';
-import {questionStatus, lessonAndCurriculum, curriculumLabel, levelLabel, formLabel, LESSON_STATUS} from '../workspace/labels.js';
-import MachineChecks from '../workspace/MachineChecks.jsx';
+import {questionStatus, curriculumLabel, levelLabel, formLabel, LESSON_STATUS, FORM_SHORT} from '../workspace/labels.js';
+import MachineChecks, {CHECK_LABELS} from '../workspace/MachineChecks.jsx';
 
 export const LIFECYCLE = {draft: 'Bản nháp', pending_review: 'Chờ duyệt', approved: 'Đã duyệt', active: 'Đang dùng', archived: 'Lưu trữ'};
 export const REVIEW_STATUS = {DRAFT: 'Nháp', PENDING_REVIEW: 'Chờ duyệt', APPROVED: 'Đã duyệt', REJECTED: 'Từ chối', SUPERSEDED: 'Đã thay'};
@@ -98,7 +98,18 @@ export function StatusPill({row}) {
   return <span className={'status-pill tone-' + status.tone}>{status.label}</span>;
 }
 
-// Mặc định chỉ sáu cột. Mọi metadata khác nằm trong preview, không nhồi vào dòng.
+// Tóm tắt dải kiểm tra máy thành một ô: "✓ đủ 9/9" hoặc "! Bài · Mức" — đọc lướt được cả trang.
+export function CheckSummary({checks}) {
+  const entries = Object.entries(checks || {}).filter(([, v]) => v !== null && v !== undefined);
+  if (!entries.length) return <span className="check-summary">—</span>;
+  const failing = entries.filter(([, v]) => v === false).map(([k]) => CHECK_LABELS[k] || k);
+  return failing.length
+    ? <span className="check-summary bad" title={'Chưa đạt: ' + failing.join(', ')}>! {failing.join(' · ')}</span>
+    : <span className="check-summary ok">✓ đủ {entries.length}/{entries.length}</span>;
+}
+
+// Sáu cột như bản thiết kế: Chọn · Câu (mã + trạng thái + nội dung) · Bài · Mức · Dạng · Kiểm tra máy.
+// Mọi metadata khác nằm trong khung chi tiết, không nhồi vào dòng.
 export function QuestionQueueTable({rows, selection, activeId, onActivate, pageSize, onPageSize, total, offset, onOffset, badges = {}}) {
   const allOnPage = rows.length > 0 && rows.every(r => selection.has(r.id));
   return (
@@ -110,16 +121,16 @@ export function QuestionQueueTable({rows, selection, activeId, onActivate, pageS
               <input type="checkbox" aria-label="Chọn tất cả trang này" checked={allOnPage}
                      onChange={e => selection.setRows(rows, e.target.checked)}/>
             </th>
-            <th scope="col">Mã</th>
-            <th scope="col">Nội dung</th>
-            <th scope="col">Bài · YCCĐ</th>
-            <th scope="col">Mức</th>
-            <th scope="col">Trạng thái</th>
+            <th scope="col">Câu</th>
+            <th scope="col" className="col-lesson">Bài</th>
+            <th scope="col" className="col-level">Mức</th>
+            <th scope="col" className="col-form">Dạng</th>
+            <th scope="col" className="col-checks">Kiểm tra máy</th>
           </tr>
         </thead>
         <tbody>
           {rows.map(row => (
-            <tr key={row.id} className={row.id === activeId ? 'queue-row active' : 'queue-row'}
+            <tr key={row.id} className={'queue-row' + (row.id === activeId ? ' active' : '') + (selection.has(row.id) ? ' selected' : '')}
                 aria-selected={row.id === activeId} onClick={() => onActivate(row)}>
               <td className="queue-check" data-label="Chọn" onClick={e => e.stopPropagation()}>
                 {/* Shift+tick chọn cả đoạn từ dòng đã tick gần nhất tới dòng này. */}
@@ -128,17 +139,26 @@ export function QuestionQueueTable({rows, selection, activeId, onActivate, pageS
                        onClick={e => { if (e.shiftKey) { e.preventDefault(); selection.selectRange(rows, row.id, row.current_version_id); } }}
                        onChange={e => { if (!e.nativeEvent.shiftKey) selection.toggle(row.id, row.current_version_id); }}/>
               </td>
-              <td data-label="Mã" className="queue-code">{row.display_code}{badges[row.id] && <span className="row-badge">{badges[row.id]}</span>}</td>
-              <td data-label="Nội dung" className="queue-stem">{row.stem_excerpt}</td>
-              <td data-label="Bài · YCCĐ">{lessonAndCurriculum(row)}</td>
-              <td data-label="Mức">{levelLabel(row)}</td>
-              <td data-label="Trạng thái"><StatusPill row={row}/>{failingChecks(row) > 0 &&
-                <small className="row-issue" title="Số mục kiểm tra máy chưa đạt">! {failingChecks(row)} mục cần xem</small>}</td>
+              <td data-label="Câu" className="queue-question">
+                <div className="q-line">
+                  <span className="q-code">{row.display_code}</span>
+                  <StatusPill row={row}/>
+                  {badges[row.id] && <span className="row-badge">{badges[row.id]}</span>}
+                </div>
+                <div className="q-stem">{row.stem_excerpt}</div>
+              </td>
+              <td data-label="Bài" className={'col-lesson' + (row.topic_name ? '' : ' is-missing')}>
+                {row.topic_name || (row.lesson_status === 'AMBIGUOUS' ? 'Nhiều Bài — cần chọn' : 'Chưa gắn Bài')}
+                {(row.outcome_code || row.yccd_code) && <small className="q-curriculum">{curriculumLabel(row)}</small>}
+              </td>
+              <td data-label="Mức" className={'col-level' + (row.checks?.level === false ? ' is-bad' : '')}>{levelLabel(row)}</td>
+              <td data-label="Dạng" className="col-form">{FORM_SHORT[row.q_type] || '—'}</td>
+              <td data-label="Kiểm tra máy" className="col-checks"><CheckSummary checks={row.checks}/></td>
             </tr>
           ))}
         </tbody>
       </table>
-      {!rows.length && <p role="status">Không có câu hỏi trong bộ lọc này.</p>}
+      {!rows.length && <p role="status" className="queue-empty">Không có câu hỏi trong bộ lọc này.</p>}
       <div className="practice-actions queue-pager">
         <label>Số dòng
           <select value={pageSize} onChange={e => onPageSize(Number(e.target.value))}>
@@ -159,7 +179,7 @@ export function QuestionQueueTable({rows, selection, activeId, onActivate, pageS
 // Số mục kiểm tra máy chưa đạt (null = không áp dụng, không tính).
 export const failingChecks = row => Object.values(row?.checks || {}).filter(v => v === false).length;
 
-export function QuestionPreviewPane({row, onDeepReview, actions}) {
+export function QuestionPreviewPane({row, onDeepReview, actions, nav, footer}) {
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState('');
   useEffect(() => {
@@ -171,34 +191,40 @@ export function QuestionPreviewPane({row, onDeepReview, actions}) {
       .catch(e => { if (active) setError(e.message); });
     return () => { active = false; };
   }, [row?.id]);
-  if (!row) return <aside className="queue-preview"><p>Chọn một câu để xem trước.</p></aside>;
+  if (!row) return <aside className="queue-preview"><p className="queue-preview-empty">Chọn một câu để xem trước.</p></aside>;
   const content = detail?.after?.content;
   return (
-    <aside className="queue-preview" aria-live="polite">
-      <header className="section-heading">
-        <h3>{row.display_code}</h3>
-        <StatusPill row={row}/>
-      </header>
-      <MachineChecks checks={row.checks} compact/>
-      {actions}
-      {error && <div className="warn-box"><p>Không mở được nội dung đầy đủ: {error}</p><p>{row.stem_excerpt}</p></div>}
-      {!detail && !error && <p role="status">Đang tải nội dung…</p>}
-      {/* Nội dung trước, phân loại sau: preview để đọc câu hỏi, không phải để tra metadata. */}
-      {content && <div className="queue-preview-body">
-        <Rich text={content.stem || content.stem_text}/>
-        {(content.type === 'true_false' ? content.statements : content.options)?.map(o => (
-          <p key={o.id}><strong>{o.id}.</strong> {o.text}</p>
-        ))}
-        {content.answer && <p className="queue-answer"><strong>Đáp án:</strong> {answerText(content.answer)}</p>}
-        {content.explanation && <details><summary>Lời giải</summary><Rich text={content.explanation}/></details>}
-      </div>}
-      <dl className="queue-meta">
-        <div><dt>Bài</dt><dd>{row.topic_name || LESSON_STATUS[row.lesson_status] || 'Chưa gắn Bài'}</dd></div>
-        <div><dt>Chuẩn</dt><dd>{curriculumLabel(row)}</dd></div>
-        <div><dt>Mức · Dạng</dt><dd>{levelLabel(row)} · {formLabel(row)}</dd></div>
-        <div><dt>Kho</dt><dd>{row.bank_name}{row.author_name ? ' · ' + row.author_name : ''}</dd></div>
-      </dl>
-      <button className="btn" onClick={() => onDeepReview(row)}>Xem kỹ</button>
+    <aside className="queue-preview" aria-live="polite" aria-label="Chi tiết câu đang xem">
+      {nav}
+      <div className="queue-preview-scroll">
+        <header className="preview-head">
+          <span className="q-code">{row.display_code}</span>
+          <StatusPill row={row}/>
+        </header>
+        {error && <div className="warn-box"><p>Không mở được nội dung đầy đủ: {error}</p><p>{row.stem_excerpt}</p></div>}
+        {!detail && !error && <p role="status" className="muted">Đang tải nội dung…</p>}
+        {/* Nội dung trước, phân loại sau: khung này để đọc câu hỏi, không phải để tra metadata. */}
+        {content && <div className="queue-preview-body">
+          <Rich text={content.stem || content.stem_text}/>
+          {(content.type === 'true_false' ? content.statements : content.options)?.map(o => (
+            <p key={o.id} className="preview-option"><strong>{o.id}.</strong> {o.text}</p>
+          ))}
+          {content.answer && <p className="queue-answer"><strong>Đáp án:</strong> {answerText(content.answer)}</p>}
+          {content.explanation && <details><summary>Lời giải</summary><Rich text={content.explanation}/></details>}
+        </div>}
+        <MachineChecks checks={row.checks} compact/>
+        {actions}
+        <dl className="queue-meta">
+          <div><dt>Bài</dt><dd>{row.topic_name || LESSON_STATUS[row.lesson_status] || 'Chưa gắn Bài'}</dd></div>
+          <div><dt>Outcome · YCCĐ</dt><dd>{curriculumLabel(row)}</dd></div>
+          <div><dt>Mức · Dạng</dt><dd>{levelLabel(row)} · {formLabel(row)}</dd></div>
+          <div><dt>Kho</dt><dd>{row.bank_name}{row.author_name ? ' · ' + row.author_name : ''}</dd></div>
+        </dl>
+      </div>
+      <div className="preview-footer">
+        {footer}
+        <button className="btn" onClick={() => onDeepReview(row)}>Xem kỹ</button>
+      </div>
     </aside>
   );
 }

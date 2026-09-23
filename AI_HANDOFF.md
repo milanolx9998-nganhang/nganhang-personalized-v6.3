@@ -19,6 +19,13 @@ Nội dung vòng V6.6.5:
 
 **Migration V6.6.5 là additive và đã áp lên DB local.** Máy chủ thật sẽ tự áp khi deploy.
 
+## V6.6.6b — Đồng bộ giao diện toàn web (đã xong, chưa commit)
+
+Font chung **Lexend** (+ JetBrains Mono cho mã câu), đóng gói trong build (chạy offline trong LAN). Một bảng
+màu cho cả web theo demo; `frontend/src/styles/theme.css` nạp **sau cùng** trong `main.jsx` (đặt ở App.jsx sẽ
+bị global.css đè). Test chụp giao diện `backend/test/integration/v666-ui-gallery.test.js` → `artifacts/ui-*.png`.
+Chi tiết: `docs/V6_6_6_UNIFIED_WORKBENCH.md` §5.
+
 ## V6.6.6 — Bàn làm việc hợp nhất (đã xong, chưa commit)
 
 Cập nhật: 2026-09-23. User duyệt đề xuất giao diện ("duyệt, làm full nhé"). Chi tiết: `docs/V6_6_6_UNIFIED_WORKBENCH.md`.

@@ -1,5 +1,5 @@
 import {pool} from '../../db/pool.js';
-import {questionScope, QUESTION_FROM, CHECK_SQL} from './questions.js';
+import {questionScope, QUESTION_FROM, CHECK_SQL, EXCEPTION_SQL} from './questions.js';
 import {MAX_BULK_IDS} from './bulkWorkflow.js';
 import {fail} from './config.js';
 
@@ -150,4 +150,15 @@ export async function viewCounts(user) {
     out.push({...view, query: new URLSearchParams(view.query).toString(), count: n});
   }
   return out;
+}
+
+// V6.6.6 — số câu của từng bộ lọc ngoại lệ trong cùng bộ lọc hiện tại (một truy vấn), để chip lọc
+// hiện "Chưa gắn Bài 7" thay vì bắt người dùng bấm thử từng nút.
+export async function exceptionCounts(user, query) {
+  if (user.role === 'student') fail('Không đủ quyền', 403);
+  const scope = {...query};
+  for (const key of ['exception', 'ids', 'limit', 'offset']) delete scope[key];
+  const {where, params} = await questionScope(user, scope);
+  const columns = ['count(*)::int AS total', ...Object.entries(EXCEPTION_SQL).map(([key, sql]) => `count(*) FILTER (WHERE ${sql})::int AS ${key}`)];
+  return (await pool.query(`SELECT ${columns.join(',')} ${QUESTION_FROM} ${where.length ? 'WHERE ' + where.join(' AND ') : ''}`, params)).rows[0];
 }

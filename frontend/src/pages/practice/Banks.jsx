@@ -16,6 +16,7 @@ import QuickInspector, {LEVEL_CODES, undoBody, undoLessonBody} from './workspace
 import CommandPalette from './workspace/CommandPalette.jsx';
 import UndoToast, {useUndo} from './workspace/UndoToast.jsx';
 import {useHotkeys} from './workspace/useHotkeys.js';
+import ExceptionChips, {useExceptionCounts} from './workspace/ExceptionChips.jsx';
 import {QuestionEditor} from './Teacher.jsx';
 
 const NEW_DRAFT = params => ({
@@ -36,6 +37,8 @@ const EXCEPTION_FILTERS = [
   ['clean', 'Sạch'], ['level', 'Cần xem mức'], ['lesson', 'Chưa gắn Bài'],
   ['duplicate', 'Nghi trùng'], ['metadata', 'Lỗi metadata'], ['media', 'Media'],
 ];
+const ARROW_LEFT = <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>;
+const ARROW_RIGHT = <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>;
 const FORM_FILTERS = {mcq4: 'TN', true_false: 'ĐS', short: 'TLN', matching: 'GN', essay: 'TL'};
 
 // V6.6.6 — bàn làm việc hợp nhất: góc nhìn bên trái, lưới ở giữa, khung xem + sửa nhanh bên phải.
@@ -76,6 +79,7 @@ export default function Banks() {
   }, [search, pageSize, offset]);
 
   const queue = useQueue(listSearch);
+  const exceptionCounts = useExceptionCounts(search.toString(), viewsKey);
   const rows = queue.data?.items || [];
   const total = queue.data?.total || 0;
   useEffect(() => { setOffset(0); }, [search.toString(), pageSize]);
@@ -257,24 +261,16 @@ export default function Banks() {
     return list;
   };
 
+  const inspectorNav = active && (
+    <div className="inspector-nav">
+      <button className="btn icon" disabled={index <= 0} onClick={() => move(-1)} aria-label="Câu trước (K)">{ARROW_LEFT}</button>
+      <span className="pos">Câu {offset + index + 1} / {total}{selection.has(active.id) && selection.count > 1 ? ` · thuộc lô ${selection.count} câu` : ''}</span>
+      <button className="btn icon" disabled={index >= rows.length - 1} onClick={() => move(1)} aria-label="Câu sau (J)">{ARROW_RIGHT}</button>
+    </div>
+  );
+
   const singleActions = active && !readOnly && (
-    <div className="review-actions">
-      <p className="review-counter">Câu {index + 1} / {rows.length}{total > rows.length ? ` (trang này, tổng ${total})` : ''}
-        {selection.has(active.id) && selection.count > 1 ? ` · thuộc lô ${selection.count} câu đang chọn` : ''}</p>
-      <div className="practice-actions">
-        <button className="btn" disabled={index <= 0} onClick={() => move(-1)} aria-label="Câu trước">←</button>
-        <button className="btn" disabled={busy} onClick={() => openEditor(active)}>Sửa <kbd>E</kbd></button>
-        {active.review_status === 'DRAFT' && <button className="btn primary" disabled={busy} onClick={() => single(active, 'submit')}>Gửi duyệt</button>}
-        {active.review_status === 'PENDING_REVIEW' && user.capabilities?.['content.approve'] &&
-          <button className="btn primary" disabled={busy} onClick={() => single(active, 'approve')}>Duyệt</button>}
-        {active.review_status === 'PENDING_REVIEW' && user.capabilities?.['content.review'] &&
-          <button className="btn" disabled={busy} onClick={() => setRejecting(active.id)}>Trả sửa</button>}
-        <button className="btn" disabled={busy} onClick={async () => {
-          try { await api.post(`${base}/questions/${active.id}/copy`, {}); refreshAll(); }
-          catch (e) { setError(e.message); }
-        }}>Sao chép</button>
-        <button className="btn" disabled={index >= rows.length - 1} onClick={() => move(1)} aria-label="Câu sau">→</button>
-      </div>
+    <>
       {rejecting === active.id && (
         <RejectReasonPopover busy={busy} onCancel={() => setRejecting(null)}
                              onSubmit={({reason, codes}) => single(active, 'request_changes', reason, codes)}/>
@@ -283,7 +279,22 @@ export default function Banks() {
                       onOverride={id => setOverrides(o => ({...o, [id]: true}))}
                       scope={scope} onScope={setScope} topics={catalog.data?.topics || []}
                       onApplied={onApplied} onError={setError} onOpenLessonDialog={setLessonIds}/>
-    </div>
+    </>
+  );
+
+  const inspectorFooter = active && !readOnly && (
+    <>
+      <button className="btn" disabled={busy} onClick={() => openEditor(active)}>Sửa nội dung <kbd>E</kbd></button>
+      {active.review_status === 'DRAFT' && <button className="btn primary" disabled={busy} onClick={() => single(active, 'submit')}>Gửi duyệt</button>}
+      {active.review_status === 'PENDING_REVIEW' && user.capabilities?.['content.approve'] &&
+        <button className="btn primary" disabled={busy} onClick={() => single(active, 'approve')}>Duyệt</button>}
+      {active.review_status === 'PENDING_REVIEW' && user.capabilities?.['content.review'] &&
+        <button className="btn" disabled={busy} onClick={() => setRejecting(active.id)}>Trả sửa</button>}
+      <button className="btn" disabled={busy} onClick={async () => {
+        try { await api.post(`${base}/questions/${active.id}/copy`, {}); refreshAll(); }
+        catch (e) { setError(e.message); }
+      }}>Sao chép</button>
+    </>
   );
 
   const badges = useMemo(() => Object.fromEntries(Object.keys(overrides).map(id => [id, 'chỉnh riêng'])), [overrides]);
@@ -291,7 +302,9 @@ export default function Banks() {
   return (
     <WorkspaceShell
       actions={<>
-        <button className="btn" onClick={() => setPaletteOpen(true)}>Bảng lệnh <kbd>Ctrl K</kbd></button>
+        <button className="btn palette-trigger" onClick={() => setPaletteOpen(true)}>
+          <span>Tìm lệnh: gắn Bài, lọc, đổi mức…</span><kbd>Ctrl K</kbd>
+        </button>
         <button className="btn" onClick={() => downloadFile(base + '/questions-export?' + search.toString(), 'cau-hoi.xlsx').catch(e => setError(e.message))}>Xuất Excel</button>
         {!readOnly && <button className="btn primary" onClick={() => setEditor({draft: NEW_DRAFT(params)})}>Thêm câu hỏi</button>}
       </>}>
@@ -299,13 +312,9 @@ export default function Banks() {
         <WorkViews views={views} params={params} setParams={setParams}/>
         <div className="workbench-main">
           <SimpleFilterBar params={params} setParams={setParams} catalog={catalog.data}/>
-          <div className="exception-filters" role="group" aria-label="Lọc theo kiểm tra máy">
-            {[['', 'Tất cả'], ...EXCEPTION_FILTERS].map(([key, label]) => (
-              <button key={key || 'all'} className={'btn' + ((params.get('exception') || '') === key ? ' primary' : '')}
-                      aria-pressed={(params.get('exception') || '') === key} onClick={() => setParam('exception', key)}>{label}</button>
-            ))}
-            {params.get('ids') && <button className="btn" onClick={() => setParam('ids', '')}>Bỏ lọc {params.get('ids').split(',').length} câu đang xem</button>}
-          </div>
+          <ExceptionChips value={params.get('exception')} counts={exceptionCounts} onPick={key => setParam('exception', key)}>
+            {params.get('ids') && <button className="chip" onClick={() => setParam('ids', '')}>Bỏ lọc {params.get('ids').split(',').length} câu đang xem ×</button>}
+          </ExceptionChips>
           {params.get('import_job_id') &&
             <p className="ok-box">Đang xem nhóm câu vừa nhập. Phạm vi môn, khối và kho vẫn áp dụng như bình thường.</p>}
           <ErrorBox error={error || queue.error}/>
@@ -349,7 +358,7 @@ export default function Banks() {
           <div className="queue-layout">
             <QuestionQueueTable rows={rows} selection={selection} activeId={activeId} onActivate={row => setActiveId(row.id)} badges={badges}
                                 pageSize={pageSize} onPageSize={setPageSize} total={total} offset={offset} onOffset={setOffset}/>
-            <QuestionPreviewPane row={active} onDeepReview={row => setDeepId(row.id)} actions={singleActions}/>
+            <QuestionPreviewPane row={active} onDeepReview={row => setDeepId(row.id)} nav={inspectorNav} actions={singleActions} footer={inspectorFooter}/>
           </div>
           {deepId && <QuestionReviewPanel id={deepId} onClose={() => setDeepId(null)} onChanged={refreshAll}/>}
           <details className="practice-card">

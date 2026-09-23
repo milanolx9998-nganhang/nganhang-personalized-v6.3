@@ -26,7 +26,7 @@ import {studentAssignment} from '../services/practice/studentDto.js';
 import {attemptMedia} from '../services/practice/privateMedia.js';
 import {saveAssignment,listAssignments} from '../services/practice/assignments.js';
 import {questionList,persistQuestion,transition,personalBank} from '../services/practice/questions.js';
-import {questionQueue,selectionIds,authorOptions,viewCounts} from '../services/practice/questionQueue.js';
+import {questionQueue,selectionIds,authorOptions,viewCounts,exceptionCounts} from '../services/practice/questionQueue.js';
 import {quickEdit,quickEditPreflight} from '../services/practice/quickEdit.js';
 import {lessonOptions,bulkAssignLesson} from '../services/practice/lessonAssignment.js';
 import {bulkPreflight,bulkWorkflow,BULK_ACTIONS,MAX_BULK_IDS} from '../services/practice/bulkWorkflow.js';
@@ -128,6 +128,7 @@ const bulkBody=z.object({
 }).strict();
 r.get('/questions/queue',wrap(async(req,res)=>res.json(await questionQueue(req.user,req.query))));
 r.get('/questions/view-counts',wrap(async(req,res)=>res.json(await viewCounts(req.user))));
+r.get('/questions/exception-counts',wrap(async(req,res)=>res.json(await exceptionCounts(req.user,req.query))));
 // V6.6.6 — sửa nhanh mức/Bài từ bàn làm việc; preflight chạy cùng đường trong giao dịch luôn hoàn tác.
 const quickEditBody=z.object({
  ids:z.array(z.number().int().positive()).min(1).max(MAX_BULK_IDS).optional(),

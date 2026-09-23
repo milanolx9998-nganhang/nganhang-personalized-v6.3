@@ -217,3 +217,15 @@ trên máy chủ để kết luận sự cố deploy.
 
 **Việc tiếp theo:** commit/push khi user yêu cầu; thu hồi GitHub PAT.
 
+## 2026-09-23 — V6.6.6b: đồng bộ giao diện toàn web theo demo, font chung Lexend
+
+**Yêu cầu:** "nhìn chưa đẹp như demo" → "đồng bộ luôn cả web, font chung Lexend".
+
+**Thay đổi:** `@fontsource/lexend` + `@fontsource/jetbrains-mono` (bỏ be-vietnam-pro vừa thử); `styles/theme.css` mới nạp cuối trong `main.jsx`; quy đổi màu cũ trong `styles/*.css`; `WorkspaceShell` (đầu trang một thanh), `ExceptionChips` + `GET /questions/exception-counts`, lưới/khung chi tiết `QuestionQueue.jsx`, `WorkViews` (Lọc nhanh, gập <1600px), `ImportCenter` (bảng + thanh chọn), `RejectReasonPopover` (nhãn ngắn), `Banks`/`ReviewWorkspace` (nav/footer khung chi tiết), `EnvironmentBadge`.
+
+**Kiểm tra:** test chụp giao diện `v666-ui-gallery` (mới) pass; regression đầy đủ — xem mục kết quả trong `docs/V6_6_6_UNIFIED_WORKBENCH.md` §5/§3.
+
+**Lỗi gặp & xử lý:** theme bị global.css đè (thứ tự import) → chuyển sang main.jsx; ô file ẩn bị lộ → `[hidden]` !important; lưới 2 cột lọt xuống điện thoại (lỗi từ V6.6.6 đầu) → giới hạn ≥1025px + assert.
+
+**Việc tiếp theo:** user xem ảnh `artifacts/ui-*.png`; commit/push khi user yêu cầu.
+

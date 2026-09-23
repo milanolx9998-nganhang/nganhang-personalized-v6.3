@@ -40,6 +40,18 @@ export default function WorkViews({views, params, setParams}) {
     setCustom(next); writeCustom(next); setNaming(null);
   };
   const remove = name => { const next = custom.filter(v => v.name !== name); setCustom(next); writeCustom(next); };
+  const toggle = (key, value) => {
+    const next = new URLSearchParams(params);
+    if (next.get(key) === value) next.delete(key); else next.set(key, value);
+    setParams(next);
+  };
+  const facet = (key, options, label) => (
+    <div className="facet-chips" role="group" aria-label={label}>
+      {options.map(([value, text]) => (
+        <button key={value} type="button" className="chip chip-sm" aria-pressed={params.get(key) === value} onClick={() => toggle(key, value)}>{text}</button>
+      ))}
+    </div>
+  );
   const item = (key, label, query, count, extra = null) => {
     const on = canonicalQuery(query) === current;
     return (
@@ -63,6 +75,9 @@ export default function WorkViews({views, params, setParams}) {
         <ul>{custom.map(v => item('c:' + v.name, v.name, v.query, null,
           <button className="btn link" aria-label={'Xóa góc nhìn ' + v.name} onClick={() => remove(v.name)}>×</button>))}</ul>
       </>}
+      <p className="work-views-title">Lọc nhanh</p>
+      {facet('cognitive_level', [['M1', 'NB'], ['M2', 'TH'], ['M3', 'VD'], ['M4', 'VDC']], 'Lọc nhanh theo mức')}
+      {facet('q_type', [['mcq4', 'TN'], ['true_false', 'ĐS'], ['short', 'TLN'], ['matching', 'GN'], ['essay', 'TL']], 'Lọc nhanh theo dạng')}
       {naming === null
         ? <button className="btn work-views-save" disabled={!current} onClick={() => setNaming('')}>+ Lưu góc nhìn này</button>
         : <div className="work-views-name">
