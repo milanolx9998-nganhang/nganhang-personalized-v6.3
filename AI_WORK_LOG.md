@@ -293,3 +293,49 @@ thu hồi PAT GitHub; commit khi user yêu cầu; deploy xong chạy `npm run mi
 **Kết quả:** P2 + P3 audit đóng; chưa commit. Theo audit: dừng phát triển chức năng, chuyển UAT bằng file Word thật.
 
 **Việc tiếp theo:** UAT Word thật; user chạy cleanup `--apply`; thu hồi PAT GitHub; commit khi user yêu cầu.
+
+## 2026-09-24 — PERF V6.6.7: Redis tùy chọn + Supavisor + tối ưu luồng làm bài (REDIS_SUPAVISOR_PERFORMANCE_PLAN_NGANHANG_V666.md)
+
+**Yêu cầu:** triển khai plan hiệu năng (Redis cache / rate limit, Supavisor, pool metrics, đo tải).
+
+**Skills:** tra `grep_search` "redis cache rate limit node performance". 5 ứng viên chỉ khớp chung chữ "performance" / "redis" (Azure .NET, Odoo…), không đạt 80 điểm → không dùng; làm theo plan.
+
+**Baseline trước khi sửa** (`test/load/quiz-load.mjs`, local, không Redis):
+- 120 HS đăng nhập cùng lúc từ một IP → 70/120 bị 429 (limiter "cộng trước, trừ sau");
+- bcrypt JS chặn luồng chính (p50 đăng nhập 4,2 s);
+- trần API theo IP 3000/phút → 120/120 lượt nộp bị 429;
+- Player tải lại cả bài sau mỗi lần chốt;
+- tạo bài insert từng câu;
+- catalog 376 KB đọc lại mỗi request.
+
+**Đổi:**
+- Mới: `services/cache/{redis,cache}.js` (Redis tùy chọn, cache-aside + jitter + chống dồn tải + thế hệ nội dung); `middleware/rateLimitStore.js` (Redis, tự quay về bộ nhớ); `services/passwordHasher{,.worker}.js` (bcrypt trong worker); `utils/requestContext.js`; `scripts/perf-db-check.mjs`; `test/load/{quiz-load.mjs,k6-quiz.js}`.
+- Sửa:
+  - `db/pool.js`: pool theo biến môi trường, số liệu pool + truy vấn chậm;
+  - `rateLimiter.js`: `failureLimiter` cho login IP, trần theo biến môi trường;
+  - `auth.js`: `verifyPassword`;
+  - `attempts.js`: INSERT theo lô, `is_final`;
+  - `routes/practice.js`: cache catalog dạng chuỗi JSON / dashboard / bài giao / số đếm;
+  - `practiceAdmin.js`: `/operations/client-ip`;
+  - `operations.js`: `db` / `cache` / `rate_limit` / `hash_workers`;
+  - `server.js`: khởi Redis, đổi thế hệ khi staff ghi, `Cache-Control`, ngữ cảnh request;
+  - `Player.jsx`: bỏ tải lại sau khi chốt, bỏ lượt lưu trùng.
+- Deploy: `compose.home.yaml` thêm service redis không publish cổng; `.env.*.example`.
+- Version 6.6.7; thêm `redis@^5`.
+- Tài liệu `docs/PERF_V6_6_7_REDIS_SUPAVISOR.md`.
+
+**Kết quả đo:**
+- 80 HS: tổng 27,1 → 17,8–19,5 s; pha làm bài 13,9 → 9,0–11,5 s; đăng nhập p50 1045 → ~350 ms.
+- 120 HS đăng nhập dồn: 0 lỗi (trước 70 lỗi).
+- A/B AsyncLocalStorage: khác biệt nằm trong mức dao động (±30%).
+
+**Kiểm tra (tuần tự):** unit 124/124; security 27/27; pilot 34/34; v63 47/50 (3 baseline); v664 12/12; bootstrap 7/7; resolver 10/10; v6652 19/19; workbench 10/10; ui-gallery 1/1; v667 5/5; build OK. DB tạm không tăng.
+
+**Lỗi gặp:**
+- seed test thiếu YCCĐ → bổ sung;
+- đổi chữ ký `limiter` làm hỏng test security → giữ tương thích;
+- khóa `password_workers` vi phạm test chống lộ → đổi `hash_workers`, che nhãn SQL.
+
+**Chưa làm / cần server:** Redis thật (tỉ lệ trúng cache, thử `docker stop redis`), Supavisor (`perf-db-check`), kiểm NAT bằng `client-ip`, k6 staging 100/200 + soak. Chưa commit (V6.6.6.3 cũng chưa commit). Codegraph chưa rebuild (không có `codegraph.py`).
+
+**Việc tiếp theo:** user commit V6.6.6.3 + V6.6.7 (có thể tách 2 commit); deploy Home có Redis rồi làm checklist §8 / §10 của tài liệu; UAT Word thật.

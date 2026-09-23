@@ -29,8 +29,9 @@ export const pool = new Pool({
 // ---- Số liệu pool + truy vấn chậm ----
 const stats = {queries: 0, slow: 0, acquired: 0, waited: 0, wait_ms_total: 0, wait_ms_max: 0, max_waiting: 0, recent_slow: []};
 
-// Nhãn truy vấn = đầu câu SQL (tham số đi riêng qua $1, $2… nên không chứa dữ liệu người dùng).
-const label = text => String(text || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+// Nhãn truy vấn = đầu câu SQL (tham số đi riêng qua $1, $2… nên không chứa dữ liệu người dùng). Tên cột kiểu
+// password / secret / token cũng được che để log vận hành không gợi ý gì về dữ liệu nhạy cảm.
+const label = text => String(text || '').replace(/\s+/g, ' ').trim().slice(0, 120).replace(/\w*(password|secret|token)\w*/gi, '***');
 
 function observe(text, started, ctx) {
   stats.queries++;

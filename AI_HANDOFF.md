@@ -1,6 +1,6 @@
 # AI HANDOFF
 
-Cập nhật: 2026-09-24 · Phiên bản mã: **6.6.6** (V6.6.6.2 đã commit `e243b69`; + V6.6.6.3 chưa commit) (root/backend/frontend + `/api/health`)
+Cập nhật: 2026-09-24 · Phiên bản mã: **6.6.7** (V6.6.6.2 đã commit `e243b69`; + V6.6.6.3 và PERF V6.6.7 chưa commit) (root/backend/frontend + `/api/health`)
 HEAD khi bắt đầu vòng này: `d01b801d129c179314a385796ae1e2f3751db1ba`
 
 ## Trạng thái hiện tại
@@ -18,6 +18,16 @@ Nội dung vòng V6.6.5:
 4. **Gán Bài hàng loạt** theo nhóm YCCĐ, đi qua `persistQuestion`.
 
 **Migration V6.6.5 là additive và đã áp lên DB local.** Máy chủ thật sẽ tự áp khi deploy.
+
+## PERF V6.6.7 — Redis tùy chọn, Supavisor, tối ưu luồng làm bài (đã xong local, chưa commit)
+
+Chi tiết + số đo + checklist server: `docs/PERF_V6_6_7_REDIS_SUPAVISOR.md`.
+- Redis **tùy chọn**: `REDIS_URL` trống / Redis sập thì app vẫn chạy (`/api/health` → `cache: degraded`). Cache catalog / bài giao / dashboard / số đếm; không cache bài làm / đáp án. Thế hệ nội dung đổi khi giáo viên / quản trị ghi thành công.
+- Rate limit dùng store Redis, tự quay về bộ nhớ. **Login theo IP chỉ đếm lượt thất bại** (trước: cả lớp đăng nhập cùng lúc bị 429). Trần IP chỉnh qua `RATE_LIMIT_*`; kiểm NAT bằng `GET /api/practice/operations/client-ip`.
+- bcrypt đăng nhập chạy trong worker thread; tạo bài insert theo lô; Player không tải lại sau khi chốt.
+- Số liệu `/api/practice/operations`: `db.pool`, `db.queries.recent_slow`, `cache`, `rate_limit`, `hash_workers`.
+- Deploy Home: `compose.home.yaml` có service redis (không publish cổng) → thêm khóa PERF từ `.env.home.example` vào `.env.home`, rồi build lại image (gói `redis` mới).
+- Chờ server: Redis thật, Supavisor (`node scripts/perf-db-check.mjs` trong container), k6 staging.
 
 ## V6.6.6.3 — Sửa theo audit `e243b69` (đã xong, chưa commit)
 

@@ -17,7 +17,36 @@ Công cụ: `backend/test/load/quiz-load.mjs`. Công cụ tự dựng DB tạm, 
 
 Học sinh không nghỉ giữa các câu, nên đây là **đo sức chịu**, không phải nhịp làm bài thật. Số liệu JSON nằm ở `artifacts/perf/`.
 
-(Bảng trước / sau — mục 1.1–1.3 điền từ `artifacts/perf/*.json`.)
+Giữa các lượt đo cùng một mã, kết quả lệch khoảng ±30%. Vì vậy chỉ nên tin những chênh lệch lớn hơn mức đó.
+
+### 1.1 80 học sinh (dưới trần IP), đăng nhập 10 lượt / lúc — p50 / p95 (ms)
+
+| API | Trước (`e243b69`) | Sau (3 lượt đo) |
+|---|---|---|
+| Đăng nhập | 1045 / 1533 | **341–378 / 460–529** |
+| Tạo bài | 643 / 820 | 645–791 / 795–961 |
+| Mở bài | 393 / 469 | 369–468 / 423–537 |
+| Lưu nháp | 381 / 520 | 367–425 / 478–941 |
+| Lưu chốt | 427 / 595 | 381–440 / 496–1257 |
+| Tải lại cả bài sau mỗi lần chốt | 431 / 557 (800 lượt) | **bỏ** |
+| Nộp bài | 463 / 567 | 375–539 / 477–653 |
+| Catalog (chưa có Redis) | 1430 / 1923 | 1518–1606 / 1902–2065 |
+| **Pha làm bài (10 câu × 80 HS)** | **13,9 s** | **9,0–11,5 s** |
+| **Tổng** | **27,1 s** | **17,8–19,5 s** |
+
+### 1.2 120 học sinh cùng một IP
+
+| | Trước | Sau |
+|---|---|---|
+| Cả lớp đăng nhập cùng lúc | **70/120 bị 429**; 50 lượt còn lại p50 4,2 s | **0 lỗi**, p50 2,3 s, cả lớp xong trong 4,1 s |
+| Trần API theo IP mặc định (3000/phút) | **120/120 lượt nộp bị 429**, ~40% lượt lưu bị 429 | Cùng trần thì vẫn vậy. Nâng `RATE_LIMIT_API_IP` thì 0 lỗi (đo với 100000) |
+| Pha làm bài (1200 lượt lưu) | — (bị 429) | 13,3 s, lưu p50 ~600 ms |
+
+### 1.3 Chưa đo được ở local
+
+- **Redis thật:** máy local không có Redis / Docker. Phần có Redis mới chỉ được kiểm bằng Redis giả (unit test) và bằng Redis không kết nối được (test tích hợp). Tỉ lệ trúng cache và độ trễ catalog khi có Redis phải đo trên server (§8).
+- **Supavisor:** local nối thẳng PostgreSQL.
+- **Máy chủ thật, nhiều tiến trình, mạng thật:** dùng k6 trên staging (§7).
 
 ## 2. Phát hiện từ baseline (quan trọng hơn Redis)
 
@@ -131,4 +160,82 @@ Cần tài khoản học sinh thử và một chủ đề có đủ câu đã du
 
 ## 10. Checklist hoàn thành (Definition of Done của plan)
 
-(điền cuối)
+| Mục | Trạng thái | Bằng chứng |
+|---|---|---|
+| App vẫn chạy khi Redis sập | **ĐẠT (local)** | `v667-perf`: Redis trỏ vào cổng chết → health `ok` + `cache: degraded`, đăng nhập / làm bài / nộp bình thường. Thử `docker stop redis` trên server: chờ làm. |
+| Redis không mở cổng 6379 | **ĐẠT (cấu hình)** | `compose.home.yaml` không có `ports` cho redis. |
+| Không cache đáp án / bí mật | **ĐẠT** | Chỉ cache catalog, bài giao, dashboard, số đếm (§3). Lượt làm bài / lưu / nộp / câu hỏi có đáp án không đi qua cache. |
+| Rate limit dùng Redis | **ĐẠT (code + unit)** | `FallbackRedisStore` + unit test với Redis giả. Trên server: xem `rate_limit.redis > 0`. |
+| Tỉ lệ trúng cache dữ liệu chung cao, số truy vấn DB giảm | **CHỜ SERVER** | `/api/practice/operations` → `cache.metrics` / `cache.redis.keyspace_*`, `db.queries.count`. |
+| Pool DB không chờ nhiều | **CÓ SỐ LIỆU** | `db.pool.waiting / max_waiting_seen / wait_ms_*`. |
+| p95 tốt hơn hoặc không xấu đi | **ĐẠT (local)** | §1: tổng giảm 28–34%; đăng nhập nhanh gấp 3; không API nào xấu đi vượt mức dao động. |
+| Bộ nhớ Redis có giới hạn, theo dõi được số khóa bị đẩy ra | **ĐẠT (cấu hình)** | `maxmemory` + `allkeys-lru`; `cache.redis.evicted_keys`. |
+| Ghi lại cấu hình Supavisor | **CHỜ SERVER** | Chạy `scripts/perf-db-check.mjs` + đọc `.env` Supabase (§6). |
+| Đo tải 100 / 200 người đạt | **CHỜ STAGING** | `k6-quiz.js` (§7). Local: 120 người làm trọn luồng, 0 lỗi khi trần IP đúng. |
+| Dồn bắt đầu / nộp bài đạt | **ĐẠT (local)** | 120 người bắt đầu cùng lúc: 1,26 s cả lớp; 120 người nộp cùng lúc: 0,89 s. |
+| Trần NAT / IP không chặn nhầm cả lớp | **ĐẠT với đăng nhập; API cần cấu hình** | B1 đã sửa trong code. B3: kiểm `client-ip` rồi chỉnh `RATE_LIMIT_API_IP` (§5). |
+
+## 11. Tệp đổi
+
+**Backend mới:**
+- `services/cache/redis.js`, `services/cache/cache.js`;
+- `middleware/rateLimitStore.js`;
+- `services/passwordHasher.js` + `passwordHasher.worker.js`;
+- `utils/requestContext.js`;
+- `scripts/perf-db-check.mjs`;
+- `test/load/quiz-load.mjs`, `test/load/k6-quiz.js`;
+- `test/practice/cache-v667.test.js`, `test/integration/v667-perf.test.js`.
+
+**Backend sửa:**
+- `db/pool.js`: pool theo biến môi trường, số liệu pool + truy vấn chậm.
+- `middleware/rateLimiter.js`: store Redis, `failureLimiter`, trần theo biến môi trường.
+- `routes/auth.js`: kiểm mật khẩu trong worker.
+- `routes/practice.js`: cache catalog / dashboard / bài giao / số đếm.
+- `routes/practiceAdmin.js`: `client-ip`.
+- `services/practice/attempts.js`: insert theo lô, `is_final`.
+- `services/practice/operations.js`.
+- `server.js`: khởi Redis, thế hệ nội dung, header cache, ngữ cảnh request.
+- `package.json`: thêm `redis@^5`, version 6.6.7.
+
+**Frontend:** `pages/practice/Player.jsx` (không tải lại sau khi chốt, bỏ lượt lưu trùng); version 6.6.7.
+
+**Deploy:** `compose.home.yaml` (service redis), `.env.home.example`, `.env.supabase-lan.example`.
+
+## 12. Biến môi trường mới
+
+| Biến | Mặc định | Ý nghĩa |
+|---|---|---|
+| `REDIS_URL` | trống (tắt) | `redis://redis:6379` trong compose |
+| `REDIS_PREFIX` | `ngh:<APP_PROFILE>` | Tách môi trường khi dùng chung Redis |
+| `REDIS_CACHE_ENABLED` / `REDIS_RATE_LIMIT_ENABLED` | `true` | Tắt riêng từng phần |
+| `REDIS_COMMAND_TIMEOUT_MS` | 300 | Quá ngưỡng → coi như Redis lỗi |
+| `REDIS_CACHE_MAX_BYTES` | 2000000 | Giá trị lớn hơn không cache |
+| `REDIS_MAXMEMORY` (compose) | 256mb | Giới hạn bộ nhớ Redis |
+| `DB_POOL_MAX` / `DB_POOL_IDLE_MS` / `DB_POOL_CONNECT_MS` | 20 / 30000 / 5000 | Pool mỗi tiến trình |
+| `SLOW_QUERY_MS` | 250 | Ngưỡng log truy vấn chậm |
+| `SLOW_QUERY_CONTEXT` | bật | `0` = không gắn request id / route vào log truy vấn chậm |
+| `PASSWORD_WORKERS` | min(4, số nhân − 1) | `0` = kiểm mật khẩu trên luồng chính như cũ |
+| `RATE_LIMIT_LOGIN_IP` / `RATE_LIMIT_API_IP` / `RATE_LIMIT_API_USER` | 50 / 3000 / 300 | Trần rate limit |
+
+## 13. Kiểm chứng (local, chạy từng file một)
+
+| Bộ | Kết quả |
+|---|---|
+| unit (`npm test`) | 124/124 (+9 `cache-v667`) |
+| security | 27/27 |
+| pilot | 34/34 |
+| v63 | 47/50 — đúng 3 lỗi có sẵn #30/#47/#50 |
+| v664-bulk | 12/12 |
+| v665-bootstrap | 7/7 |
+| v665-resolver | 10/10 |
+| v6652-import | 19/19 |
+| v666-workbench | 10/10 |
+| v666-ui-gallery | 1/1 |
+| **v667-perf (mới)** | 5/5 |
+| build frontend | PASS |
+
+Lỗi gặp khi chạy regression và cách sửa:
+- `limiter()` đổi chữ ký làm hỏng test security → giữ tương thích chữ ký cũ.
+- Trang vận hành có khóa `password_workers` → trùng phép kiểm "không nhắc tới password" → đổi thành `hash_workers`, và che tên cột kiểu password / secret / token trong nhãn truy vấn chậm.
+
+Số DB tạm không tăng sau cả vòng: test và công cụ đo tải đều tự dọn.

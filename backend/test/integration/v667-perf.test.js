@@ -138,7 +138,8 @@ test('V667: số liệu vận hành có pool (cỡ theo DB_POOL_MAX), truy vấn
   assert(!JSON.stringify(ops.data.db.queries.recent_slow).includes(pw), 'Không ghi tham số (mật khẩu) vào log');
   assert.equal(ops.data.cache.status, 'degraded');
   assert(ops.data.rate_limit.fallback > 0, 'Redis sập: rate limit đếm trong bộ nhớ');
-  assert(ops.data.password_workers.max >= 1);
+  assert(ops.data.hash_workers.max >= 1);
+  assert(!JSON.stringify(ops.data).includes('password'), 'Trang vận hành không nhắc tới password');
   const ip = await req('GET', '/practice/operations/client-ip', undefined, admin);
   expect(ip, 200);
   assert.match(ip.data.ip, /127\.0\.0\.1|::1/);

@@ -8,7 +8,10 @@ const blocked={error:'Quá nhiều yêu cầu. Vui lòng thử lại sau thời 
 const auditBlocked=req=>audit(req.user?.id||null,'RATE_LIMITED','security',null,{path:req.path},req.ip);
 // PERF V6.6.7: bộ đếm nằm trong Redis khi có (dùng chung giữa các tiến trình, không mất khi khởi động lại),
 // tự quay về bộ nhớ khi Redis không có / lỗi. Mỗi limiter một tên để khóa không lẫn nhau.
-export function limiter(name,windowMs,limit,keyGenerator,skipSuccessfulRequests=false,onBlocked=auditBlocked){
+let unnamed=0;
+export function limiter(...args){
+ // Chữ ký cũ limiter(windowMs,limit,…) vẫn dùng được; limiter không tên thì khóa Redis chỉ riêng tiến trình này.
+ const [name,windowMs,limit,keyGenerator,skipSuccessfulRequests=false,onBlocked=auditBlocked]=typeof args[0]==='string'?args:['local-'+process.pid+'-'+(++unnamed),...args];
  return rateLimit({windowMs,limit,keyGenerator,skipSuccessfulRequests,standardHeaders:true,legacyHeaders:false,store:new FallbackRedisStore(name),
  handler:(req,res)=>{countBlocked(name);void onBlocked(req);res.status(429).json(blocked);}});
 }
