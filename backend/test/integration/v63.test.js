@@ -27,6 +27,9 @@ async function req(method,url,body,actor='admin'){
  const text=await res.text();let data;try{data=JSON.parse(text);}catch{data={text};}return {status:res.status,data};
 }
 const expect=(r,status)=>assert.equal(r.status,status,JSON.stringify(r.data));
+// Đăng nhập (lại) mọi vai. Test trình duyệt V652 đăng xuất thật (token_version+1 = "đăng xuất mọi nơi"), nên token
+// API cũ của cùng tài khoản hết hiệu lực — test chạy sau phải lấy token mới thay vì dùng lại token từ đầu file.
+async function refreshTokens(){for(const actor of Object.keys(users)){const r=await req('POST','/auth/login',{username:'v63_'+actor,password:pw},'none');expect(r,200);tokens[actor]=r.data.token;}}
 test.before(async()=>{
  fs.mkdirSync(dir,{recursive:true});
  const env={...process.env,PGHOST:connection.host,PGPORT:String(connection.port),PGUSER:connection.user,PGPASSWORD:connection.password},dump=path.join(dir,name+'.dump');
@@ -52,9 +55,11 @@ test.before(async()=>{
  await db.query("INSERT INTO user_positions(user_id,position,class_id) VALUES($1,'homeroom',$2),($3,'board',$2)",[users.homeroom,cls,users.board]);
  const uploads=path.join(dir,name+'-uploads');fs.cpSync(path.resolve(process.env.UPLOAD_DIR||'uploads'),uploads,{recursive:true,errorOnExist:true});
  const fd=fs.openSync(path.join(dir,'v63-integration-server.log'),'w');
- server=spawn(process.execPath,['src/server.js'],{env:{...process.env,DB_NAME:name,PORT:'3103',HOST:'127.0.0.1',UPLOAD_DIR:uploads},stdio:['ignore',fd,fd],windowsHide:true});
+ // Cả file chạy nhiều vai qua một tài khoản admin trong vài phút: nới trần 300 request/phút/tài khoản cho server test
+ // (rate limit có test riêng ở test/security và v667-perf), để lỗi 429 không che lỗi thật.
+ server=spawn(process.execPath,['src/server.js'],{env:{...process.env,DB_NAME:name,PORT:'3103',HOST:'127.0.0.1',UPLOAD_DIR:uploads,RATE_LIMIT_API_USER:'100000'},stdio:['ignore',fd,fd],windowsHide:true});
  let ready=false;for(let i=0;i<120;i++){try{if((await fetch(origin+'/api/health',{signal:AbortSignal.timeout(1000)})).ok){ready=true;break;}}catch{}await new Promise(r=>setTimeout(r,250));}assert(ready,'Không chạy được server test');
- for(const actor of Object.keys(users)){const r=await req('POST','/auth/login',{username:'v63_'+actor,password:pw},'none');expect(r,200);tokens[actor]=r.data.token;}
+ await refreshTokens();
  fs.writeFileSync(path.join(dir,'v63-test-database.json'),JSON.stringify({source,test_database:name},null,2));
 });
 test.after(()=>cleanupIntegration({server,db,adminPool:sourcePool,name,dump:path.join(dir,name+'.dump'),uploadsDir:path.join(dir,name+'-uploads')}));
@@ -201,4 +206,4 @@ registerV643(()=>({db,req,users,master,topic,school,cls,origin,pw,dir}));
 registerV65(()=>({db,req,users,master,topic,school,cls,origin,pw,dir}));
 registerV652(()=>({db,req,users,master,topic,school,cls,origin,pw,dir}));
 registerV653(()=>({db,req,users,master,topic,school,cls,origin,pw,dir}));
-registerV66(()=>({db,req,users,master,topic,school,cls,origin,pw,dir}));
+registerV66(()=>({db,req,users,master,topic,school,cls,origin,pw,dir,refreshTokens}));

@@ -304,13 +304,13 @@ HEAD:
 START_HEAD = SHA thực tế sau khi runbook docs-only setup commit đã được push
 
 base ancestor:
-69108dc6befbb4fec3baf2083c99d07d
+69108dc6befbb4fec3baf2083c99d07d3ffbc57d
 ```
 
 Không yêu cầu `HEAD` bằng `69108dc`; commit đó là base follow-up. Ghi SHA thực tế vào report và xác nhận:
 
 ```bash
-git merge-base --is-ancestor 69108dc6befbb4fec3baf2083c99d07d HEAD
+git merge-base --is-ancestor 69108dc6befbb4fec3baf2083c99d07d3ffbc57d HEAD
 ```
 
 lệnh phải trả exit code `0`.

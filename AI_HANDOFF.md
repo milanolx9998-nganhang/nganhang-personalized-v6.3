@@ -12,10 +12,11 @@ Cập nhật: 2026-09-24 · Phiên bản mã: **6.6.7**
   - PERF documentation.
 - Sau base có:
   - commit docs-only thêm `docs/RUNBOOK_SIEU_CHI_TIET_AI_PERF_V6.6.7.1_PRE_MERGE.md`;
-  - commit pre-merge hardening (handoff này + k6 release-gate 2m/5m/1m).
+  - commit pre-merge hardening `3ed2257` (handoff này + k6 release-gate 2m/5m/1m);
+  - commit sửa 3 test v63 tồn lâu năm (nay 50/50), thêm `backend/scripts/data-health.mjs` (báo cáo dữ liệu, chỉ đọc) và hướng dẫn deploy cho AI trên máy Ubuntu `docs/HUONG_DAN_AI_UBUNTU_DEPLOY_V6.6.7.1.md`.
 
   HEAD hiện tại của branch: xem `git log perf-v6671-followup` (không ghi cứng ở đây để khỏi cũ).
-- Branch **chưa merge `main`, chưa auto-deploy**. Chờ audit cuối; chỉ merge sau audit.
+- Branch **chưa merge `main`, chưa auto-deploy**. Deploy + sửa dữ liệu do AI trên máy Ubuntu làm theo `docs/HUONG_DAN_AI_UBUNTU_DEPLOY_V6.6.7.1.md`: push fast-forward `main` → CI "Verify & Deploy" → `data-health` → seed KHTN7 nếu thiếu. Nhánh không đổi `backend/src` / `frontend/src` / SQL.
 
 **PERF DoD: NOT DONE.** Không chạy load test trên production.
 
@@ -177,8 +178,10 @@ trách chương trình rà hai dòng này trước khi nạp vào môi trường
    sang SSH/credential helper. Tồn từ vòng V6.6.4, **vẫn chưa xử lý**.
 2. **Nghiệm thu máy chủ chưa chạy** — `SERVER_DEPLOY_UAT_NOT_RUN`, `ROOT_CAUSE_NOT_CONFIRMED` cho sự cố
    deploy run `35674256160`. Vòng V6.6.5 chủ động gác hạ tầng: `DEFERRED_INFRA_NOT_BLOCKING_UX_V665`.
-3. **3 test tích hợp fail có sẵn từ trước** (đo baseline trên HEAD sạch `331be20`): hai Playwright
-   timeout và một 401 phiên đăng nhập ở test competency V66. Chưa điều tra.
+3. ~~3 test tích hợp fail có sẵn từ trước~~ — **đã sửa (2026-09-24)**, v63 50/50. Cả 3 đều là lỗi test, không phải lỗi app:
+   - #30 chờ giao diện Kho cũ (trước V6.6.4) → cập nhật theo bàn làm việc.
+   - #47 dùng token học sinh đã bị V652 đăng xuất ("đăng xuất mọi nơi") → `refreshTokens()`.
+   - #50 là lỗi dây chuyền. Thêm: server test v63 nới `RATE_LIMIT_API_USER` để 429 không che lỗi thật.
 
 ## Kiểm chứng đã chạy
 
@@ -214,7 +217,7 @@ tích hợp gây fail dây chuyền giả. Chạy từng file một.
 3. Nạp thật bộ 4 workbook KHTN chính thức qua hồ sơ tin cậy vào một phiên bản chương trình.
 4. Nối `inferNumberingMode()` vào đường ghi khi commit lô nhập (hiện chỉ dùng ở tầng kiểm tra).
 5. Viết Playwright E2E riêng cho toàn luồng V6.6.5 và chụp bộ ảnh UX.
-6. Điều tra 3 test tích hợp lỗi có sẵn.
+6. ~~Điều tra 3 test tích hợp lỗi có sẵn~~ — xong, v63 50/50.
 7. Lấy `journalctl` trên máy chủ để kết luận sự cố deploy; đóng gói release (releases/ còn ở v6.5.3).
 
 ## Quy ước cho AI agent (2026-09-23)

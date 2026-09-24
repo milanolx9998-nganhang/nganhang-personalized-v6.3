@@ -356,3 +356,32 @@ thu hồi PAT GitHub; commit khi user yêu cầu; deploy xong chạy `npm run mi
 **Chưa làm / cần server:** Redis thật (tỉ lệ trúng cache, thử `docker stop redis`), Supavisor (`perf-db-check`), kiểm NAT bằng `client-ip`, k6 staging 100/200 + soak. Chưa commit (V6.6.6.3 cũng chưa commit). Codegraph chưa rebuild (không có `codegraph.py`).
 
 **Việc tiếp theo:** user commit V6.6.6.3 + V6.6.7 (có thể tách 2 commit); deploy Home có Redis rồi làm checklist §8 / §10 của tài liệu; UAT Word thật.
+
+## 2026-09-24 — V6.6.7.1 pre-merge: runbook `perf-v6671-followup` + sửa 3 test v63 + hướng dẫn deploy cho AI Ubuntu
+
+**Yêu cầu:**
+- "CHECK và làm đi": làm runbook `docs/RUNBOOK_SIEU_CHI_TIET_AI_PERF_V6.6.7.1_PRE_MERGE.md` trên clone Windows.
+- Sau đó "fix full" + viết 1 file hướng dẫn cho AI quản lý Supabase self-host (Ubuntu) kéo git về deploy và sửa dữ liệu.
+
+**Kiểm báo cáo dán vào:**
+- Khớp: `5fe2d88` có parent `69108dc`; `origin/main` = `423be0c`.
+- Cảnh báo "1 file edit FAILED" trỏ vào đường dẫn gõ sai, runbook vẫn đủ 1836 dòng.
+- Runbook có SHA bị cắt 32 ký tự → đã sửa.
+
+**Vòng runbook:** commit `3ed2257` (parent = `5fe2d88`), push nhánh phụ.
+- `AI_HANDOFF` bỏ câu "local chưa commit" đã cũ.
+- k6 load50/100/200 → 2 phút / 5 phút / 1 phút; ngưỡng, burst, soak giữ nguyên.
+- Kiểm: unit 125/125, security 27/27, build OK. systemd / compose / runtime: SKIPPED_ENVIRONMENT (Windows). K6 NOT_RUN.
+
+**Fix full:**
+- 3 test v63 lỗi từ lâu, cả 3 là lỗi test chứ không phải lỗi app:
+  - #30 chờ tiêu đề Kho cũ → cập nhật theo bàn làm việc ("Xem kỹ", tab "Cần xem kỹ");
+  - #47: V652 đăng xuất học sinh thật (`token_version+1`) nên token API cũ hết hiệu lực → `refreshTokens()` trước V66;
+  - #50 lỗi dây chuyền; lộ thêm 429 (300 request/phút/admin) → server test v63 đặt `RATE_LIMIT_API_USER=100000`.
+  - Kết quả v63 **50/50**.
+- Mới: `backend/scripts/data-health.mjs` (chỉ đọc): so migration với `app_migrations` (tên + checksum), kiểm schema V6.6.x, nhóm ngoại lệ, câu chưa gắn Bài, liên kết Bài↔YCCĐ theo môn/khối, hồ sơ mở, thao tác hoàn tác, DB tạm của test. Mã thoát 3 = chặn. Đã chạy trên DB local.
+- Mới: `docs/HUONG_DAN_AI_UBUNTU_DEPLOY_V6.6.7.1.md`: preflight, kiểm riêng máy Home (worktree tạm), backup, push fast-forward `main` → CI deploy, rollback bằng revert, sửa dữ liệu D1–D6 (migrate, seed KHTN7 dry-run → apply, DB tạm, chất lượng câu → báo giáo viên, cấu hình), khung báo cáo.
+
+**Lưu ý kỹ thuật cho deploy:** `deploy-server.sh` lấy `PREVIOUS_SHA` từ HEAD của thư mục deploy và reset nhánh đang checkout. Vì vậy máy Home phải đứng ở `main` = bản đang chạy, và đưa `main` lên bằng push, không merge tại chỗ; nếu không, rollback mất tác dụng. Nhánh không đổi `backend/src` / `frontend/src` / SQL so với `main`.
+
+**Chưa làm (cần máy Home / người):** deploy + dữ liệu theo hướng dẫn; k6 staging; UAT Word thật; thu hồi PAT.

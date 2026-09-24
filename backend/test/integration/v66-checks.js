@@ -3,7 +3,8 @@ import fs from 'node:fs';import path from 'node:path';
 import {chromium} from 'playwright';
 export function registerV66(context){
  test('V66: năng lực có phân quyền, khung bất biến và dữ liệu thiếu không thành 0',async()=>{
-  const {req,master,users}=context();
+  const {req,master,users,refreshTokens}=context();
+  await refreshTokens(); // V652 đã đăng xuất học sinh trên trình duyệt → token cũ hết hiệu lực.
   let r=await req('POST','/competency/frameworks',{subject_id:master.subject_id,grade_from:7,grade_to:7,code:'TEST-KHTN',title:'Khung KHTN kiểm thử',source:'Master Prompt — dữ liệu test',version:'test-1',template:'KHTN'});assert.equal(r.status,201,JSON.stringify(r.data));const f=r.data;
   assert.equal((await req('POST',`/competency/frameworks/${f.id}/publish`,{revision:f.revision,confirmed:true,reason:'Kiểm thử quyền'},'teacher')).status,403);
   r=await req('GET','/competency/frameworks');assert.equal(r.status,200);const axes=r.data.frameworks.find(x=>x.id===f.id).axes;assert.equal(axes.length,3);assert(!axes[1].allowed_evidence.includes('AUTO_GRADED_ITEM'));
