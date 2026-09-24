@@ -273,6 +273,7 @@ for (const grade of GRADES) {
   }
   if (r.lessonsWithout.length) report.push(`### Bài trong SGK chưa có YCCĐ trong seed: ${r.lessonsWithout.join(', ')}`, '');
 }
-fs.writeFileSync(REPORT, report.join('\n') + '\n');
+// Không để khoảng trắng cuối dòng (câu bị cắt ngắn) hay dòng trống thừa cuối tệp — git diff --check phải sạch.
+fs.writeFileSync(REPORT, report.map(line => line.replace(/\s+$/, '')).join('\n').replace(/\n+$/, '') + '\n');
 console.table(summary);
 console.log('Báo cáo:', REPORT);

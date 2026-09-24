@@ -1,6 +1,6 @@
 # Rà soát seed Bài ↔ YCCĐ KHTN 6–9
 
-Sinh tự động bởi `backend/scripts/build-khtn-lesson-seed.mjs` lúc 2026-09-24T08:09:12.731Z.
+Sinh tự động bởi `backend/scripts/build-khtn-lesson-seed.mjs` lúc 2026-09-24T08:12:23.543Z.
 Nguồn: KHDH 26-27 của trường (Tên bài ↔ Yêu cầu cần đạt), workbook Outcome/YCCĐ chính thức, mục lục SGK KNTT.
 
 ## Khối 6
@@ -314,7 +314,7 @@ Nguồn: KHDH 26-27 của trường (Tên bài ↔ Yêu cầu cần đạt), wor
 
 ### YCCĐ chính thức chưa gắn Bài nào (18)
 
-- H.6.2 — Nêu được sự hình thành liên kết cộng hoá trị theo nguyên tắc dùng chung electron để tạo ra lớp vỏ electron của nguyên tố khí hiếm (Áp dụng được cho các phân tử 
+- H.6.2 — Nêu được sự hình thành liên kết cộng hoá trị theo nguyên tắc dùng chung electron để tạo ra lớp vỏ electron của nguyên tố khí hiếm (Áp dụng được cho các phân tử
 - S.2.3 — Vẽ được sơ đồ diễn tả quang hợp diễn ra ở lá cây, qua đó nêu được quan hệ giữa trao đổi chất và chuyển hoá năng lượng.
 - S.3.1 — . Mô tả được một cách tổng quát quá trình hô hấp ở tế bào (ở thực vật và động vật): Nêu được khái niệm
 - S.3.4 — Vận dụng hiểu biết về hô hấp tế bào trong thực tiễn (ví dụ: bảo quản hạt cần phơi khô,...).
@@ -591,4 +591,3 @@ Nguồn: KHDH 26-27 của trường (Tên bài ↔ Yêu cầu cần đạt), wor
 ### Ô KHDH gộp nhiều Bài — chưa chắc Bài nào, mặc định KHÔNG nạp (1)
 
 - Bài 34. Khai thác đá vôi. Công nghiệp silicate ← H.6.1 — Trình bày được nguồn đá vôi, thành phần chính của đá vôi trong tự nhiên; các ứng dụng từ đá vôi: sản phẩm đá vôi nghiền, calcium oxide, calc
-
