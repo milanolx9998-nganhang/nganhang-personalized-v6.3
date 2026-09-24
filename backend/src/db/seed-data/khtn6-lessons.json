@@ -1,0 +1,885 @@
+{
+ "source": "KHDH 26-27 (NB_26-27_KHDH_KHTN_Khối 6.xlsx) + Outcome_YCCD_KHTN_6.xlsx + Tổng quan SGK KNTT",
+ "curriculum": "Chương trình GDPT 2018 môn Khoa học tự nhiên — TT 32/2018/TT-BGDĐT",
+ "subject_code": "KHTN",
+ "grade": 6,
+ "note": "Nguyên văn YCCĐ lấy từ workbook chính thức (tách bằng normalizeSourceRows). Bài ↔ YCCĐ theo KHDH của trường; đối chiếu với database bằng nguyên văn, không bằng số.",
+ "lessons": [
+  {
+   "lesson_no": 1,
+   "chapter": "Chương I – Mở đầu về Khoa học tự nhiên",
+   "name": "Bài 1. Giới thiệu về Khoa học tự nhiên",
+   "sgk_page": 7,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 1,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Nêu được khái niệm Khoa học tự nhiên."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 1,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Dựa vào các đặc điểm đặc trưng, phân biệt được vật sống và vật không sống."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 1,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Phân biệt được các lĩnh vực Khoa học tự nhiên dựa vào đối tượng nghiên cứu."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 1,
+     "stt": 4,
+     "matched_by": "exact",
+     "text": "Trình bày được vai trò của KHTN trong cuộc sống."
+    }
+   ]
+  },
+  {
+   "lesson_no": 2,
+   "chapter": "Chương I – Mở đầu về Khoa học tự nhiên",
+   "name": "Bài 2. An toàn trong phòng thực hành",
+   "sgk_page": 11,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 2,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Nêu được các quy định an toàn khi học trong phòng thực hành."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 2,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Phân biệt được các kí hiệu cảnh báo trong phòng thực hành."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 2,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Đọc và phân biệt được các hình ảnh quy định an toàn phòng thực hành."
+    }
+   ]
+  },
+  {
+   "lesson_no": 4,
+   "chapter": "Chương I – Mở đầu về Khoa học tự nhiên",
+   "name": "Bài 4. Sử dụng kính hiển vi quang học",
+   "sgk_page": 15,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 3,
+     "stt": 1,
+     "matched_by": "fuzzy",
+     "text": "Biết cách sử dụng kính lúp và kính hiển vi quang học."
+    }
+   ]
+  },
+  {
+   "lesson_no": 5,
+   "chapter": "Chương I – Mở đầu về Khoa học tự nhiên",
+   "name": "Bài 5. Đo chiều dài",
+   "sgk_page": 17,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 1,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Nêu được cách đo, đơn vị đo và dụng cụ thường dùng để đo chiều dài"
+    },
+    {
+     "branch_code": "L",
+     "outcome": 1,
+     "stt": 6,
+     "matched_by": "fuzzy",
+     "text": "Dùng thước, cân, đồng hồ, nhiệt kế để chỉ ra một số thao tác sai khi đo và nêu được cách khắc phục một số thao tác sai đó."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 1,
+     "stt": 9,
+     "matched_by": "fuzzy",
+     "text": "Hiểu được tầm quan trọng của việc ước lượng trước khi đo; ước lượng được khối lượng, chiều dài, thời gian, nhiệt độ trong một số trường hợp đơn giản."
+    }
+   ]
+  },
+  {
+   "lesson_no": 6,
+   "chapter": "Chương I – Mở đầu về Khoa học tự nhiên",
+   "name": "Bài 6. Đo khối lượng",
+   "sgk_page": 20,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 1,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Nêu được cách đo, đơn vị đo và dụng cụ thường dùng để đo khối lượng."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 1,
+     "stt": 6,
+     "matched_by": "fuzzy",
+     "text": "Dùng thước, cân, đồng hồ, nhiệt kế để chỉ ra một số thao tác sai khi đo và nêu được cách khắc phục một số thao tác sai đó."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 1,
+     "stt": 9,
+     "matched_by": "fuzzy",
+     "text": "Hiểu được tầm quan trọng của việc ước lượng trước khi đo; ước lượng được khối lượng, chiều dài, thời gian, nhiệt độ trong một số trường hợp đơn giản."
+    }
+   ]
+  },
+  {
+   "lesson_no": 7,
+   "chapter": "Chương I – Mở đầu về Khoa học tự nhiên",
+   "name": "Bài 7. Đo thời gian",
+   "sgk_page": 22,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 1,
+     "stt": 4,
+     "matched_by": "exact",
+     "text": "Nêu được cách đo, đơn vị đo và dụng cụ thường dùng để đo thời gian."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 1,
+     "stt": 6,
+     "matched_by": "fuzzy",
+     "text": "Dùng thước, cân, đồng hồ, nhiệt kế để chỉ ra một số thao tác sai khi đo và nêu được cách khắc phục một số thao tác sai đó."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 1,
+     "stt": 9,
+     "matched_by": "fuzzy",
+     "text": "Hiểu được tầm quan trọng của việc ước lượng trước khi đo; ước lượng được khối lượng, chiều dài, thời gian, nhiệt độ trong một số trường hợp đơn giản."
+    }
+   ]
+  },
+  {
+   "lesson_no": 8,
+   "chapter": "Chương I – Mở đầu về Khoa học tự nhiên",
+   "name": "Bài 8. Đo nhiệt độ",
+   "sgk_page": 24,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 1,
+     "stt": 7,
+     "matched_by": "exact",
+     "text": "Nêu được cách xác định nhiệt độ trong thang nhiệt độ Celsius."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 1,
+     "stt": 8,
+     "matched_by": "exact",
+     "text": "Nêu được sự nở vì nhiệt của chất lỏng được dùng làm cơ sở để đo nhiệt độ."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 1,
+     "stt": 9,
+     "matched_by": "fuzzy",
+     "text": "Hiểu được tầm quan trọng của việc ước lượng trước khi đo; ước lượng được khối lượng, chiều dài, thời gian, nhiệt độ trong một số trường hợp đơn giản."
+    }
+   ]
+  },
+  {
+   "lesson_no": 10,
+   "chapter": "Chương II – Chất quanh ta",
+   "name": "Bài 10. Các thể của chất và sự chuyển thể",
+   "sgk_page": 30,
+   "branch_code": "H",
+   "yccd": [
+    {
+     "branch_code": "H",
+     "outcome": 4,
+     "stt": 1,
+     "matched_by": "fuzzy",
+     "text": "Nêu được khái niệm về sự nóng chảy; sự sôi; sự bay hơi; sự ngưng tụ, đông đặc."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 4,
+     "stt": 3,
+     "matched_by": "fuzzy",
+     "text": "Trình bày được quá trình diễn ra sự chuyển thể (trạng thái): nóng chảy, đông đặc; bay hơi, ngưng tụ; sôi."
+    }
+   ]
+  },
+  {
+   "lesson_no": 11,
+   "chapter": "Chương II – Chất quanh ta",
+   "name": "Bài 11. Oxygen. Không khí",
+   "sgk_page": 36,
+   "branch_code": "H",
+   "yccd": [
+    {
+     "branch_code": "H",
+     "outcome": 5,
+     "stt": 2,
+     "matched_by": "fuzzy",
+     "text": "Nêu được tầm quan trọng của oxygen đối với sự sống, sự cháy và quá trình đốt nhiên liệu."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 6,
+     "stt": 3,
+     "matched_by": "fuzzy",
+     "text": "Trình bày được vai trò của không khí đối với tự nhiên."
+    }
+   ]
+  },
+  {
+   "lesson_no": 12,
+   "chapter": "Chương III – Một số vật liệu, nguyên liệu, nhiên liệu, lương thực – thực phẩm thông dụng",
+   "name": "Bài 12. Một số vật liệu",
+   "sgk_page": 42,
+   "branch_code": "H",
+   "yccd": [
+    {
+     "branch_code": "H",
+     "outcome": 8,
+     "stt": 1,
+     "matched_by": "contain",
+     "text": "Trình bày được tính chất và ứng dụng của một số vật liệu."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 8,
+     "stt": 2,
+     "matched_by": "contain",
+     "text": "Đề xuất được phương án tìm hiểu về một số tính chất của một số vật liệu"
+    }
+   ]
+  },
+  {
+   "lesson_no": 13,
+   "chapter": "Chương III – Một số vật liệu, nguyên liệu, nhiên liệu, lương thực – thực phẩm thông dụng",
+   "name": "Bài 13. Một số nguyên liệu",
+   "sgk_page": 46,
+   "branch_code": "H",
+   "yccd": [
+    {
+     "branch_code": "H",
+     "outcome": 8,
+     "stt": 2,
+     "matched_by": "fuzzy",
+     "text": "Đề xuất được phương án tìm hiểu về một số tính chất của một số vật liệu"
+    }
+   ]
+  },
+  {
+   "lesson_no": 14,
+   "chapter": "Chương III – Một số vật liệu, nguyên liệu, nhiên liệu, lương thực – thực phẩm thông dụng",
+   "name": "Bài 14. Một số nhiên liệu",
+   "sgk_page": 50,
+   "branch_code": "H",
+   "yccd": [
+    {
+     "branch_code": "H",
+     "outcome": 8,
+     "stt": 2,
+     "matched_by": "fuzzy",
+     "text": "Đề xuất được phương án tìm hiểu về một số tính chất của một số vật liệu"
+    }
+   ]
+  },
+  {
+   "lesson_no": 15,
+   "chapter": "Chương III – Một số vật liệu, nguyên liệu, nhiên liệu, lương thực – thực phẩm thông dụng",
+   "name": "Bài 15. Một số lương thực, thực phẩm",
+   "sgk_page": 52,
+   "branch_code": "H",
+   "yccd": [
+    {
+     "branch_code": "H",
+     "outcome": 12,
+     "stt": 1,
+     "matched_by": "contain",
+     "text": "Trình bày được tính chất và ứng dụng của một số lương thực, thực phẩm."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 12,
+     "stt": 3,
+     "matched_by": "fuzzy",
+     "text": "Đề xuất phương án tìm hiểu tính chất của một số lương thực, thực phẩm."
+    }
+   ]
+  },
+  {
+   "lesson_no": 16,
+   "chapter": "Chương IV – Hỗn hợp. Tách chất ra khỏi hỗn hợp",
+   "name": "Bài 16. Hỗn hợp các chất",
+   "sgk_page": 56,
+   "branch_code": "H",
+   "yccd": [
+    {
+     "branch_code": "H",
+     "outcome": 15,
+     "stt": 1,
+     "matched_by": "fuzzy",
+     "text": "Phân biệt được hỗn hợp đồng nhất, hỗn hợp không đồng nhất."
+    }
+   ]
+  },
+  {
+   "lesson_no": 18,
+   "chapter": "Chương V – Tế bào",
+   "name": "Bài 18. Tế bào – Đơn vị cơ bản của sự sống",
+   "sgk_page": 64,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 4,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Nêu được khái niệm tế bào, chức năng của tế bào."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 4,
+     "stt": 2,
+     "matched_by": "fuzzy",
+     "text": "Nhận biết được tế bào là đơn vị cấu trúc của sự sống."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 4,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Nêu được hình dạng và kích thước của một số loại tế bào."
+    }
+   ]
+  },
+  {
+   "lesson_no": 19,
+   "chapter": "Chương V – Tế bào",
+   "name": "Bài 19. Cấu tạo và chức năng các thành phần của tế bào",
+   "sgk_page": 67,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 4,
+     "stt": 4,
+     "matched_by": "fuzzy",
+     "text": "Trình bày được cấu tạo và chức năng các thành phần chính của tế bào"
+    },
+    {
+     "branch_code": "S",
+     "outcome": 4,
+     "stt": 5,
+     "matched_by": "fuzzy",
+     "text": "Phân biệt được tế bào nhân sơ, tế bào nhân thực, tế bào động vật, tế bào thực vật."
+    }
+   ]
+  },
+  {
+   "lesson_no": 20,
+   "chapter": "Chương V – Tế bào",
+   "name": "Bài 20. Sự lớn lên và sinh sản của tế bào",
+   "sgk_page": 70,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 4,
+     "stt": 6,
+     "matched_by": "contain",
+     "text": "Nhận biết được sự lớn lên và sinh sản của tế bào"
+    },
+    {
+     "branch_code": "S",
+     "outcome": 4,
+     "stt": 7,
+     "matched_by": "exact",
+     "text": "Nêu được ý nghĩa của sự lớn lên và sinh sản của tế bào."
+    }
+   ]
+  },
+  {
+   "lesson_no": 21,
+   "chapter": "Chương V – Tế bào",
+   "name": "Bài 21. Thực hành: Quan sát và phân biệt một số loại tế bào",
+   "sgk_page": 73,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 4,
+     "stt": 8,
+     "matched_by": "fuzzy",
+     "text": "Thực hành quan sát tế bào lớn bằng mắt thường và tế bào nhỏ bằng kính hiển vi quang học."
+    }
+   ]
+  },
+  {
+   "lesson_no": 22,
+   "chapter": "Chương VI – Từ tế bào đến cơ thể",
+   "name": "Bài 22. Cơ thể sinh vật",
+   "sgk_page": 75,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 5,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Nhận biết được cơ thể sống."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 5,
+     "stt": 2,
+     "matched_by": "fuzzy",
+     "text": "Nhận biết được cơ thể đơn bào và cơ thể đa bào . Lấy được ví dụ minh hoạ (cơ thể đơn bào: vi khuẩn, tảo đơn bào,...; cơ thể đa bào: thực vật, động vật,...)."
+    }
+   ]
+  },
+  {
+   "lesson_no": 24,
+   "chapter": "Chương VI – Từ tế bào đến cơ thể",
+   "name": "Bài 24. Thực hành: Quan sát và mô tả cơ thể đơn bào, cơ thể đa bào",
+   "sgk_page": 83,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 5,
+     "stt": 6,
+     "matched_by": "contain",
+     "text": "Quan sát mô hình và mô tả được cấu tạo cơ thể người."
+    }
+   ]
+  },
+  {
+   "lesson_no": 25,
+   "chapter": "Chương VII – Đa dạng thế giới sống",
+   "name": "Bài 25. Hệ thống phân loại sinh vật",
+   "sgk_page": 86,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 6,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Nêu được sự cần thiết của việc phân loại thế giới sống."
+    }
+   ]
+  },
+  {
+   "lesson_no": 26,
+   "chapter": "Chương VII – Đa dạng thế giới sống",
+   "name": "Bài 26. Khoá lưỡng phân",
+   "sgk_page": 90,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 6,
+     "stt": 5,
+     "matched_by": "contain",
+     "text": "Thực hành xây dựng được khóa lưỡng phân với đối tượng sinh vật."
+    }
+   ]
+  },
+  {
+   "lesson_no": 27,
+   "chapter": "Chương VII – Đa dạng thế giới sống",
+   "name": "Bài 27. Vi khuẩn",
+   "sgk_page": 92,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 7,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Nêu được một số vai trò và ứng dụng của vi khuẩn trong thực tiễn."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 7,
+     "stt": 3,
+     "matched_by": "part",
+     "text": "Nêu được một số bệnh do vi khuẩn gây ra và trình bày được cách phòng, tránh bệnh."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 7,
+     "stt": 6,
+     "matched_by": "split",
+     "text": "Biết cách làm sữa chua."
+    }
+   ]
+  },
+  {
+   "lesson_no": 28,
+   "chapter": "Chương VII – Đa dạng thế giới sống",
+   "name": "Bài 28. Thực hành: Làm sữa chua và quan sát vi khuẩn",
+   "sgk_page": 96,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 7,
+     "stt": 5,
+     "matched_by": "fuzzy",
+     "text": "Thực hành quan sát vi khuẩn bằng kính hiển vi và vẽ lại hình quan sát được."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 7,
+     "stt": 6,
+     "matched_by": "exact",
+     "text": "Biết cách làm sữa chua."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 8,
+     "stt": 2,
+     "matched_by": "contain",
+     "text": "Phân biệt được virus và vi khuẩn."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 8,
+     "stt": 4,
+     "matched_by": "part",
+     "text": "Nêu được một số bệnh do virus gây ra và trình bày được cách phòng tránh bệnh."
+    }
+   ]
+  },
+  {
+   "lesson_no": 30,
+   "chapter": "Chương VII – Đa dạng thế giới sống",
+   "name": "Bài 30. Nguyên sinh vật",
+   "sgk_page": 102,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 8,
+     "stt": 2,
+     "matched_by": "contain",
+     "text": "Phân biệt được virus và vi khuẩn."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 8,
+     "stt": 4,
+     "matched_by": "part",
+     "text": "Nêu được một số bệnh do virus gây ra và trình bày được cách phòng tránh bệnh."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 9,
+     "stt": 1,
+     "matched_by": "contain",
+     "text": "Nhận biết được một số đối tượng nguyên sinh vật."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 9,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Dựa vào hình thái, nêu được sự đa dạng của nguyên sinh vật."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 9,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": ". Nêu được một số bệnh do nguyên sinh vật gây nên. Trình bày được cách phòng và chống bệnh do nguyên sinh vật gây ra."
+    }
+   ]
+  },
+  {
+   "lesson_no": 31,
+   "chapter": "Chương VII – Đa dạng thế giới sống",
+   "name": "Bài 31. Thực hành: Quan sát nguyên sinh vật",
+   "sgk_page": 106,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 9,
+     "stt": 4,
+     "matched_by": "exact",
+     "text": "Thực hành quan sát và vẽ được hình nguyên sinh vật dưới kính lúp hoặc kính hiển vi."
+    }
+   ]
+  },
+  {
+   "lesson_no": 33,
+   "chapter": "Chương VII – Đa dạng thế giới sống",
+   "name": "Bài 33. Thực hành: Quan sát các loại nấm",
+   "sgk_page": 112,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 10,
+     "stt": 5,
+     "matched_by": "exact",
+     "text": "Thông qua thực hành, quan sát và vẽ được hình nấm (quan sát bằng mắt thường hoặc kính lúp,...)."
+    }
+   ]
+  },
+  {
+   "lesson_no": 35,
+   "chapter": "Chương VII – Đa dạng thế giới sống",
+   "name": "Bài 35. Thực hành: Quan sát và phân biệt một số nhóm thực vật",
+   "sgk_page": 123,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 11,
+     "stt": 4,
+     "matched_by": "fuzzy",
+     "text": "Quan sát hình ảnh, mẫu vật và phân chia được vào các nhóm theo tiêu chí đã học."
+    }
+   ]
+  },
+  {
+   "lesson_no": 36,
+   "chapter": "Chương VII – Đa dạng thế giới sống",
+   "name": "Bài 36. Động vật",
+   "sgk_page": 125,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 12,
+     "stt": 1,
+     "matched_by": "contain",
+     "text": "Phân biệt được hai nhóm động vật không xương sống và có xương sống."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 12,
+     "stt": 3,
+     "matched_by": "fuzzy",
+     "text": "Nêu được vai trò và một số tác hại của động vật trong đời sống."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 12,
+     "stt": 4,
+     "matched_by": "fuzzy",
+     "text": "Thực hành quan sát và kể tên một số động vật quan sát được ngoài thiên nhiên."
+    }
+   ]
+  },
+  {
+   "lesson_no": 38,
+   "chapter": "Chương VII – Đa dạng thế giới sống",
+   "name": "Bài 38. Đa dạng sinh học",
+   "sgk_page": 135,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 13,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Nêu được vai trò của đa dạng sinh học trong tự nhiên và trong thực tiễn (làm thuốc, làm thức ăn, chỗ ở, bảo vệ môi trường,...)."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 13,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Giải thích được vì sao cần bảo vệ đa dạng sinh học."
+    }
+   ]
+  },
+  {
+   "lesson_no": 39,
+   "chapter": "Chương VII – Đa dạng thế giới sống",
+   "name": "Bài 39. Tìm hiểu sinh vật ngoài thiên nhiên",
+   "sgk_page": 139,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 13,
+     "stt": 4,
+     "matched_by": "contain",
+     "text": "Thực hiện được một số phương pháp tìm hiểu sinh vật ngoài thiên nhiên."
+    }
+   ]
+  },
+  {
+   "lesson_no": 42,
+   "chapter": "Chương VIII – Lực trong đời sống",
+   "name": "Bài 42. Biến dạng của lò xo",
+   "sgk_page": 151,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 6,
+     "stt": 1,
+     "matched_by": "fuzzy",
+     "text": "Nêu được độ giãn của lò xo treo thẳng đứng tỉ lệ với khối lượng của vật treo."
+    }
+   ]
+  },
+  {
+   "lesson_no": 44,
+   "chapter": "Chương VIII – Lực trong đời sống",
+   "name": "Bài 44. Lực ma sát",
+   "sgk_page": 157,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 3,
+     "stt": 3,
+     "matched_by": "split",
+     "text": "Lấy được ví dụ về một số ảnh hưởng của lực ma sát trong an toàn giao thông đường bộ."
+    }
+   ]
+  },
+  {
+   "lesson_no": 46,
+   "chapter": "Chương IX – Năng lượng",
+   "name": "Bài 46. Năng lượng và sự truyền năng lượng",
+   "sgk_page": 162,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 7,
+     "stt": 1,
+     "matched_by": "fuzzy",
+     "text": "Lấy được ví dụ để chứng tỏ năng lượng đặc trưng cho khả năng tác dụng lực."
+    }
+   ]
+  },
+  {
+   "lesson_no": 48,
+   "chapter": "Chương IX – Năng lượng",
+   "name": "Bài 48. Sự chuyển hoá năng lượng",
+   "sgk_page": 168,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 8,
+     "stt": 2,
+     "matched_by": "contain",
+     "text": "Lấy ví dụ chứng tỏ được: Năng lượng có thể chuyển từ dạng này sang dạng khác, từ vật này sang vật khác."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 8,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Nêu được định luật bảo toàn năng lượng và lấy được ví dụ minh hoạ."
+    }
+   ]
+  },
+  {
+   "lesson_no": 49,
+   "chapter": "Chương IX – Năng lượng",
+   "name": "Bài 49. Năng lượng hao phí",
+   "sgk_page": 171,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 9,
+     "stt": 1,
+     "matched_by": "fuzzy",
+     "text": "Nêu được: Năng lượng hao phí luôn xuất hiện khi năng lượng được chuyển từ dạng này sang dạng khác, từ vật này sang vật khác."
+    }
+   ]
+  },
+  {
+   "lesson_no": 52,
+   "chapter": "Chương X – Trái Đất và bầu trời",
+   "name": "Bài 52. Chuyển động nhìn thấy của Mặt Trời. Thiên thể",
+   "sgk_page": 179,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 12,
+     "stt": 1,
+     "matched_by": "grouped_named",
+     "text": "Giải thích được một cách định tính và sơ lược: từ Trái Đất thấy Mặt Trời mọc và lặn hằng ngày."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 13,
+     "stt": 1,
+     "matched_by": "grouped_named",
+     "text": "Nêu được Mặt Trời và sao là các thiên thể phát sáng; Mặt Trăng, các hành tinh và sao chổi phản xạ ánh sáng Mặt Trời."
+    }
+   ]
+  },
+  {
+   "lesson_no": 54,
+   "chapter": "Chương X – Trái Đất và bầu trời",
+   "name": "Bài 54. Hệ Mặt Trời",
+   "sgk_page": 187,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 14,
+     "stt": 1,
+     "matched_by": "part",
+     "text": "Mô tả được sơ lược cấu trúc của hệ Mặt Trời, nêu được các hành tinh cách Mặt Trời các khoảng cách khác nhau và có chu kì quay khác nhau."
+    }
+   ]
+  },
+  {
+   "lesson_no": 55,
+   "chapter": "Chương X – Trái Đất và bầu trời",
+   "name": "Bài 55. Ngân Hà",
+   "sgk_page": 190,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 15,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Sử dụng tranh ảnh (hình vẽ hoặc học liệu điện tử) chỉ ra được hệ Mặt Trời là một phần nhỏ của Ngân Hà."
+    }
+   ]
+  }
+ ]
+}

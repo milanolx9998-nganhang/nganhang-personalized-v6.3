@@ -1,0 +1,1006 @@
+{
+ "source": "KHDH 26-27 (NB_26-27_KHDH_KHTN_Khối 7.xlsx) + Outcome_YCCD_KHTN_7.xlsx + Tổng quan SGK KNTT",
+ "curriculum": "Chương trình GDPT 2018 môn Khoa học tự nhiên — TT 32/2018/TT-BGDĐT",
+ "subject_code": "KHTN",
+ "grade": 7,
+ "note": "Nguyên văn YCCĐ lấy từ workbook chính thức (tách bằng normalizeSourceRows). Bài ↔ YCCĐ theo KHDH của trường; đối chiếu với database bằng nguyên văn, không bằng số.",
+ "lessons": [
+  {
+   "lesson_no": 1,
+   "chapter": "Bài phương pháp mở đầu",
+   "name": "Bài 1. Phương pháp và kĩ năng học tập môn Khoa học tự nhiên",
+   "sgk_page": 6,
+   "branch_code": "H",
+   "yccd": [
+    {
+     "branch_code": "H",
+     "outcome": 1,
+     "stt": 1,
+     "matched_by": "part",
+     "text": "Trình bày và vận dụng được một số phương pháp và kĩ năng trong học tập môn Khoa học tự nhiên:\n+ Phương pháp tìm hiểu tự nhiên;\n+ Thực hiện được các kĩ năng tiến trình: quan sát, phân loại, liên kết, đo, dự báo;\n+ Sử dụng được một số dụng cụ đo (trong nội dung môn Khoa học tự nhiên 7);\n+ Làm được báo cáo, thuyết trình."
+    }
+   ]
+  },
+  {
+   "lesson_no": 2,
+   "chapter": "Chương I – Nguyên tử. Sơ lược về bảng tuần hoàn các nguyên tố hoá học",
+   "name": "Bài 2. Nguyên tử",
+   "sgk_page": 14,
+   "branch_code": "H",
+   "yccd": [
+    {
+     "branch_code": "H",
+     "outcome": 2,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Trình bày được mô hình nguyên tử của Rutherford – Bohr (mô hình sắp xếp electron trong các lớp vỏ nguyên tử)."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 2,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Nêu được khối lượng của một nguyên tử theo đơn vị quốc tế amu (đơn vị khối lượng nguyên tử)."
+    }
+   ]
+  },
+  {
+   "lesson_no": 3,
+   "chapter": "Chương I – Nguyên tử. Sơ lược về bảng tuần hoàn các nguyên tố hoá học",
+   "name": "Bài 3. Nguyên tố hoá học",
+   "sgk_page": 19,
+   "branch_code": "H",
+   "yccd": [
+    {
+     "branch_code": "H",
+     "outcome": 3,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Phát biểu được khái niệm về nguyên tố hoá học và kí hiệu nguyên tố hoá học."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 3,
+     "stt": 2,
+     "matched_by": "fuzzy",
+     "text": "Viết được công thức hoá học và đọc được tên của 20 nguyên tố đầu tiên."
+    }
+   ]
+  },
+  {
+   "lesson_no": 4,
+   "chapter": "Chương I – Nguyên tử. Sơ lược về bảng tuần hoàn các nguyên tố hoá học",
+   "name": "Bài 4. Sơ lược về bảng tuần hoàn các nguyên tố hoá học",
+   "sgk_page": 23,
+   "branch_code": "H",
+   "yccd": [
+    {
+     "branch_code": "H",
+     "outcome": 4,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Nêu được các nguyên tắc xây dựng bảng tuần hoàn các nguyên tố hoá học."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 4,
+     "stt": 2,
+     "matched_by": "fuzzy",
+     "text": "Mô tả được cấu tạo bảng tuần hoàn gồm: ô, nhóm, chu kì."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 4,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Sử dụng được bảng tuần hoàn để chỉ ra các nhóm nguyên tố/nguyên tố kim loại, các nhóm nguyên tố/nguyên tố phi kim, nhóm nguyên tố khí hiếm trong bảng tuần hoàn."
+    }
+   ]
+  },
+  {
+   "lesson_no": 5,
+   "chapter": "Chương II – Phân tử. Liên kết hoá học",
+   "name": "Bài 5. Phân tử – Đơn chất – Hợp chất",
+   "sgk_page": 32,
+   "branch_code": "H",
+   "yccd": [
+    {
+     "branch_code": "H",
+     "outcome": 5,
+     "stt": 1,
+     "matched_by": "contain",
+     "text": "Nêu được khái niệm phân tử, đơn chất, hợp chất."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 5,
+     "stt": 2,
+     "matched_by": "contain",
+     "text": "Đưa ra được một số ví dụ về đơn chất và hợp chất."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 5,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Tính được khối lượng phân tử theo đơn vị amu."
+    }
+   ]
+  },
+  {
+   "lesson_no": 6,
+   "chapter": "Chương II – Phân tử. Liên kết hoá học",
+   "name": "Bài 6. Giới thiệu về liên kết hoá học",
+   "sgk_page": 36,
+   "branch_code": "H",
+   "yccd": [
+    {
+     "branch_code": "H",
+     "outcome": 6,
+     "stt": 1,
+     "matched_by": "contain",
+     "text": "Nêu được mô hình sắp xếp electron trong vỏ nguyên tử của một số nguyên tố khí hiếm;"
+    },
+    {
+     "branch_code": "H",
+     "outcome": 6,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Nêu được được sự hình thành liên kết ion theo nguyên tắc cho và nhận electron để tạo ra ion có lớp vỏ electron của nguyên tố khí hiếm (Áp dụng cho phân tử đơn giản như NaCl, MgO,…)."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 6,
+     "stt": 4,
+     "matched_by": "exact",
+     "text": "Chỉ ra được sự khác nhau về một số tính chất của chất ion và chất cộng hoá trị."
+    }
+   ]
+  },
+  {
+   "lesson_no": 7,
+   "chapter": "Chương II – Phân tử. Liên kết hoá học",
+   "name": "Bài 7. Hoá trị và công thức hoá học",
+   "sgk_page": 40,
+   "branch_code": "H",
+   "yccd": [
+    {
+     "branch_code": "H",
+     "outcome": 7,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Trình bày được khái niệm về hoá trị (cho chất cộng hoá trị). Cách viết công thức hoá học."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 7,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Viết được công thức hoá học của một số chất và hợp chất đơn giản thông dụng."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 7,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Nêu được mối liên hệ giữa hoá trị của nguyên tố với công thức hoá học."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 8,
+     "stt": 1,
+     "matched_by": "fuzzy",
+     "text": "Tính được phần trăm (%) nguyên tố trong hợp chất khi biết công thức hoá học của hợp chất."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 8,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Xác định được công thức hoá học của hợp chất dựa vào phần trăm (%) nguyên tố và khối lượng phân tử."
+    }
+   ]
+  },
+  {
+   "lesson_no": 8,
+   "chapter": "Chương III – Tốc độ",
+   "name": "Bài 8. Tốc độ chuyển động",
+   "sgk_page": 45,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 1,
+     "stt": 1,
+     "matched_by": "curated",
+     "text": "Nêu được ý nghĩa vật lí của tốc độ, xác định được tốc độ qua quãng đường vật đi được trong khoảng thời gian tương ứng, tốc độ = quãng đường vật đi/thời gian đi quãng đường đó."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 1,
+     "stt": 2,
+     "matched_by": "curated",
+     "text": "Liệt kê được một số đơn vị đo tốc độ thường dùng."
+    }
+   ]
+  },
+  {
+   "lesson_no": 9,
+   "chapter": "Chương III – Tốc độ",
+   "name": "Bài 9. Đo tốc độ",
+   "sgk_page": 49,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 1,
+     "stt": 3,
+     "matched_by": "curated",
+     "text": "Mô tả được sơ lược cách đo tốc độ bằng đồng hồ bấm giây và cổng quang điện trong dụng cụ thực hành ở nhà trường; thiết bị “bắn tốc độ” trong kiểm tra tốc độ các phương tiện giao thông."
+    }
+   ]
+  },
+  {
+   "lesson_no": 10,
+   "chapter": "Chương III – Tốc độ",
+   "name": "Bài 10. Đồ thị quãng đường – thời gian",
+   "sgk_page": 53,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 1,
+     "stt": 4,
+     "matched_by": "curated",
+     "text": "Vẽ được đồ thị quãng đường – thời gian cho chuyển động thẳng."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 1,
+     "stt": 5,
+     "matched_by": "curated",
+     "text": "Từ đồ thị quãng đường – thời gian cho trước, tìm được quãng đường vật đi (hoặc tốc độ, hay thời gian chuyển động của vật)."
+    }
+   ]
+  },
+  {
+   "lesson_no": 11,
+   "chapter": "Chương III – Tốc độ",
+   "name": "Bài 11. Thảo luận về ảnh hưởng của tốc độ trong an toàn giao thông",
+   "sgk_page": 56,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 1,
+     "stt": 6,
+     "matched_by": "curated",
+     "text": "Dựa vào tranh ảnh (hoặc học liệu điện tử) thảo luận để nêu được ảnh hưởng của tốc độ trong an toàn giao thông."
+    }
+   ]
+  },
+  {
+   "lesson_no": 12,
+   "chapter": "Chương IV – Âm thanh",
+   "name": "Bài 12. Sóng âm",
+   "sgk_page": 60,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 2,
+     "stt": 1,
+     "matched_by": "curated",
+     "text": "Thực hiện thí nghiệm tạo sóng âm (như gảy đàn, gõ vào thanh kim loại,...) để chứng tỏ được sóng âm có thể truyền được trong chất rắn, lỏng, khí."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 2,
+     "stt": 2,
+     "matched_by": "curated",
+     "text": "Giải thích được sự truyền sóng âm trong không khí."
+    }
+   ]
+  },
+  {
+   "lesson_no": 13,
+   "chapter": "Chương IV – Âm thanh",
+   "name": "Bài 13. Độ to và độ cao của âm",
+   "sgk_page": 64,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 3,
+     "stt": 1,
+     "matched_by": "curated",
+     "text": "Từ hình ảnh hoặc đồ thị xác định được biên độ và tần số sóng âm."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 3,
+     "stt": 2,
+     "matched_by": "curated",
+     "text": "Nêu được đơn vị của tần số là hertz (kí hiệu là Hz)."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 3,
+     "stt": 3,
+     "matched_by": "curated",
+     "text": "Nêu được sự liên quan của độ to của âm với biên độ âm."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 3,
+     "stt": 4,
+     "matched_by": "curated",
+     "text": "Sử dụng nhạc cụ (hoặc học liệu điện tử, dao động kí) chứng tỏ được độ cao của âm có liên hệ với tần số âm."
+    }
+   ]
+  },
+  {
+   "lesson_no": 14,
+   "chapter": "Chương IV – Âm thanh",
+   "name": "Bài 14. Phản xạ âm, chống ô nhiễm tiếng ồn",
+   "sgk_page": 68,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 4,
+     "stt": 1,
+     "matched_by": "curated",
+     "text": "Lấy được ví dụ về vật phản xạ âm tốt, vật phản xạ âm kém."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 4,
+     "stt": 2,
+     "matched_by": "curated",
+     "text": "Giải thích được một số hiện tượng đơn giản thường gặp trong thực tế về sóng âm; đề xuất được phương án đơn giản để hạn chế tiếng ồn ảnh hưởng đến sức khoẻ."
+    }
+   ]
+  },
+  {
+   "lesson_no": 15,
+   "chapter": "Chương V – Ánh sáng",
+   "name": "Bài 15. Năng lượng ánh sáng. Tia sáng, vùng tối",
+   "sgk_page": 72,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 5,
+     "stt": 1,
+     "matched_by": "curated",
+     "text": "Thực hiện thí nghiệm thu được năng lượng ánh sáng; từ đó, nêu được ánh sáng là một dạng của năng lượng."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 5,
+     "stt": 2,
+     "matched_by": "curated",
+     "text": "Thực hiện thí nghiệm tạo ra được mô hình tia sáng bằng một chùm sáng hẹp song song."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 5,
+     "stt": 3,
+     "matched_by": "curated",
+     "text": "Vẽ được hình biểu diễn vùng tối do nguồn sáng rộng và vùng tối do nguồn sáng hẹp."
+    }
+   ]
+  },
+  {
+   "lesson_no": 16,
+   "chapter": "Chương V – Ánh sáng",
+   "name": "Bài 16. Sự phản xạ ánh sáng",
+   "sgk_page": 78,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 6,
+     "stt": 1,
+     "matched_by": "curated",
+     "text": "Phân biệt được phản xạ và phản xạ khuếch tán."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 6,
+     "stt": 2,
+     "matched_by": "curated",
+     "text": "Vẽ được hình biểu diễn và nêu được các khái niệm: tia sáng tới, tia sáng phản xạ, pháp tuyến, góc tới, góc phản xạ, mặt phẳng tới, ảnh."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 6,
+     "stt": 3,
+     "matched_by": "curated",
+     "text": "Thực hiện được thí nghiệm rút ra định luật và phát biểu được nội dung của định luật phản xạ ánh sáng."
+    }
+   ]
+  },
+  {
+   "lesson_no": 17,
+   "chapter": "Chương V – Ánh sáng",
+   "name": "Bài 17. Ảnh của vật qua gương phẳng",
+   "sgk_page": 82,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 7,
+     "stt": 1,
+     "matched_by": "curated",
+     "text": "Nêu được tính chất ảnh của vật qua gương phẳng và dựng được ảnh của một vật tạo bởi gương phẳng."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 7,
+     "stt": 2,
+     "matched_by": "curated",
+     "text": "Vận dụng được định luật phản xạ ánh sáng trong một số trường hợp đơn giản."
+    }
+   ]
+  },
+  {
+   "lesson_no": 18,
+   "chapter": "Chương VI – Từ",
+   "name": "Bài 18. Nam châm",
+   "sgk_page": 86,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 8,
+     "stt": 1,
+     "matched_by": "curated",
+     "text": "Tiến hành thí nghiệm để nêu được:\n+ Tác dụng của nam châm đến các vật liệu khác nhau;\n+ Sự định hướng của thanh nam châm (kim nam châm)."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 8,
+     "stt": 2,
+     "matched_by": "curated",
+     "text": "Xác định được cực Bắc và cực Nam của một thanh nam châm."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 9,
+     "stt": 2,
+     "matched_by": "grouped_named",
+     "text": "Nêu được khái niệm từ phổ và tạo được từ phổ bằng mạt sắt và nam châm."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 9,
+     "stt": 3,
+     "matched_by": "grouped_named",
+     "text": "Nêu được khái niệm đường sức từ và vẽ được đường sức từ quanh một thanh nam châm."
+    }
+   ]
+  },
+  {
+   "lesson_no": 19,
+   "chapter": "Chương VI – Từ",
+   "name": "Bài 19. Từ trường",
+   "sgk_page": 90,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 9,
+     "stt": 1,
+     "matched_by": "curated",
+     "text": "Nêu được vùng không gian bao quanh một nam châm (hoặc dây dẫn mang dòng điện), mà vật liệu có tính chất từ đặt trong nó chịu tác dụng lực từ, được gọi là từ trường."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 9,
+     "stt": 2,
+     "matched_by": "curated",
+     "text": "Nêu được khái niệm từ phổ và tạo được từ phổ bằng mạt sắt và nam châm."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 9,
+     "stt": 3,
+     "matched_by": "curated",
+     "text": "Nêu được khái niệm đường sức từ và vẽ được đường sức từ quanh một thanh nam châm."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 9,
+     "stt": 4,
+     "matched_by": "curated",
+     "text": "Dựa vào ảnh (hoặc hình vẽ, đoạn phim khoa học) khẳng định được Trái Đất có từ trường."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 9,
+     "stt": 5,
+     "matched_by": "curated",
+     "text": "Nêu được cực Bắc địa từ và cực Bắc địa lí không trùng nhau."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 9,
+     "stt": 6,
+     "matched_by": "curated",
+     "text": "Sử dụng la bàn để tìm được hướng địa lí."
+    }
+   ]
+  },
+  {
+   "lesson_no": 20,
+   "chapter": "Chương VI – Từ",
+   "name": "Bài 20. Chế tạo nam châm điện đơn giản",
+   "sgk_page": 96,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 10,
+     "stt": 1,
+     "matched_by": "curated",
+     "text": "Chế tạo được nam châm điện đơn giản và làm thay đổi được từ trường của nó bằng thay đổi dòng điện."
+    }
+   ]
+  },
+  {
+   "lesson_no": 21,
+   "chapter": "Chương VII – Trao đổi chất và chuyển hoá năng lượng ở sinh vật",
+   "name": "Bài 21. Khái quát về trao đổi chất và chuyển hoá năng lượng",
+   "sgk_page": 99,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 1,
+     "stt": 1,
+     "matched_by": "fuzzy",
+     "text": "Phát biểu được khái niệm trao đổi chất và chuyển hoá năng lượng."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 1,
+     "stt": 2,
+     "matched_by": "fuzzy",
+     "text": "Nêu được vai trò trao đổi chất và chuyển hoá năng lượng trong cơ thể."
+    }
+   ]
+  },
+  {
+   "lesson_no": 22,
+   "chapter": "Chương VII – Trao đổi chất và chuyển hoá năng lượng ở sinh vật",
+   "name": "Bài 22. Quang hợp ở thực vật",
+   "sgk_page": 101,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 2,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Nêu được khái niệm, nguyên liệu, sản phẩm của quang hợp."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 2,
+     "stt": 2,
+     "matched_by": "contain",
+     "text": "Viết được phương trình quang hợp (dạng chữ)."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 2,
+     "stt": 4,
+     "matched_by": "exact",
+     "text": "Nêu được vai trò của lá cây với chức năng quang hợp."
+    }
+   ]
+  },
+  {
+   "lesson_no": 23,
+   "chapter": "Chương VII – Trao đổi chất và chuyển hoá năng lượng ở sinh vật",
+   "name": "Bài 23. Một số yếu tố ảnh hưởng đến quang hợp",
+   "sgk_page": 104,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 2,
+     "stt": 5,
+     "matched_by": "part",
+     "text": "Vận dụng hiểu biết về quang hợp để giải thích được ý nghĩa thực tiễn của việc trồng và bảo vệ cây xanh."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 2,
+     "stt": 6,
+     "matched_by": "exact",
+     "text": "Nêu được một số yếu tố chủ yếu ảnh hưởng đến quang hợp,"
+    }
+   ]
+  },
+  {
+   "lesson_no": 24,
+   "chapter": "Chương VII – Trao đổi chất và chuyển hoá năng lượng ở sinh vật",
+   "name": "Bài 24. Thực hành: Chứng minh quang hợp ở cây xanh",
+   "sgk_page": 108,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 2,
+     "stt": 7,
+     "matched_by": "fuzzy",
+     "text": "Tiến hành được thí nghiệm chứng minh quang hợp ở cây xanh."
+    }
+   ]
+  },
+  {
+   "lesson_no": 25,
+   "chapter": "Chương VII – Trao đổi chất và chuyển hoá năng lượng ở sinh vật",
+   "name": "Bài 25. Hô hấp tế bào",
+   "sgk_page": 111,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 3,
+     "stt": 2,
+     "matched_by": "part",
+     "text": "Viết được phương trình hô hấp dạng chữ thể hiện hai chiều tổng hợp và phân giải."
+    }
+   ]
+  },
+  {
+   "lesson_no": 26,
+   "chapter": "Chương VII – Trao đổi chất và chuyển hoá năng lượng ở sinh vật",
+   "name": "Bài 26. Một số yếu tố ảnh hưởng đến hô hấp tế bào",
+   "sgk_page": 113,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 3,
+     "stt": 3,
+     "matched_by": "fuzzy",
+     "text": "Nêu được một số yếu tố chủ yếu ảnh hưởng đến quang hợp, hô hấp tế bào."
+    }
+   ]
+  },
+  {
+   "lesson_no": 27,
+   "chapter": "Chương VII – Trao đổi chất và chuyển hoá năng lượng ở sinh vật",
+   "name": "Bài 27. Thực hành: Hô hấp ở thực vật",
+   "sgk_page": 116,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 3,
+     "stt": 5,
+     "matched_by": "fuzzy",
+     "text": "Tiến hành được thí nghiệm về hô hấp tế bào ở thực vật thông qua sự nảy mầm của hạt."
+    }
+   ]
+  },
+  {
+   "lesson_no": 28,
+   "chapter": "Chương VII – Trao đổi chất và chuyển hoá năng lượng ở sinh vật",
+   "name": "Bài 28. Trao đổi khí ở sinh vật",
+   "sgk_page": 118,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 4,
+     "stt": 2,
+     "matched_by": "part",
+     "text": "Dựa vào hình vẽ mô tả được cấu tạo khí khổng, nêu được chức năng của khí khổng."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 4,
+     "stt": 3,
+     "matched_by": "fuzzy",
+     "text": "Dựa vào sơ đồ khái quát mô tả được con đường đi của khí qua các cơ quan của hệ hô hấp ở động vật (ví dụ ở người)."
+    }
+   ]
+  },
+  {
+   "lesson_no": 29,
+   "chapter": "Chương VII – Trao đổi chất và chuyển hoá năng lượng ở sinh vật",
+   "name": "Bài 29. Vai trò của nước và chất dinh dưỡng đối với sinh vật",
+   "sgk_page": 122,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 5,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Dựa vào sơ đồ (hoặc mô hình), nêu được thành phần hóa học, cấu trúc và tính chất của nước"
+    },
+    {
+     "branch_code": "S",
+     "outcome": 5,
+     "stt": 2,
+     "matched_by": "fuzzy",
+     "text": "Nêu được vai trò của nước và các chất sinh dưỡng đối với cơ thể sinh vật"
+    }
+   ]
+  },
+  {
+   "lesson_no": 30,
+   "chapter": "Chương VII – Trao đổi chất và chuyển hoá năng lượng ở sinh vật",
+   "name": "Bài 30. Trao đổi nước và chất dinh dưỡng ở thực vật",
+   "sgk_page": 127,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 6,
+     "stt": 1,
+     "matched_by": "contain",
+     "text": "Dựa vào sơ đồ đơn giản mô tả được con đường hấp thụ, vận chuyển nước và chất khoáng từ môi trường ngoài vào miền lông hút, vào rễ, lên thân và lá cây."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 6,
+     "stt": 2,
+     "matched_by": "contain",
+     "text": "Dựa vào sơ đồ, hình ảnh phân biệt được sự vận chuyển các chất trong mạch gỗ từ rễ lên lá cây và từ lá xuống các cơ quan trong mạch rây."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 6,
+     "stt": 3,
+     "matched_by": "fuzzy",
+     "text": "Nêu được vai trò của thoát hơi nước ở lá và hoạt động đóng, mở khí khổng."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 6,
+     "stt": 4,
+     "matched_by": "exact",
+     "text": "Nêu được một số yếu tố ảnh hưởng đến sự trao đổi nước và chất dinh dưỡng ở thực vật."
+    }
+   ]
+  },
+  {
+   "lesson_no": 31,
+   "chapter": "Chương VII – Trao đổi chất và chuyển hoá năng lượng ở sinh vật",
+   "name": "Bài 31. Trao đổi nước và chất dinh dưỡng ở động vật",
+   "sgk_page": 131,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 6,
+     "stt": 6,
+     "matched_by": "contain",
+     "text": "Dựa vào sơ đồ khái quát, mô tả được con đường thu nhận và tiêu hoá thức ăn trong ống tiêu hoá ở động vật (đại diện ở người)."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 7,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Trình bày được con đường trao đổi nước và nhu cầu sử dụng nước ở động vật."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 7,
+     "stt": 2,
+     "matched_by": "fuzzy",
+     "text": "Mô tả được quá trình vận chuyển các chất ở động vật, lấy ví dụ cụ thể hệ tuần hoàn ở người."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 7,
+     "stt": 3,
+     "matched_by": "fuzzy",
+     "text": "Vận dụng những hiểu biết về trao đổi chất và chuyển hoá năng lượng ở động vật vào thực tiễn (ví dụ: dinh dưỡng và vệ sinh ăn uống,...)."
+    }
+   ]
+  },
+  {
+   "lesson_no": 33,
+   "chapter": "Chương VIII – Cảm ứng ở sinh vật",
+   "name": "Bài 33. Cảm ứng ở sinh vật và tập tính ở động vật",
+   "sgk_page": 138,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 8,
+     "stt": 4,
+     "matched_by": "fuzzy",
+     "text": "Phát biểu được khái niệm tập tính ở động vật; lấy được ví dụ minh hoạ."
+    }
+   ]
+  },
+  {
+   "lesson_no": 34,
+   "chapter": "Chương VIII – Cảm ứng ở sinh vật",
+   "name": "Bài 34. Vận dụng hiện tượng cảm ứng ở sinh vật vào thực tiễn",
+   "sgk_page": 141,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 8,
+     "stt": 3,
+     "matched_by": "grouped",
+     "text": "Trình bày được cách làm thí nghiệm chứng minh tính cảm ứng ở thực vật (ví dụ hướng sáng, hướng nước, hướng tiếp xúc)."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 8,
+     "stt": 6,
+     "matched_by": "grouped",
+     "text": "Thực hành: quan sát, ghi chép và trình bày được kết quả quan sát một số tập tính của động vật."
+    }
+   ]
+  },
+  {
+   "lesson_no": 36,
+   "chapter": "Chương IX – Sinh trưởng và phát triển ở sinh vật",
+   "name": "Bài 36. Khái quát về sinh trưởng và phát triển ở sinh vật",
+   "sgk_page": 148,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 9,
+     "stt": 1,
+     "matched_by": "grouped_named",
+     "text": "Phát biểu được khái niệm sinh trưởng và phát triển ở sinh vật. Nêu được mối quan hệ giữa sinh trưởng và phát triển."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 9,
+     "stt": 3,
+     "matched_by": "grouped_named",
+     "text": "Chỉ ra được mô phân sinh trên sơ đồ cắt ngang thân cây Hai lá mầm và trình bày được chức năng của mô phân sinh làm cây lớn lên."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 9,
+     "stt": 4,
+     "matched_by": "grouped_named",
+     "text": "Dựa vào hình vẽ vòng đời của một sinh vật (một ví dụ về thực vật và một ví dụ về động vật), trình bày được các giai đoạn sinh trưởng và phát triển của sinh vật đó."
+    }
+   ]
+  },
+  {
+   "lesson_no": 37,
+   "chapter": "Chương IX – Sinh trưởng và phát triển ở sinh vật",
+   "name": "Bài 37. Ứng dụng sinh trưởng và phát triển ở sinh vật vào thực tiễn",
+   "sgk_page": 151,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 9,
+     "stt": 5,
+     "matched_by": "fuzzy",
+     "text": "Nêu được các nhân tố chủ yếu ảnh hưởng đến sinh trưởng và phát triển của sinh vật (nhân tố nhiệt độ, ánh sáng, nước, dinh dưỡng)."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 9,
+     "stt": 6,
+     "matched_by": "part",
+     "text": "Trình bày được một số ứng dụng sinh trưởng và phát triển trong thực tiễn (ví dụ điều hoà sinh trưởng và phát triển ở sinh vật bằng sử dụng chất kính thích hoặc điều khiển yếu tố môi trường)."
+    }
+   ]
+  },
+  {
+   "lesson_no": 38,
+   "chapter": "Chương IX – Sinh trưởng và phát triển ở sinh vật",
+   "name": "Bài 38. Thực hành: Quan sát, mô tả sự sinh trưởng và phát triển ở một số sinh vật",
+   "sgk_page": 156,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 9,
+     "stt": 2,
+     "matched_by": "fuzzy",
+     "text": "Tiến hành được thí nghiệm chứng minh cây có sự sinh trưởng."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 9,
+     "stt": 8,
+     "matched_by": "contain",
+     "text": "Thực hành quan sát và mô tả được sự sinh trưởng, phát triển ở một số thực vật, động vật."
+    }
+   ]
+  },
+  {
+   "lesson_no": 39,
+   "chapter": "Chương X – Sinh sản ở sinh vật",
+   "name": "Bài 39. Sinh sản vô tính ở sinh vật",
+   "sgk_page": 158,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 10,
+     "stt": 2,
+     "matched_by": "grouped_named",
+     "text": "Nêu được khái niệm sinh sản vô tính ở sinh vật."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 10,
+     "stt": 6,
+     "matched_by": "grouped_named",
+     "text": "Trình bày được các ứng dụng của sinh sản vô tính vào thực tiễn (nhân giống vô tính cây, nuôi cấy mô)."
+    }
+   ]
+  },
+  {
+   "lesson_no": 40,
+   "chapter": "Chương X – Sinh sản ở sinh vật",
+   "name": "Bài 40. Sinh sản hữu tính ở sinh vật",
+   "sgk_page": 164,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 11,
+     "stt": 1,
+     "matched_by": "grouped",
+     "text": "Nêu được khái niệm sinh sản hữu tính ở sinh vật. Phân biệt được sinh sản vô tính và sinh sản hữu tính."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 11,
+     "stt": 2,
+     "matched_by": "grouped_named",
+     "text": "Dựa vào sơ đồ mô tả được quá trình sinh sản hữu tính ở thực vật:\n+ Mô tả được các bộ phận của hoa lưỡng tính, phân biệt với hoa đơn tính.\n+ Mô tả được thụ phấn; thụ tinh và lớn lên của quả."
+    }
+   ]
+  },
+  {
+   "lesson_no": 41,
+   "chapter": "Chương X – Sinh sản ở sinh vật",
+   "name": "Bài 41. Một số yếu tố ảnh hưởng và điều hoà, điều khiển sinh sản ở sinh vật",
+   "sgk_page": 169,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 11,
+     "stt": 5,
+     "matched_by": "grouped_named",
+     "text": "Nêu được một số yếu tố ảnh hưởng đến sinh sản ở sinh vật và điều hoà, điều khiển sinh sản ở sinh vật."
+    }
+   ]
+  },
+  {
+   "lesson_no": 42,
+   "chapter": "Chương X – Sinh sản ở sinh vật",
+   "name": "Bài 42. Cơ thể sinh vật là một thể thống nhất",
+   "sgk_page": 173,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 12,
+     "stt": 1,
+     "matched_by": "grouped_named",
+     "text": "Dựa vào sơ đồ mối quan hệ giữa tế bào với cơ thể và môi trường (tế bào – cơ thể – môi trường và sơ đồ quan hệ giữa các hoạt động sống: trao đổi chất và chuyển hoá năng lượng – sinh trưởng, phát triển – cảm ứng – sinh sản) chứng minh cơ thể sinh vật là một thể thống nhất."
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,1791 @@
+{
+ "source": "KHDH 26-27 (NB_26-27_KHDH_KHTN_Khối 9.xlsx) + Outcome_YCCD_KHTN_9.xlsx + Tổng quan SGK KNTT",
+ "curriculum": "Chương trình GDPT 2018 môn Khoa học tự nhiên — TT 32/2018/TT-BGDĐT",
+ "subject_code": "KHTN",
+ "grade": 9,
+ "note": "Nguyên văn YCCĐ lấy từ workbook chính thức (tách bằng normalizeSourceRows). Bài ↔ YCCĐ theo KHDH của trường; đối chiếu với database bằng nguyên văn, không bằng số.",
+ "lessons": [
+  {
+   "lesson_no": 1,
+   "chapter": "Bài kĩ năng khoa học",
+   "name": "Bài 1. Nhận biết một số dụng cụ, hoá chất. Thuyết trình một vấn đề khoa học",
+   "sgk_page": 6,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 1,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Nhận biết được một số dụng cụ và hoá chất sử dụng trong dạy học môn Khoa học tự nhiên 9."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 1,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Trình bày được các bước viết và trình bày báo cáo; làm được bài thuyết trình một vấn đề khoa học."
+    }
+   ]
+  },
+  {
+   "lesson_no": 2,
+   "chapter": "Chương I – Năng lượng cơ học",
+   "name": "Bài 2. Động năng. Thế năng",
+   "sgk_page": 15,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 2,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Viết được biểu thức tính động năng của vật."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 2,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Viết được biểu thức tính thế năng của vật ở gần mặt đất."
+    }
+   ]
+  },
+  {
+   "lesson_no": 3,
+   "chapter": "Chương I – Năng lượng cơ học",
+   "name": "Bài 3. Cơ năng",
+   "sgk_page": 18,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 2,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Nêu được cơ năng là tổng động năng và thế năng của vật."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 2,
+     "stt": 4,
+     "matched_by": "exact",
+     "text": "Vận dụng khái niệm cơ năng phân tích được sự chuyển hoá năng lượng trong một số trường hợp đơn giản."
+    }
+   ]
+  },
+  {
+   "lesson_no": 4,
+   "chapter": "Chương I – Năng lượng cơ học",
+   "name": "Bài 4. Công và công suất",
+   "sgk_page": 21,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 2,
+     "stt": 5,
+     "matched_by": "exact",
+     "text": "Phân tích ví dụ cụ thể để rút ra được: công có giá trị bằng lực nhân với quãng đường dịch chuyển theo hướng của lực, công suất là tốc độ thực hiện công."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 2,
+     "stt": 6,
+     "matched_by": "exact",
+     "text": "Liệt kê được một số đơn vị thường dùng đo công và công suất."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 2,
+     "stt": 7,
+     "matched_by": "exact",
+     "text": "Tính được công và công suất trong một số trường hợp đơn giản."
+    }
+   ]
+  },
+  {
+   "lesson_no": 5,
+   "chapter": "Chương II – Ánh sáng",
+   "name": "Bài 5. Khúc xạ ánh sáng",
+   "sgk_page": 25,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 3,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Thực hiện thí nghiệm chứng tỏ được khi truyền từ môi trường này sang môi trường khác, tia sáng có thể bị khúc xạ (bị lệch khỏi phương truyền ban đầu)."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 3,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Nêu được chiết suất có giá trị bằng tỉ số tốc độ ánh sáng trong không khí (hoặc chân không) với tốc độ ánh sáng trong môi trường."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 3,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Thực hiện được thí nghiệm để rút ra và phát biểu được định luật khúc xạ ánh sáng."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 3,
+     "stt": 4,
+     "matched_by": "exact",
+     "text": "Vận dụng được biểu thức n = sini / sinr trong một số trường hợp đơn giản."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 4,
+     "stt": 6,
+     "matched_by": "fuzzy",
+     "text": "Vận dụng kiến thức về sự truyền ánh sáng, màu sắc ánh sáng, giải thích được một số hiện tượng đơn giản thường gặp trong thực tế."
+    }
+   ]
+  },
+  {
+   "lesson_no": 6,
+   "chapter": "Chương II – Ánh sáng",
+   "name": "Bài 6. Phản xạ toàn phần",
+   "sgk_page": 30,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 3,
+     "stt": 5,
+     "matched_by": "exact",
+     "text": "Thực hiện thí nghiệm để rút ra được điều kiện xảy ra phản xạ toàn phần và xác định được góc tới hạn."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 4,
+     "stt": 6,
+     "matched_by": "fuzzy",
+     "text": "Vận dụng kiến thức về sự truyền ánh sáng, màu sắc ánh sáng, giải thích được một số hiện tượng đơn giản thường gặp trong thực tế."
+    }
+   ]
+  },
+  {
+   "lesson_no": 7,
+   "chapter": "Chương II – Ánh sáng",
+   "name": "Bài 7. Lăng kính",
+   "sgk_page": 34,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 4,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Vẽ được sơ đồ đường truyền của tia sáng qua lăng kính."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 4,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Thực hiện thí nghiệm với lăng kính tạo được quang phổ của ánh sáng trắng qua lăng kính."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 4,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Giải thích được một cách định tính sự tán sắc ánh sáng Mặt Trời qua lăng kính."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 4,
+     "stt": 4,
+     "matched_by": "exact",
+     "text": "Từ kết quả thí nghiệm truyền ánh sáng qua lăng kính, nêu được khái niệm về ánh sáng màu."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 4,
+     "stt": 5,
+     "matched_by": "exact",
+     "text": "Nêu được màu sắc của một vật được nhìn thấy phụ thuộc vào màu sắc của ánh sáng bị vật đó hấp thụ và phản xạ."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 4,
+     "stt": 6,
+     "matched_by": "exact",
+     "text": "Vận dụng kiến thức về sự truyền ánh sáng, màu sắc ánh sáng, giải thích được một số hiện tượng đơn giản thường gặp trong thực tế."
+    }
+   ]
+  },
+  {
+   "lesson_no": 8,
+   "chapter": "Chương II – Ánh sáng",
+   "name": "Bài 8. Thấu kính",
+   "sgk_page": 40,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 5,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Giải thích được nguyên lí hoạt động của thấu kính bằng việc sử dụng sự khúc xạ của một số các lăng kính nhỏ."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 5,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Nêu được các khái niệm: quang tâm, trục chính, tiêu điểm chính và tiêu cự của thấu kính."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 5,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Tiến hành thí nghiệm rút ra được đường đi một số tia sáng qua thấu kính (tia qua quang tâm, tia song song quang trục chính)."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 5,
+     "stt": 4,
+     "matched_by": "exact",
+     "text": "Vẽ được ảnh qua thấu kính."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 5,
+     "stt": 5,
+     "matched_by": "exact",
+     "text": "Thực hiện thí nghiệm khẳng định được: Ảnh thật là ảnh hứng được trên màn; ảnh ảo là ảnh không hứng được trên màn."
+    }
+   ]
+  },
+  {
+   "lesson_no": 9,
+   "chapter": "Chương II – Ánh sáng",
+   "name": "Bài 9. Thực hành đo tiêu cự của thấu kính hội tụ",
+   "sgk_page": 47,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 5,
+     "stt": 8,
+     "matched_by": "exact",
+     "text": "Đo được tiêu cự của thấu kính hội tụ bằng dụng cụ thực hành."
+    }
+   ]
+  },
+  {
+   "lesson_no": 10,
+   "chapter": "Chương II – Ánh sáng",
+   "name": "Bài 10. Kính lúp. Bài tập thấu kính",
+   "sgk_page": 50,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 5,
+     "stt": 6,
+     "matched_by": "exact",
+     "text": "Vẽ được sơ đồ tỉ lệ để giải các bài tập đơn giản về thấu kính hội tụ."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 5,
+     "stt": 7,
+     "matched_by": "exact",
+     "text": "Mô tả được cấu tạo và sử dụng được kính lúp."
+    }
+   ]
+  },
+  {
+   "lesson_no": 11,
+   "chapter": "Chương III – Điện",
+   "name": "Bài 11. Điện trở. Định luật Ohm",
+   "sgk_page": 53,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 6,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Thực hiện thí nghiệm đơn giản để nêu được điện trở có tác dụng cản trở dòng điện trong mạch."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 6,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Nêu được (không yêu cầu thành lập): Công thức tính điện trở của một đoạn dây dẫn (theo độ dài, tiết diện, điện trở suất); công thức tính điện trở tương đương của đoạn mạch một chiều nối tiếp, song song."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 6,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Sử dụng công thức đã cho để tính được điện trở của một đoạn dây dẫn, điện trở tương đương của đoạn mạch một chiều nối tiếp, song song trong một số trường hợp đơn giản."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 7,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Thực hiện thí nghiệm để xây dựng được định luật Ohm: cường độ dòng điện đi qua một đoạn dây dẫn tỉ lệ thuận với hiệu điện thế giữa hai đầu đoạn dây và tỉ lệ nghịch với điện trở của nó."
+    }
+   ]
+  },
+  {
+   "lesson_no": 12,
+   "chapter": "Chương III – Điện",
+   "name": "Bài 12. Đoạn mạch nối tiếp, song song",
+   "sgk_page": 60,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 7,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Thực hiện thí nghiệm để rút ra được: Trong đoạn mạch điện mắc nối tiếp, cường độ dòng điện là như nhau cho mọi điểm; trong đoạn mạch điện mắc song song, tổng cường độ dòng điện trong các nhánh bằng cường độ dòng điện chạy trong mạch chính."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 7,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Tính được cường độ dòng điện trong đoạn mạch một chiều mắc nối tiếp, mắc song song, trong một số trường hợp đơn giản."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 7,
+     "stt": 4,
+     "matched_by": "exact",
+     "text": "Lắp được mạch điện và đo được giá trị cường độ dòng điện trong một đoạn mạch điện mắc nối tiếp."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 7,
+     "stt": 5,
+     "matched_by": "exact",
+     "text": "Lắp được mạch điện và đo được giá trị cường độ dòng điện trong một đoạn mạch điện mắc song song."
+    }
+   ]
+  },
+  {
+   "lesson_no": 13,
+   "chapter": "Chương III – Điện",
+   "name": "Bài 13. Năng lượng của dòng điện và công suất điện",
+   "sgk_page": 64,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 8,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Nêu được công suất điện định mức của dụng cụ điện (công suất mà dụng cụ tiêu thụ khi hoạt động bình thường)."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 8,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Lấy ví dụ để chứng tỏ được dòng điện có năng lượng."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 8,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Tính được năng lượng của dòng điện và công suất điện trong trường hợp đơn giản."
+    }
+   ]
+  },
+  {
+   "lesson_no": 14,
+   "chapter": "Chương IV – Điện từ",
+   "name": "Bài 14. Cảm ứng điện từ. Nguyên tắc tạo ra dòng điện xoay chiều",
+   "sgk_page": 67,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 9,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Thực hiện thí nghiệm để rút ra được: Khi số đường sức từ xuyên qua tiết diện của cuộn dây dẫn kín biến thiên thì trong cuộn dây đó xuất hiện dòng điện cảm ứng."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 9,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Thực hiện thí nghiệm để nêu được nguyên tắc tạo ra dòng điện xoay chiều (dòng điện luân phiên đổi chiều)."
+    }
+   ]
+  },
+  {
+   "lesson_no": 15,
+   "chapter": "Chương IV – Điện từ",
+   "name": "Bài 15. Tác dụng của dòng điện xoay chiều",
+   "sgk_page": 72,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 9,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Lấy được ví dụ chứng tỏ dòng điện xoay chiều có tác dụng nhiệt, phát sáng, tác dụng từ, tác dụng sinh lí."
+    }
+   ]
+  },
+  {
+   "lesson_no": 16,
+   "chapter": "Chương V – Năng lượng với cuộc sống",
+   "name": "Bài 16. Vòng năng lượng trên Trái Đất. Năng lượng hoá thạch",
+   "sgk_page": 75,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 10,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Dựa vào ảnh (hoặc hình vẽ) mô tả vòng năng lượng trên Trái Đất để rút ra được: năng lượng của Trái Đất đến từ Mặt Trời."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 10,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Nêu được sơ lược ưu điểm và nhược điểm của năng lượng hoá thạch."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 10,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Lấy được ví dụ chứng tỏ việc đốt cháy các nhiên liệu hoá thạch có thể gây ô nhiễm môi trường."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 10,
+     "stt": 4,
+     "matched_by": "exact",
+     "text": "Thảo luận để chỉ ra được giá nhiên liệu phụ thuộc vào chi phí khai thác nó."
+    }
+   ]
+  },
+  {
+   "lesson_no": 17,
+   "chapter": "Chương V – Năng lượng với cuộc sống",
+   "name": "Bài 17. Một số dạng năng lượng tái tạo",
+   "sgk_page": 80,
+   "branch_code": "L",
+   "yccd": [
+    {
+     "branch_code": "L",
+     "outcome": 10,
+     "stt": 5,
+     "matched_by": "exact",
+     "text": "Nêu được sơ lược ưu điểm và nhược điểm của một số dạng năng lượng tái tạo (năng lượng Mặt Trời, năng lượng từ gió, năng lượng từ sóng biển, năng lượng từ dòng sông)."
+    },
+    {
+     "branch_code": "L",
+     "outcome": 10,
+     "stt": 6,
+     "matched_by": "exact",
+     "text": "Thảo luận để nêu được một số biện pháp sử dụng hiệu quả năng lượng và bảo vệ môi trường."
+    }
+   ]
+  },
+  {
+   "lesson_no": 18,
+   "chapter": "Chương VI – Kim loại. Sự khác nhau cơ bản giữa phi kim và kim loại",
+   "name": "Bài 18. Tính chất chung của kim loại",
+   "sgk_page": 87,
+   "branch_code": "H",
+   "yccd": [
+    {
+     "branch_code": "H",
+     "outcome": 1,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Nêu được tính chất vật lí của kim loại."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 1,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Trình bày được tính chất hoá học cơ bản của kim loại: Tác dụng với phi kim (oxygen, lưu huỳnh, chlorine), nước hoặc hơi nước, dung dịch hydrochloric acid (axit clohiđric), dung dịch muối."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 1,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Mô tả được một số khác biệt về tính chất giữa các kim loại thông dụng (nhôm, sắt, vàng...)."
+    }
+   ]
+  },
+  {
+   "lesson_no": 19,
+   "chapter": "Chương VI – Kim loại. Sự khác nhau cơ bản giữa phi kim và kim loại",
+   "name": "Bài 19. Dãy hoạt động hoá học",
+   "sgk_page": 92,
+   "branch_code": "H",
+   "yccd": [
+    {
+     "branch_code": "H",
+     "outcome": 2,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Tiến hành được một số thí nghiệm hoặc mô tả được thí nghiệm (qua hình vẽ hoặc học liệu điện tử thí nghiệm) khi cho kim loại tiếp xúc với nước, hydrochloric acid..."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 2,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Nêu được dãy hoạt động hoá học (K, Na, Ca, Mg, Al, Zn, Fe, Pb, H, Cu, Ag, Au)."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 2,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Trình bày được ý nghĩa của dãy hoạt động hoá học."
+    }
+   ]
+  },
+  {
+   "lesson_no": 20,
+   "chapter": "Chương VI – Kim loại. Sự khác nhau cơ bản giữa phi kim và kim loại",
+   "name": "Bài 20. Tách kim loại và việc sử dụng hợp kim",
+   "sgk_page": 95,
+   "branch_code": "H",
+   "yccd": [
+    {
+     "branch_code": "H",
+     "outcome": 3,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Nêu được phương pháp tách kim loại theo mức độ hoạt động hoá học của chúng."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 3,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Trình bày được quá trình tách một số kim loại có nhiều ứng dụng, như:\n+ Tách sắt ra khỏi iron(III) oxide (sắt(III) oxit) bởi carbon oxide (oxit cacbon);\n+ Tách nhôm ra khỏi aluminium oxide (nhôm oxit) bởi phản ứng điện phân;\n+ Tách kẽm khỏi zinc sulfide (kẽm sunfua) bởi oxygen và carbon (than)"
+    },
+    {
+     "branch_code": "H",
+     "outcome": 3,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Nêu được khái niệm hợp kim."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 3,
+     "stt": 4,
+     "matched_by": "exact",
+     "text": "Giải thích vì sao trong một số trường hợp thực tiễn, kim loại được sử dụng dưới dạng hợp kim;"
+    },
+    {
+     "branch_code": "H",
+     "outcome": 3,
+     "stt": 5,
+     "matched_by": "exact",
+     "text": "Nêu được thành phần, tính chất đặc trưng của một số hợp kim phổ biến, quan trọng, hiện đại."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 3,
+     "stt": 6,
+     "matched_by": "exact",
+     "text": "Trình bày được các giai đoạn cơ bản sản xuất gang và thép trong lò cao từ nguồn quặng chứa iron (III) oxide."
+    }
+   ]
+  },
+  {
+   "lesson_no": 21,
+   "chapter": "Chương VI – Kim loại. Sự khác nhau cơ bản giữa phi kim và kim loại",
+   "name": "Bài 21. Sự khác nhau cơ bản giữa phi kim và kim loại",
+   "sgk_page": 100,
+   "branch_code": "H",
+   "yccd": [
+    {
+     "branch_code": "H",
+     "outcome": 4,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Nêu được ứng dụng của một số đơn chất phi kim thiết thực trong cuộc sống (than, lưu huỳnh, khí chlorine...)."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 4,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Chỉ ra được sự khác nhau cơ bản về một số tính chất giữa phi kim và kim loại: Khả năng dẫn điện, nhiệt độ nóng chảy, nhiệt độ sôi, khối lượng riêng; khả năng tạo ion dương, ion âm; phản ứng với oxygen tạo oxide acid, oxide base."
+    }
+   ]
+  },
+  {
+   "lesson_no": 22,
+   "chapter": "Chương VII – Giới thiệu về chất hữu cơ. Hydrocarbon và nguồn nhiên liệu",
+   "name": "Bài 22. Giới thiệu về hợp chất hữu cơ",
+   "sgk_page": 103,
+   "branch_code": "H",
+   "yccd": [
+    {
+     "branch_code": "H",
+     "outcome": 8,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Nêu được khái niệm hợp chất hữu cơ, hoá học hữu cơ."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 8,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Nêu được khái niệm công thức phân tử, công thức cấu tạo và ý nghĩa của nó; đặc điểm cấu tạo hợp chất hữu cơ."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 8,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Phân biệt được chất vô cơ hay hữu cơ theo công thức phân tử."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 8,
+     "stt": 4,
+     "matched_by": "exact",
+     "text": "Trình bày được sự phân loại sơ bộ hợp chất hữu cơ gồm hydrocarbon (hiđrocacbon) và dẫn xuất của hydrocarbon."
+    }
+   ]
+  },
+  {
+   "lesson_no": 23,
+   "chapter": "Chương VII – Giới thiệu về chất hữu cơ. Hydrocarbon và nguồn nhiên liệu",
+   "name": "Bài 23. Alkane",
+   "sgk_page": 107,
+   "branch_code": "H",
+   "yccd": [
+    {
+     "branch_code": "H",
+     "outcome": 9,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Nêu được khái niệm hydrocarbon, alkane."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 9,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Viết được công thức cấu tạo và gọi tên được một số alkane (ankan) đơn giản và thông dụng (C1 – C4)."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 9,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Viết được phương trình hoá học phản ứng đốt cháy của butane."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 9,
+     "stt": 4,
+     "matched_by": "exact",
+     "text": "Tiến hành được (hoặc quan sát qua học liệu điện tử) thí nghiệm đốt cháy butane từ đó rút ra được tính chất hoá học cơ bản của alkane."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 9,
+     "stt": 5,
+     "matched_by": "exact",
+     "text": "Trình bày được ứng dụng làm nhiên liệu của alkane trong thực tiễn."
+    }
+   ]
+  },
+  {
+   "lesson_no": 24,
+   "chapter": "Chương VII – Giới thiệu về chất hữu cơ. Hydrocarbon và nguồn nhiên liệu",
+   "name": "Bài 24. Alkene",
+   "sgk_page": 111,
+   "branch_code": "H",
+   "yccd": [
+    {
+     "branch_code": "H",
+     "outcome": 10,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Nêu được khái niệm về alkene."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 10,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Viết được công thức cấu tạo và nêu được tính chất vật lí của ethylene."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 10,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Trình bày được tính chất hoá học của ethylene (phản ứng cháy, phản ứng làm mất màu nước bromine (nước brom), phản ứng trùng hợp. Viết được các phương trình hoá học xảy ra."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 10,
+     "stt": 4,
+     "matched_by": "exact",
+     "text": "Tiến hành được thí nghiệm (hoặc quan sát thí nghiệm) của ethylene: phản ứng đốt cháy, phản ứng làm mất màu nước bromine, quan sát và giải thích được tính chất hoá học cơ bản của alkene."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 10,
+     "stt": 5,
+     "matched_by": "exact",
+     "text": "Trình bày được một số ứng dụng của ethylene: tổng hợp ethylic alcohol, tổng hợp nhựa polyethylene (PE)."
+    }
+   ]
+  },
+  {
+   "lesson_no": 25,
+   "chapter": "Chương VII – Giới thiệu về chất hữu cơ. Hydrocarbon và nguồn nhiên liệu",
+   "name": "Bài 25. Nguồn nhiên liệu",
+   "sgk_page": 114,
+   "branch_code": "H",
+   "yccd": [
+    {
+     "branch_code": "H",
+     "outcome": 11,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Nêu được khái niệm, thành phần, trạng thái tự nhiên của dầu mỏ, khí thiên nhiên và khí mỏ dầu."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 11,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Trình bày được phương pháp khai thác dầu mỏ, khí thiên nhiên và khí mỏ dầu; một số sản phẩm chế biến từ dầu mỏ; ứng dụng của dầu mỏ và khí thiên nhiên (là nguồn nhiên liệu và nguyên liệu quý trong công nghiệp)."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 11,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Nêu được khái niệm về nhiên liệu, các dạng nhiên liệu phổ biến (rắn, lỏng, khí)."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 11,
+     "stt": 4,
+     "matched_by": "exact",
+     "text": "Trình bày được cách sử dụng nhiên liệu (gas, dầu hỏa, than...), từ đó có cách ứng xử thích hợp đối với việc sử dụng nhiên liệu (gas, xăng, dầu hỏa, than...) trong cuộc sống."
+    }
+   ]
+  },
+  {
+   "lesson_no": 26,
+   "chapter": "Chương VIII – Ethylic alcohol và acetic acid",
+   "name": "Bài 26. Ethylic alcohol",
+   "sgk_page": 118,
+   "branch_code": "H",
+   "yccd": [
+    {
+     "branch_code": "H",
+     "outcome": 12,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Viết được công thức phân tử, công thức cấu tạo và nêu được đặc điểm cấu tạo của ethylic alcohol."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 12,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Quan sát mẫu vật hoặc hình ảnh, trình bày được một số tính chất vật lí của ethylic alcohol: trạng thái, màu sắc, mùi vị, tính tan, khối lượng riêng, nhiệt độ sôi."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 12,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Nêu được khái niệm và ý nghĩa của độ cồn."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 12,
+     "stt": 4,
+     "matched_by": "part",
+     "text": "Trình bày được tính chất hoá học của ethylic alcohol: phản ứng cháy, phản ứng với natri. Viết được các phương trình hoá học xảy ra."
+    }
+   ]
+  },
+  {
+   "lesson_no": 27,
+   "chapter": "Chương VIII – Ethylic alcohol và acetic acid",
+   "name": "Bài 27. Acetic acid",
+   "sgk_page": 123,
+   "branch_code": "H",
+   "yccd": [
+    {
+     "branch_code": "H",
+     "outcome": 12,
+     "stt": 5,
+     "matched_by": "exact",
+     "text": "Tiến hành được (hoặc quan sát qua video) thí nghiệm phản ứng cháy, phản ứng với natri của ethylic alcohol, nêu và giải thích hiện tượng thí nghiệm, nhận xét và rút ra kết luận về tính chất hoá học cơ bản của ethylic alcohol."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 12,
+     "stt": 6,
+     "matched_by": "exact",
+     "text": "Trình bày được phương pháp điều chế ethylic alcohol từ tinh bột và từ ethylene."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 12,
+     "stt": 7,
+     "matched_by": "exact",
+     "text": "Nêu được ứng dụng của ethylic alcohol (dung môi, nhiên liệu,...)."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 12,
+     "stt": 8,
+     "matched_by": "exact",
+     "text": "Trình bày được tác hại của việc lạm dụng rượu bia."
+    }
+   ]
+  },
+  {
+   "lesson_no": 28,
+   "chapter": "Chương IX – Lipid. Carbohydrate. Protein. Polymer",
+   "name": "Bài 28. Lipid",
+   "sgk_page": 128,
+   "branch_code": "H",
+   "yccd": [
+    {
+     "branch_code": "H",
+     "outcome": 13,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Quan sát mô hình hoặc hình vẽ, viết được công thức phân tử, công thức cấu tạo; nêu được đặc điểm cấu tạo của acid acetic."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 13,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Quan sát mẫu vật hoặc hình ảnh, trình bày được một số tính chất vật lí của acetic acid: trạng thái, màu sắc, mùi vị, tính tan, khối lượng riêng, nhiệt độ sôi."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 13,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Trình bày được phương pháp điều chế acetic acid bằng cách lên men ethylic alcohol."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 13,
+     "stt": 4,
+     "matched_by": "exact",
+     "text": "Trình bày được tính chất hoá học của acetic acid: phản ứng với quỳ tím, đá vôi, kim loại, oxide kim loại, base, phản ứng cháy, phản ứng ester hoá. Viết được các phương trình hoá học xảy ra."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 13,
+     "stt": 5,
+     "matched_by": "exact",
+     "text": "Tiến hành được (hoặc quan sát qua video) thí nghiệm của acid acetic (phản ứng với quỳ tím, đá vôi, kim loại, oxide kim loại, base, phản ứng cháy, phản ứng ester hoá), nhận xét, rút ra được tính chất hoá học cơ bản của acetic acid."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 13,
+     "stt": 6,
+     "matched_by": "exact",
+     "text": "Nêu được khái niệm ester và phản ứng ester hoá."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 13,
+     "stt": 7,
+     "matched_by": "exact",
+     "text": "Trình bày được ứng dụng của acetic acid (làm nguyên liệu, làm giấm)."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 14,
+     "stt": 1,
+     "matched_by": "fuzzy",
+     "text": "Nêu được khái niệm lipid, khái niệm chất béo, trạng thái thiên nhiên, công thức tổng quát của chất béo đơn giản là (R–COO) C H, đặc điểm cấu tạo. 3 3 5"
+    },
+    {
+     "branch_code": "H",
+     "outcome": 14,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Trình bày được tính chất vật lí của chất béo (trạng thái, tính tan) và tính chất hoá học (phản ứng xà phòng hoá). Viết được phương trình hoá học xảy ra."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 14,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Nêu được vai trò của lipid tham gia vào cấu tạo tế bào và tích lũy năng lượng trong cơ thể."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 14,
+     "stt": 4,
+     "matched_by": "exact",
+     "text": "Trình bày được ứng dụng của chất béo và đề xuất biện pháp sử dụng chất béo cho phù hợp trong việc ăn uống hàng ngày để có cơ thể khoẻ mạnh, tránh được bệnh béo phì."
+    }
+   ]
+  },
+  {
+   "lesson_no": 29,
+   "chapter": "Chương IX – Lipid. Carbohydrate. Protein. Polymer",
+   "name": "Bài 29. Carbohydrate. Glucose và saccharose",
+   "sgk_page": 131,
+   "branch_code": "H",
+   "yccd": [
+    {
+     "branch_code": "H",
+     "outcome": 15,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Nêu được thành phần nguyên tố, công thức chung của carbohydrate."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 15,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Nêu được công thức phân tử, trạng thái tự nhiên, tính chất vật lí (trạng thái, màu sắc, mùi, vị, tính tan, khối lượng riêng) của glucose và saccharose."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 15,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Trình bày được tính chất hoá học của glucose (phản ứng tráng bạc, phản ứng lên men rượu), của saccharose (phản ứng thuỷ phân có xúc tác axit hoặc enzyme). Viết được các phương trình hoá học xảy ra dưới dạng công thức phân tử."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 15,
+     "stt": 4,
+     "matched_by": "exact",
+     "text": "Tiến hành được thí nghiệm (hoặc quan sát thí nghiệm) phản ứng tráng bạc của glucose."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 15,
+     "stt": 5,
+     "matched_by": "exact",
+     "text": "Trình bày được vai trò và ứng dụng của glucose (chất dinh dưỡng quan trọng của nguời và động vật) và của saccharose (nguyên liệu quan trọng trong công nghiệp thực phẩm). Ý thức được tầm quan trọng của việc sử dụng hợp lí saccharose. Nhận biết được các loại thực phẩm giàu saccharose và hoa quả giàu glucose."
+    }
+   ]
+  },
+  {
+   "lesson_no": 30,
+   "chapter": "Chương IX – Lipid. Carbohydrate. Protein. Polymer",
+   "name": "Bài 30. Tinh bột và cellulose",
+   "sgk_page": 135,
+   "branch_code": "H",
+   "yccd": [
+    {
+     "branch_code": "H",
+     "outcome": 16,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Nêu được trạng thái tự nhiên, tính chất vật lí của tinh bột và cellulose."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 16,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Trình bày được tính chất hoá học của tinh bột và cellulose (xenlulozơ): phản ứng thuỷ phân; hồ tinh bột có phản ứng màu với iodine (iot). Viết được các phương trình hoá học của phản ứng thuỷ phân dưới dạng công thức phân tử."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 16,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Tiến hành được (hoặc quan sát qua video) thí nghiệm phản ứng thuỷ phân; phản ứng màu với iodine; nêu được hiện tượng thí nghiệm, nhận xét và rút ra kết luận về tính chất hoá học của tinh bột và cellulose (xenlulozơ)."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 16,
+     "stt": 4,
+     "matched_by": "exact",
+     "text": "Trình bày được ứng dụng của tinh bột và cellulose trong đời sống và sản xuất, sự tạo thành tinh bột, cellulose và vai trò của chúng trong cây xanh."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 16,
+     "stt": 5,
+     "matched_by": "exact",
+     "text": "Nêu được tầm quan trọng của sự tạo thành tinh bột, cellulose trong cây xanh."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 16,
+     "stt": 6,
+     "matched_by": "exact",
+     "text": "Nhận biết được các loại lương thực, thực phẩm giàu tinh bột và biết cách sử dụng hợp lí tinh bột."
+    }
+   ]
+  },
+  {
+   "lesson_no": 31,
+   "chapter": "Chương IX – Lipid. Carbohydrate. Protein. Polymer",
+   "name": "Bài 31. Protein",
+   "sgk_page": 138,
+   "branch_code": "H",
+   "yccd": [
+    {
+     "branch_code": "H",
+     "outcome": 17,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Nêu được khái niệm, đặc điểm cấu tạo phân tử (do nhiều amino acid tạo nên, liên kết peptit) và khối lượng phân tử của protein."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 17,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Trình bày được tính chất hoá học của protein: Phản ứng thuỷ phân có xúc tác acid, base hoặc enzyme, bị đông tụ khi có tác dụng của acid, base hoặc nhiệt độ; dễ bị phân huỷ khi đun nóng mạnh."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 17,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Tiến hành được (hoặc quan sát qua video) thí nghiệm của protein: bị đông tụ khi có tác dụng của HCl, nhiệt độ, dễ bị phân huỷ khi đun nóng mạnh."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 17,
+     "stt": 4,
+     "matched_by": "exact",
+     "text": "Phân biệt được protein (len lông cừu, tơ tằm) với chất khác (tơ nylon)."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 17,
+     "stt": 5,
+     "matched_by": "exact",
+     "text": "Trình bày được vai trò của protein đối với cơ thể con người."
+    }
+   ]
+  },
+  {
+   "lesson_no": 32,
+   "chapter": "Chương IX – Lipid. Carbohydrate. Protein. Polymer",
+   "name": "Bài 32. Polymer",
+   "sgk_page": 141,
+   "branch_code": "H",
+   "yccd": [
+    {
+     "branch_code": "H",
+     "outcome": 18,
+     "stt": 4,
+     "matched_by": "exact",
+     "text": "Nêu được khái niệm chất dẻo, tơ, cao su, vật liệu composite và cách sử dụng, bảo quản một số vật dụng làm bằng chất dẻo, tơ, cao su trong gia đình an toàn, hiệu quả."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 18,
+     "stt": 5,
+     "matched_by": "contain",
+     "text": "Trình bày được ứng dụng của polyethylene; vấn đề ô nhiễm môi trường khi sử dụng polymer không phân huỷ sinh học (polyethylene) và các cách hạn chế gây ô nhiễm môi trường khi sử dụng vật liệu polymer trong đời sống."
+    }
+   ]
+  },
+  {
+   "lesson_no": 33,
+   "chapter": "Chương X – Khai thác tài nguyên từ vỏ Trái Đất",
+   "name": "Bài 33. Sơ lược về hoá học vỏ Trái Đất và khai thác tài nguyên từ vỏ Trái Đất",
+   "sgk_page": 146,
+   "branch_code": "H",
+   "yccd": [
+    {
+     "branch_code": "H",
+     "outcome": 5,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Nêu được hàm lượng các nguyên tố hoá học chủ yếu trong vỏ Trái Đất."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 5,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Phân loại được các dạng chất chủ yếu trong vỏ Trái Đất (oxide, muối,...)."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 5,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Trình bày được những lợi ích cơ bản về kinh tế, xã hội từ việc khai thác vỏ Trái Đất (nhiên liệu, vật liệu, nguyên liệu); lợi ích của sự tiết kiệm và bảo vệ nguồn tài nguyên, sử dụng vật liệu tái chế,... phục vụ cho sự phát triển bền vững."
+    }
+   ]
+  },
+  {
+   "lesson_no": 34,
+   "chapter": "Chương X – Khai thác tài nguyên từ vỏ Trái Đất",
+   "name": "Bài 34. Khai thác đá vôi. Công nghiệp silicate",
+   "sgk_page": 149,
+   "branch_code": "H",
+   "yccd": [
+    {
+     "branch_code": "H",
+     "outcome": 6,
+     "stt": 1,
+     "matched_by": "grouped",
+     "text": "Trình bày được nguồn đá vôi, thành phần chính của đá vôi trong tự nhiên; các ứng dụng từ đá vôi: sản phẩm đá vôi nghiền, calcium oxide, calcium hydroxide, nguyên liệu sản xuất xi măng."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 6,
+     "stt": 2,
+     "matched_by": "grouped_named",
+     "text": "Nêu được một số ứng dụng quan trọng của silicon (silic) và hợp chất của silicon."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 6,
+     "stt": 3,
+     "matched_by": "grouped_named",
+     "text": "Trình bày được sơ lược ngành công nghiệp silicate."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 6,
+     "stt": 4,
+     "matched_by": "grouped_named",
+     "text": "Mô tả được các công đoạn chính sản xuất đồ gốm, thuỷ tinh, xi măng."
+    }
+   ]
+  },
+  {
+   "lesson_no": 35,
+   "chapter": "Chương X – Khai thác tài nguyên từ vỏ Trái Đất",
+   "name": "Bài 35. Khai thác nhiên liệu hoá thạch. Nguồn carbon. Chu trình carbon và sự ấm lên toàn cầu",
+   "sgk_page": 153,
+   "branch_code": "H",
+   "yccd": [
+    {
+     "branch_code": "H",
+     "outcome": 7,
+     "stt": 1,
+     "matched_by": "grouped_named",
+     "text": "Nêu được khái niệm nhiên liệu hoá thạch."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 7,
+     "stt": 2,
+     "matched_by": "grouped_named",
+     "text": "Trình bày được lợi ích của việc sử dụng nhiên liệu hoá thạch và thực trạng của việc khai thác nhiên liệu hoá thạch hiện nay."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 7,
+     "stt": 3,
+     "matched_by": "grouped_named",
+     "text": "Nêu được một số giải pháp hạn chế việc sử dụng nhiên liệu hoá thạch"
+    },
+    {
+     "branch_code": "H",
+     "outcome": 7,
+     "stt": 4,
+     "matched_by": "grouped_named",
+     "text": "Nêu được một số dạng tồn tại phổ biến của nguyên tố carbon trong tự nhiên (than, kim cương, carbon dioxide, các muối carbonate, các hợp chất hữu cơ)."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 7,
+     "stt": 5,
+     "matched_by": "grouped_named",
+     "text": "Trình bày được sản phẩm và sự phát năng lượng từ quá trình đốt cháy than, các hợp chất hữu cơ; chu trình carbon trong tự nhiên và vai trò của carbon dioxide trong chu trình đó."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 7,
+     "stt": 6,
+     "matched_by": "grouped_named",
+     "text": "Trình bày được nguồn gốc tự nhiên và nguồn gốc nhân tạo của methane (metan)."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 7,
+     "stt": 7,
+     "matched_by": "grouped_named",
+     "text": "Nêu được khí carbon dioxide và methane là nguyên nhân chính gây hiệu ứng nhà kính, sự ấm lên toàn cầu"
+    },
+    {
+     "branch_code": "H",
+     "outcome": 7,
+     "stt": 8,
+     "matched_by": "grouped_named",
+     "text": "Trình bày được những bằng chứng của biến đổi khí hậu, thời tiết do tác động của sự ấm lên toàn cầu trong thời gian gần đây; những dự đoán về các tác động tiêu cực trước mắt và lâu dài."
+    },
+    {
+     "branch_code": "H",
+     "outcome": 7,
+     "stt": 9,
+     "matched_by": "grouped_named",
+     "text": "Nêu được được một số biện pháp giảm lượng khí thải carbon dioxide ở trong nước và ở phạm vi toàn cầu."
+    }
+   ]
+  },
+  {
+   "lesson_no": 36,
+   "chapter": "Chương XI – Di truyền học Mendel. Cơ sở phân tử của hiện tượng di truyền",
+   "name": "Bài 36. Khái quát về di truyền học",
+   "sgk_page": 159,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 1,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Nêu được khái niệm di truyền, khái niệm biến dị."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 1,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Nêu được gene quy định di truyền và biến dị ở sinh vật, qua đó gene được xem là trung tâm của di truyền học."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 1,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Nêu được ý tưởng của Mendel là cơ sở cho những nghiên cứu về nhân tố di truyền (gene)."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 1,
+     "stt": 4,
+     "matched_by": "exact",
+     "text": "Dựa vào thí nghiệm lai một cặp tính trạng, nêu được các thuật ngữ trong nghiên cứu các quy luật di truyền: tính trạng, nhân tố di truyền, cơ thể thuần chủng, cặp tính trạng tương phản, tính trạng trội, tính trạng lặn, kiểu hình, kiểu gene, allele (alen), dòng thuần."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 1,
+     "stt": 5,
+     "matched_by": "exact",
+     "text": "Phân biệt, sử dụng được một số kí hiệu trong nghiên cứu di truyền học (P, F1, F2,...)."
+    }
+   ]
+  },
+  {
+   "lesson_no": 37,
+   "chapter": "Chương XI – Di truyền học Mendel. Cơ sở phân tử của hiện tượng di truyền",
+   "name": "Bài 37. Các quy luật di truyền của Mendel",
+   "sgk_page": 162,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 1,
+     "stt": 6,
+     "matched_by": "contain",
+     "text": "Dựa vào công thức lai 1 cặp tính trạng và kết quả lai trong thí nghiệm của Mendel, phát biểu được quy luật phân li; giải thích được kết quả thí nghiệm theo Mendel."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 1,
+     "stt": 7,
+     "matched_by": "contain",
+     "text": "Trình bày được thí nghiệm lai phân tích. Nêu được vai trò của phép lai phân tích."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 1,
+     "stt": 8,
+     "matched_by": "exact",
+     "text": "Dựa vào công thức lai 2 cặp tính trạng và kết quả lai trong thí nghiệm của Mendel, phát biểu được quy luật phân li độc lập và tổ hợp tự do. Giải thích được kết quả thí nghiệm theo Mendel."
+    }
+   ]
+  },
+  {
+   "lesson_no": 38,
+   "chapter": "Chương XI – Di truyền học Mendel. Cơ sở phân tử của hiện tượng di truyền",
+   "name": "Bài 38. Nucleic acid và gene",
+   "sgk_page": 166,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 2,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Nêu được khái niệm nucleic acid. Kể tên được các loại nucleic acid: DNA (Deoxyribonucleic acid) và RNA (Ribonucleic acid)."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 2,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Thông qua hình ảnh, mô tả được DNA có cấu trúc xoắn kép, gồm các đơn phân là 4 loại nucleotide, các nucleotide liên kết giữa 2 mạch theo nguyên tắc bổ sung."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 2,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Nêu được chức năng của DNA trong việc lưu giữ, bảo quản, truyền đạt thông tin di truyền."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 2,
+     "stt": 4,
+     "matched_by": "exact",
+     "text": "Giải thích được vì sao chỉ từ 4 loại nucleotide nhưng tạo ra được sự đa dạng của phân tử DNA."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 2,
+     "stt": 5,
+     "matched_by": "exact",
+     "text": "Trình bày được RNA có cấu trúc 1 mạch, chứa 4 loại ribonucleotide."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 2,
+     "stt": 6,
+     "matched_by": "exact",
+     "text": "Phân biệt được các loại RNA dựa vào chức năng."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 2,
+     "stt": 7,
+     "matched_by": "exact",
+     "text": "Nêu được khái niệm gene."
+    }
+   ]
+  },
+  {
+   "lesson_no": 39,
+   "chapter": "Chương XI – Di truyền học Mendel. Cơ sở phân tử của hiện tượng di truyền",
+   "name": "Bài 39. Tái bản DNA và phiên mã tạo RNA",
+   "sgk_page": 169,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 3,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Quan sát hình ảnh (hoặc sơ đồ), mô tả sơ lược quá trình tái bản của DNA gồm các giai đoạn: tháo xoắn tách hai mạch đơn, các nucleotide tự do trong môi trường tế bào kết hợp 2 mạch đơn theo nguyên tắc bổ sung. Kết quả tạo 2 DNA con giống DNA mẹ, từ đó nêu được ý nghĩa di truyền của tái bản DNA."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 3,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Dựa vào sơ đồ, hình ảnh quá trình phiên mã, nêu được khái niệm phiên mã."
+    }
+   ]
+  },
+  {
+   "lesson_no": 40,
+   "chapter": "Chương XI – Di truyền học Mendel. Cơ sở phân tử của hiện tượng di truyền",
+   "name": "Bài 40. Dịch mã và mối quan hệ từ gene đến tính trạng",
+   "sgk_page": 173,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 4,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Nêu được khái niệm mã di truyền, giải thích được từ 4 loại nucleotide tạo ra được sự đa dạng của mã di truyền; nêu được ý nghĩa của đa dạng mã di truyền, mã di truyền quy định thành phần hoá học và cấu trúc của protein."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 4,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Dựa vào sơ đồ hoặc hình ảnh quá trình dịch mã, nêu được khái niệm dịch mã."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 4,
+     "stt": 4,
+     "matched_by": "exact",
+     "text": "Vận dụng kiến thức “từ gene đến tính trạng”, nêu được cơ sở của sự đa dạng về tính trạng của các loài."
+    }
+   ]
+  },
+  {
+   "lesson_no": 41,
+   "chapter": "Chương XI – Di truyền học Mendel. Cơ sở phân tử của hiện tượng di truyền",
+   "name": "Bài 41. Đột biến gene",
+   "sgk_page": 178,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 5,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Phát biểu được khái niệm đột biến gene. Lấy được ví dụ minh hoạ. Trình bày được ý nghĩa và tác hại của đột biến gene."
+    }
+   ]
+  },
+  {
+   "lesson_no": 42,
+   "chapter": "Chương XII – Di truyền nhiễm sắc thể",
+   "name": "Bài 42. Nhiễm sắc thể và bộ nhiễm sắc thể",
+   "sgk_page": 181,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 6,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Nêu được khái niệm nhiễm sắc thể. Lấy được ví dụ chứng minh mỗi loài có bộ nhiễm sắc thể đặc trưng."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 6,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Mô tả được hình dạng nhiễm sắc thể thông qua hình vẽ nhiễm sắc thể ở kì giữa với tâm động, các cánh."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 6,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Dựa vào hình ảnh (hoặc mô hình, học liệu điện tử) mô tả được cấu trúc nhiễm sắc thể có lõi là DNA và cách sắp xếp của gene trên nhiễm sắc thể."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 6,
+     "stt": 4,
+     "matched_by": "exact",
+     "text": "Phân biệt được bộ nhiễm sắc thể lưỡng bội, đơn bội. Lấy được ví dụ minh hoạ."
+    }
+   ]
+  },
+  {
+   "lesson_no": 43,
+   "chapter": "Chương XII – Di truyền nhiễm sắc thể",
+   "name": "Bài 43. Nguyên phân và giảm phân",
+   "sgk_page": 186,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 7,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Dựa vào hình vẽ (hoặc sơ đồ, học liệu điện tử) về quá trình nguyên phân nêu được khái niệm nguyên phân."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 7,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Dựa vào hình vẽ (hoặc sơ đồ, học liệu điện tử) về quá trình giảm phân nêu được khái niệm giảm phân."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 7,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Phân biệt được nguyên phân và giảm phân; nêu được ý nghĩa của nguyên phân, giảm phân trong di truyền và mối quan hệ giữa hai quá trình này trong sinh sản hữu tính."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 7,
+     "stt": 4,
+     "matched_by": "exact",
+     "text": "Nêu được nhiễm sắc thể vừa là vật chất mang thông tin di truyền vừa là đơn vị truyền đạt vật chất di truyền qua các thế hệ tế bào và cơ thể."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 7,
+     "stt": 5,
+     "matched_by": "exact",
+     "text": "Trình bày được cơ chế biến dị tổ hợp thông qua sơ đồ đơn giản về quá trình giảm phân và thụ tinh (minh hoạ bằng sơ đồ lai 2 cặp gene)."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 7,
+     "stt": 6,
+     "matched_by": "exact",
+     "text": "Trình bày được các ứng dụng và lấy được ví dụ của nguyên phân và giảm phân trong thực tiễn."
+    }
+   ]
+  },
+  {
+   "lesson_no": 44,
+   "chapter": "Chương XII – Di truyền nhiễm sắc thể",
+   "name": "Bài 44. Nhiễm sắc thể giới tính và cơ chế xác định giới tính",
+   "sgk_page": 191,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 8,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Nêu khái niệm nhiễm sắc thể giới tính và nhiễm sắc thể thường."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 8,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Trình bày được cơ chế xác định giới tính. Nêu được một số yếu tố ảnh hưởng đến sự phân hoá giới tính."
+    }
+   ]
+  },
+  {
+   "lesson_no": 45,
+   "chapter": "Chương XII – Di truyền nhiễm sắc thể",
+   "name": "Bài 45. Di truyền liên kết",
+   "sgk_page": 194,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 9,
+     "stt": 1,
+     "matched_by": "part",
+     "text": "Dựa vào sơ đồ phép lai trình bày được khái niệm di truyền liên kết và phân biệt với quy luật phân li độc lập. Nêu được một số ứng dụng về di truyền liên kết trong thực tiễn."
+    }
+   ]
+  },
+  {
+   "lesson_no": 46,
+   "chapter": "Chương XII – Di truyền nhiễm sắc thể",
+   "name": "Bài 46. Đột biến nhiễm sắc thể",
+   "sgk_page": 197,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 10,
+     "stt": 1,
+     "matched_by": "part",
+     "text": "Nêu được khái niệm đột biến nhiễm sắc thể. Lấy được ví dụ minh hoạ. Trình bày được ý nghĩa và tác hại của đột biến nhiễm sắc thể."
+    }
+   ]
+  },
+  {
+   "lesson_no": 47,
+   "chapter": "Chương XIII – Di truyền học với con người và đời sống",
+   "name": "Bài 47. Di truyền học với con người",
+   "sgk_page": 201,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 11,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Nêu được khái niệm về bệnh và tật di truyền ở người."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 11,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Trình bày được một số tác nhân gây bệnh di truyền như: các chất phóng xạ từ các vụ nổ, thử vũ khí hạt nhân, hoá chất do công nghiệp, thuốc trừ sâu, diệt cỏ."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 11,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Kể tên được một số hội chứng và bệnh di truyền ở người (Down (Đao), Turner (Tơcnơ), bệnh câm điếc bẩm sinh, bạch tạng)."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 11,
+     "stt": 4,
+     "matched_by": "exact",
+     "text": "Dựa vào ảnh (hoặc học liệu điện tử) kể tên được một số tật di truyền ở người (hở khe môi, hàm; dính ngón tay)."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 11,
+     "stt": 5,
+     "matched_by": "exact",
+     "text": "Nêu được vai trò của di truyền học với hôn nhân và trình bày được quan điểm về lựa chọn giới tính trong sinh sản ở người. Nêu được ý nghĩa của việc cấm kết hôn gần huyết thống."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 11,
+     "stt": 6,
+     "matched_by": "exact",
+     "text": "Tìm hiểu được tuổi kết hôn ở địa phương."
+    }
+   ]
+  },
+  {
+   "lesson_no": 48,
+   "chapter": "Chương XIII – Di truyền học với con người và đời sống",
+   "name": "Bài 48. Ứng dụng công nghệ di truyền vào đời sống",
+   "sgk_page": 207,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 12,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Nêu được một số ứng dụng công nghệ di truyền trong y học, pháp y, làm sạch môi trường, nông nghiệp, an toàn sinh học."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 12,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Nêu được một số vấn đề về đạo đức sinh học trong nghiên cứu và ứng dụng công nghệ di truyền."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 12,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Tìm hiểu được một số sản phẩm ứng dụng công nghệ di truyền tại địa phương."
+    }
+   ]
+  },
+  {
+   "lesson_no": 49,
+   "chapter": "Chương XIV – Tiến hoá",
+   "name": "Bài 49. Khái niệm tiến hoá và các hình thức chọn lọc",
+   "sgk_page": 211,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 13,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Phát biểu được khái niệm tiến hoá."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 13,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Phát biểu được khái niệm chọn lọc nhân tạo."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 13,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Trình bày được một số bằng chứng của quá trình chọn lọc do con người tiến hành đưa đến sự đa dạng và thích nghi của các loài vật nuôi và cây trồng từ vài dạng hoang dại ban đầu."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 13,
+     "stt": 4,
+     "matched_by": "exact",
+     "text": "Phát biểu được khái niệm chọn lọc tự nhiên. Dựa vào các hình ảnh hoặc sơ đồ, mô tả được quá trình chọn lọc tự nhiên."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 13,
+     "stt": 5,
+     "matched_by": "exact",
+     "text": "Thông qua phân tích các ví dụ về tiến hoá thích nghi, chứng minh được vai trò của chọn lọc tự nhiên đối với sự hình thành đặc điểm thích nghi và đa dạng của sinh vật."
+    }
+   ]
+  },
+  {
+   "lesson_no": 50,
+   "chapter": "Chương XIV – Tiến hoá",
+   "name": "Bài 50. Cơ chế tiến hoá",
+   "sgk_page": 214,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 14,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Nêu được quan điểm của Lamark về cơ chế tiến hoá."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 14,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Trình bày được quan điểm của Darwin về cơ chế tiến hoá."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 14,
+     "stt": 3,
+     "matched_by": "exact",
+     "text": "Trình bày được một số luận điểm về tiến hoá theo quan niệm của thuyết tiến hoá tổng hợp hiện đại (cụ thể: nguồn biến dị di truyền của quần thể, các nhân tố tiến hoá, cơ chế tiến hoá lớn)."
+    }
+   ]
+  },
+  {
+   "lesson_no": 51,
+   "chapter": "Chương XIV – Tiến hoá",
+   "name": "Bài 51. Sự phát sinh và phát triển sự sống trên Trái Đất",
+   "sgk_page": 219,
+   "branch_code": "S",
+   "yccd": [
+    {
+     "branch_code": "S",
+     "outcome": 15,
+     "stt": 1,
+     "matched_by": "exact",
+     "text": "Dựa vào sơ đồ, trình bày được khái quát sự phát triển của thế giới sinh vật trên Trái Đất; nguồn gốc xuất hiện của sinh vật nhân thực từ sinh vật nhân sơ; sự xuất hiện và sự đa dạng hoá của sinh vật đa bào."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 15,
+     "stt": 2,
+     "matched_by": "exact",
+     "text": "Dựa vào sơ đồ, trình bày được khái quát sự hình thành loài người."
+    }
+   ]
+  }
+ ]
+}

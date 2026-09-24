@@ -428,3 +428,39 @@ thu hồi PAT GitHub; commit khi user yêu cầu; deploy xong chạy `npm run mi
 - Hướng dẫn §10 (vòng 3): H1 anh Hiếu nạp 4 workbook qua `/admin/curriculum` (khối 9 trước) → A1 data-health → A2 reresolve chạy thử, chỉ ghi thật khi được duyệt → A3 seed KHTN7 → H2 liên kết Bài KHTN 9.
 
 **Không đẩy `main`.** AI Ubuntu chạy script qua `git show` từ nhánh, không cần deploy / khởi động lại.
+
+## 2026-09-24 — Dữ liệu chương trình KHTN: seed Bài ↔ YCCĐ khối 6–9 từ KHDH của trường
+
+**Nguồn anh Hiếu chỉ:**
+- `G:\NSHM\SGK KHTN` (SGK + tổng quan mục lục);
+- `G:\NSHM\26 27\outcome\New folder` (4 workbook Outcome/YCCĐ, giống byte bộ đã test).
+
+Anh Hiếu chốt: **workbook là chuẩn nguyên văn**; SGK/KHDH khác một chút vẫn được; Outcome ≠ tên Bài.
+
+**Làm:**
+- `backend/scripts/build-khtn-lesson-seed.mjs` (chạy trên máy có ổ G):
+  - đọc KHDH 26-27 (`G:\NSHM\26 27\KHDH\4.2.3.2…\NB_26-27_KHDH_KHTN_Khối {6..9}.xlsx`, sheet KHDH; không đọc "Thông tin chung" vì có tên giáo viên);
+  - Bài theo "Bài N" hoặc tra tên trong mục lục SGK;
+  - YCCĐ khớp với workbook qua `normalizeSourceRows` (cùng hàm nạp chương trình) theo thứ tự: chính xác → chứa → một đoạn nguyên văn → tách vế ";" → gần đúng ≥ 0,75;
+  - đồng nhất "KHTN", lí/lý, tên hoá chất (natri=sodium…);
+  - ô KHDH gộp nhiều Bài: chia theo thứ tự nhóm + độ giống tên Bài; chưa chắc → `grouped`, mặc định không nạp;
+  - gộp file ThongKe Vật lí 7 (`curated`);
+  - ghi `src/db/seed-data/khtn{6..9}-lessons.json` + `docs/KHTN_BAI_YCCD_SEED_REVIEW.md`.
+- Phủ YCCĐ: khối 9 187/191 (51/51 Bài) · khối 8 187/194 · khối 7 89/107 · khối 6 65/135 (KHDH khối 6 viết khác chương trình nhiều).
+- `lessonSeed.seedGradeLessons` + `src/db/seed-khtn-lessons.js --grade N [--dry-run] [--allow-legacy] [--include-uncertain]`:
+  - tra YCCĐ theo nguyên văn trong đúng phân môn;
+  - dùng lại Bài theo SỐ BÀI (không tạo trùng khi khác dấu câu);
+  - Bài có sẵn chưa liên kết + mọi YCCĐ cùng một phân môn khác → sửa phân môn của Bài (khối 9 Bài 16, 17: Hoá → Vật lí, vì trigger v643 bắt cùng phân môn);
+  - bỏ qua + báo phần khác phân môn.
+- Test `v6671-lesson-seed` 3/3, chạy cả quy trình trên bản sao DB:
+  - câu có mã trước khi có chương trình;
+  - nạp + công bố KHTN 6 và 9 qua API hồ sơ tin cậy;
+  - seed chạy thử / ghi thật (dùng lại 51 Bài khối 9, tạo Bài khối 6, chạy lại không đổi);
+  - nhận lại theo mã → câu có YCCĐ + tự gắn Bài 2; kiểm tra mã / Bài đạt.
+- Hướng dẫn mục 10 viết lại: A0 deploy bản mới → H1 nạp + công bố → A1 seed chạy thử / ghi thật → A2 nhận lại theo mã → A3 data-health → H2 giáo viên rà báo cáo.
+
+**Lỗi gặp:**
+- dòng tiêu đề workbook bị nhận là dòng tên cột → tìm dòng có cả "Môn" và "Yêu cầu cần đạt";
+- Python biến `\b` thành backspace khi vá file → sửa lại bằng node, quét toàn repo không còn ký tự điều khiển;
+- ngưỡng 0,70 ghép sai (virus ↔ nguyên sinh vật) → chọn 0,75;
+- trigger `TOPIC_YCCD_MISMATCH` → luật sửa phân môn Bài như trên.
