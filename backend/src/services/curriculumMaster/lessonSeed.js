@@ -54,6 +54,10 @@ export async function seedGradeLessons(client, data, {allowLegacy = false, inclu
     byText.get(key).push(r);
   }
 
+  // Bài được dùng lại theo số Bài: mục không có số sẽ khớp nhầm mọi Bài không đánh số → dừng trước khi ghi.
+  const unnumbered = data.lessons.filter(l => !Number.isInteger(l.lesson_no)).map(l => l.name);
+  if (unnumbered.length) throw new LessonSeedError('BAD_LESSON_DATA', `${unnumbered.length} Bài trong dữ liệu seed không có số Bài: ${unnumbered.slice(0, 3).join('; ')}`);
+
   const missing = [], ambiguous = [];
   let skippedUncertain = 0;
   const plan = data.lessons.map(lesson => ({lesson, items: lesson.yccd.filter(item => {

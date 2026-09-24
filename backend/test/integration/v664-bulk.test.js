@@ -21,7 +21,8 @@ fs.mkdirSync(artifacts, {recursive: true});
 const dump = path.join(artifacts, 'v664-source.dump');
 const env = {...process.env, PGHOST: process.env.DB_HOST, PGPORT: process.env.DB_PORT, PGUSER: process.env.DB_USER, PGPASSWORD: process.env.DB_PASSWORD};
 
-const port = 3103, origin = 'http://127.0.0.1:' + port;
+// Cổng riêng: v63.test.js dùng 3103, hai file chạy song song sẽ đụng nhau.
+const port = 3106, origin = 'http://127.0.0.1:' + port;
 const pw = crypto.randomBytes(12).toString('base64url');
 let db, server, uploadsDir;
 let tokens = {}, users = {}, subjectId, otherSubjectId, departmentId, topicId, outcomeId, yccdId, bankId, classId, yearId;

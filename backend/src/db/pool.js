@@ -38,7 +38,7 @@ function observe(text, started, ctx) {
   const ms = performance.now() - started;
   if (ms < SLOW_QUERY_MS) return;
   stats.slow++;
-  const entry = {query: label(text), duration_ms: Math.round(ms), request_id: ctx?.requestId || null, route: ctx?.route || null, at: new Date().toISOString()};
+  const entry = {query: label(text), duration_ms: Math.round(ms), request_id: ctx?.requestId || null, route: ctx?.route ? label(ctx.route) : null, at: new Date().toISOString()};
   stats.recent_slow.push(entry);
   if (stats.recent_slow.length > 20) stats.recent_slow.shift();
   console.warn(JSON.stringify({slow_query: entry.query, duration_ms: entry.duration_ms, request_id: entry.request_id, route: entry.route}));

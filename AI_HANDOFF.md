@@ -18,8 +18,12 @@ Cập nhật: 2026-09-24 · Phiên bản mã: **6.6.7**
   HEAD hiện tại của branch: xem `git log perf-v6671-followup` (không ghi cứng ở đây để khỏi cũ).
 - Branch **chưa merge `main`, chưa auto-deploy**. Deploy + sửa dữ liệu do AI trên máy Ubuntu làm theo `docs/HUONG_DAN_AI_UBUNTU_DEPLOY_V6.6.7.1.md`: push fast-forward `main` → CI "Verify & Deploy" → `data-health` → seed KHTN7 nếu thiếu. Nhánh không đổi `backend/src` / `frontend/src` / SQL.
 
-**Deploy Home 2026-09-24:** `main` = `a344eeb` (CI run 35965226544 SUCCESS; backup `backups/2026-09-24T06-34-06-238Z`; health ok, cache ok).
+**Deploy Home:**
+- 2026-09-24: `main` = `a344eeb` (CI run 35965226544 SUCCESS; backup `backups/2026-09-24T06-34-06-238Z`; health ok, cache ok); sau đó `33dd060` (CI run 35994545299 SUCCESS).
+- 2026-09-25: audit + sửa nhỏ (mã thoát script nạp chương trình, chặn Bài thiếu số, che route truy vấn chậm, cổng test), đẩy `main` bằng fast-forward. Test: unit 125/125, security 27/27, build đạt, integration 153/156 (3 lỗi do hết kết nối PostgreSQL local khi chạy song song; chạy riêng 4/4).
 Còn mở:
+- chờ anh Hiếu: rà cài đặt hiển thị repo GitHub + runner self-hosted (đã báo trong chat 2026-09-25); trước khi đổi phải kiểm máy Home `git fetch` xác thực bằng gì, nếu không deploy sẽ hỏng;
+- KHẨN (2026-09-25): rà bảo mật stack Supabase Home + xoay vòng khóa Supabase theo danh sách trong chat. Không ghi giá trị khóa vào repo/ghi chú;
 - link công khai là `https://studylab.io.vn` (+ `www`): Cloudflare Tunnel `supabase` → `localhost:3001`; health ok 6.6.7 (kiểm 2026-09-24). `nganhang.studylab.io.vn` không dùng, không có DNS. `supabase.studylab.io.vn` → Kong `localhost:8000` đang mở công khai (Studio Basic Auth, REST cần key) — trái runbook "Studio chỉ mở tạm", chờ anh Hiếu quyết đóng hay giữ;
 - đã xác nhận server không có Outcome/YCCĐ (mọi môn); 80 câu KHTN 9 có mã (`DRAFT`) chờ nạp chương trình → `reresolve-question-codes.mjs` (hướng dẫn §10);
 - seed Bài ↔ YCCĐ KHTN 6–9 đã dựng (`src/db/seed-khtn-lessons.js`, dữ liệu `seed-data/khtn{6..9}-lessons.json`, rà soát `docs/KHTN_BAI_YCCD_SEED_REVIEW.md`); workbook chính thức (bản sạch) đã vào repo `src/db/seed-data/curriculum/`; máy chủ nạp bằng `scripts/import-khtn-curriculum.mjs` (hướng dẫn §10) — anh Hiếu đã chốt 2026-09-24: khối 7, 9 dùng `--accept-source-warnings`; khối 8 đã đánh lại số YCCĐ từ 1 trong từng Chủ đề trong repo (quy tắc khối 7), không cần cờ; mã câu khối 8 dùng số mới (H.2.4 cũ → H.2.1). Việc tiếp: AI Ubuntu chạy §10 A0→A4; anh Hiếu thay file khối 8 trên ổ G bằng bản repo để giáo viên dùng số mới; `seed-khtn7-vatli-lessons.js` cũ đã được gộp, không chạy riêng;

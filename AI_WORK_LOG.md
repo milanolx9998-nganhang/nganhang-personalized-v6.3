@@ -510,3 +510,35 @@ Anh Hiếu chốt: **workbook là chuẩn nguyên văn**; SGK/KHDH khác một c
 **Sửa:** hướng dẫn §7b ghi link đúng + bảng route; `AI_HANDOFF.md` bỏ việc DNS, thêm rủi ro route supabase.
 
 **Không thay đổi gì trên Cloudflare.**
+
+## 2026-09-25 — Liệt kê cái cần để kiểm toàn bộ máy Home
+
+**Yêu cầu:** anh Hiếu hỏi cần cung cấp gì để em kiểm toàn bộ.
+
+**Kiểm được ngay:** `gh` chưa đăng nhập, máy này không có SSH key. Repo GitHub đọc được không cần đăng nhập. Workflow `deploy.yml` chỉ chạy khi push `main` hoặc bấm tay, runner self-hosted. Quét lịch sử git: không có file `.env`/khóa/dump, không có token `ghp_`/`github_pat_`.
+
+**Đề xuất:** (1) AI Ubuntu chạy bộ lệnh chỉ đọc, ghi ra một file; (2) anh đăng nhập admin web trong khung trình duyệt; (3) anh đăng nhập GitHub trong khung trình duyệt. Không cần mật khẩu, token, `.env`, SSH.
+
+**Chờ anh Hiếu:** quyết cài đặt hiển thị repo. `deploy-server.sh` chạy `git fetch origin main` bằng xác thực của máy Home, nên phải kiểm cái đó trước khi đổi.
+
+## 2026-09-25 — Audit trước khi đưa lên main
+
+**Yêu cầu:** anh Hiếu: gộp luồng, audit kỹ, sửa nếu cần, đưa bản hoàn chỉnh lên `main`.
+
+**Trạng thái:** `main` đã ở `33dd060`. AI Ubuntu đã fast-forward; CI run 35994545299 SUCCESS ngày 2026-09-24. Nhánh chỉ hơn main commit tài liệu `ab3ec29`.
+
+**Rà code mới từ `a344eeb`:** script CLI, seed, `lessonSeed.js`. Code chạy trong server không đổi hành vi.
+
+**Sửa:**
+- `import-khtn-curriculum.mjs`: mã thoát 3 ("dừng trước khi ghi") trước đây cũng rơi vào lỗi Postgres (vì `e.code` là SQLSTATE) → nay chỉ lỗi do `stop()` chặn mới thoát 3; chú thích cờ `--renumber-duplicates` cập nhật cho khối 8 đã đánh lại số.
+- `lessonSeed.js`: dữ liệu có Bài không có số → dừng `BAD_LESSON_DATA`, tránh khớp nhầm mọi Bài không đánh số. Test mới trong `v6671-lesson-seed`.
+- `data-health.mjs`: lời nhắc trỏ `seed-khtn-lessons.js --grade N` thay script khối 7 cũ.
+- `db/pool.js`: nhãn route của truy vấn chậm được che như SQL (route `…/reset-password` làm test `v5-checks` hỏng khi máy chậm).
+- `v664-bulk.test.js`: cổng 3103 → 3106 (trùng cổng với `v63.test.js`, chạy song song thì V63 đăng nhập nhầm server → 52 lỗi dây chuyền).
+
+**Kiểm:**
+- unit 125/125; security 27/27; build frontend đạt;
+- integration lần 1: 104 đạt / 52 lỗi, đều do 2 lỗi hạ tầng test ở trên;
+- lần 2 sau khi sửa: 153/156 đạt; 3 lỗi còn lại đều ở `v6671-lesson-seed`, do PostgreSQL local hết chỗ kết nối khi mọi file chạy song song (`53300 remaining connection slots`); chạy riêng file này: 4/4 đạt.
+
+**Kết quả:** gộp vào `main` bằng fast-forward rồi push; CI "Verify & Deploy" tự deploy. Dữ liệu (§10 A1–A4) vẫn do AI Ubuntu chạy.

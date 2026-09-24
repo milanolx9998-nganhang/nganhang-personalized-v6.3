@@ -148,6 +148,15 @@ test('V6671 seed: seed Bài ↔ YCCĐ cả 4 khối — dùng lại 51 Bài sẵ
   const link = (await db.query(`SELECT 1 FROM topic_yccd_map m JOIN curriculum_yccds y ON y.id=m.yccd_id JOIN curriculum_outcomes o ON o.id=y.outcome_id
     WHERE m.topic_id=$1 AND o.source_branch_code='L' AND o.source_ordinal=2 AND y.source_ordinal=1 AND o.grade=9`, [lesson2Id])).rows;
   assert.equal(link.length, 1);
+
+  // Dữ liệu seed có Bài thiếu số → dừng trước khi ghi, không khớp nhầm mọi Bài không đánh số.
+  const {seedGradeLessons} = await import('../../src/services/curriculumMaster/lessonSeed.js');
+  const data9 = JSON.parse(fs.readFileSync('src/db/seed-data/khtn9-lessons.json', 'utf8'));
+  const client = await db.connect();
+  try {
+    await client.query('BEGIN');
+    await assert.rejects(seedGradeLessons(client, {...data9, lessons: [{...data9.lessons[0], lesson_no: null}]}), {code: 'BAD_LESSON_DATA'});
+  } finally { await client.query('ROLLBACK'); client.release(); }
 });
 
 test('V6671 seed: nhận lại theo mã sau khi có chương trình + liên kết Bài → câu có YCCĐ và tự gắn đúng Bài', {skip}, async () => {

@@ -6,8 +6,9 @@
 //   node scripts/import-khtn-curriculum.mjs --grade 9                                   # KIỂM TRA (mặc định, không ghi)
 //   node scripts/import-khtn-curriculum.mjs --grade 9 --apply --actor <admin> [--publish]
 //     [--accept-source-warnings]   khối có ô chứa nhiều YCCĐ / số viết sai (khối 7) — người phụ trách đã xem
-//     [--renumber-duplicates]      nguồn trùng số YCCĐ (khối 8, Chủ đề 18): giữ dòng đầu, dòng trùng sau nhận số
-//                                  kế tiếp sau số lớn nhất của Chủ đề đó — chỉ dùng khi người phụ trách đồng ý
+//     [--renumber-duplicates]      nguồn trùng số YCCĐ: giữ dòng đầu, dòng trùng sau nhận số kế tiếp sau số lớn nhất
+//                                  của Chủ đề đó — chỉ dùng khi người phụ trách đồng ý (workbook khối 8 trong repo đã
+//                                  đánh lại số, không cần cờ này)
 //     [--file <đường dẫn>]         mặc định src/db/seed-data/curriculum/Outcome_YCCD_KHTN_<khối>.xlsx
 //     [--new-version]              cho phép tạo thêm bản khi khối đã có bản PUBLISHED
 //
@@ -28,7 +29,8 @@ const val = f => { const i = args.indexOf(f); return i >= 0 ? args[i + 1] : null
 const grade = Number(val('--grade'));
 const apply = has('--apply');
 const file = val('--file') || fileURLToPath(new URL(`../src/db/seed-data/curriculum/Outcome_YCCD_KHTN_${grade}.xlsx`, import.meta.url));
-const stop = (code, message, extra) => { const e = new Error(message); e.code = code; e.extra = extra; throw e; };
+// stop(): chỉ dùng TRƯỚC khi ghi → mã thoát 3 nghĩa là "chưa ghi gì". Lỗi khác (kể cả lỗi Postgres có e.code) thoát 1.
+const stop = (code, message, extra) => { const e = new Error(message); e.code = code; e.extra = extra; e.stop = true; throw e; };
 
 async function actorFor(username) {
   const row = (await pool.query('SELECT id,username,full_name,role,subject_id,department_id,token_version,must_change_password FROM users WHERE username=$1 AND is_active=true', [username])).rows[0];
@@ -116,7 +118,7 @@ try {
   console.error(`[${e.code || e.details?.code || 'ERROR'}] ${e.message}`);
   if (e.extra) console.error(JSON.stringify(e.extra, null, 1));
   if (e.details) console.error(JSON.stringify(e.details, null, 1).slice(0, 2000));
-  process.exitCode = e.code ? 3 : 1;
+  process.exitCode = e.stop ? 3 : 1;
 } finally {
   await pool.end();
 }

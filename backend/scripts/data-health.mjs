@@ -90,7 +90,7 @@ try {
     FROM curriculum_yccds y JOIN curriculum_outcomes o ON o.id=y.outcome_id JOIN subjects s ON s.id=o.subject_id
     LEFT JOIN topic_yccd_map m ON m.yccd_id=y.id
     WHERE y.status='ACTIVE' AND o.status='ACTIVE' GROUP BY s.id, s.code, o.grade ORDER BY s.code, o.grade`);
-  for (const r of report.curriculum) if (r.yccd && !r.yccd_linked) report.attention.push(`${r.subject} khối ${r.grade}: ${r.yccd} YCCĐ nhưng chưa có liên kết Bài nào → câu theo mã không tự gắn Bài được (KHTN 7: chạy seed:khtn7-lessons).`);
+  for (const r of report.curriculum) if (r.yccd && !r.yccd_linked) report.attention.push(`${r.subject} khối ${r.grade}: ${r.yccd} YCCĐ nhưng chưa có liên kết Bài nào → câu theo mã không tự gắn Bài được (KHTN 6–9: node src/db/seed-khtn-lessons.js --grade ${r.grade}).`);
 
   // ---- Tồn kho chương trình theo môn/khối (mọi trạng thái) — cho biết thiếu dữ liệu nền hay chỉ thiếu liên kết ----
   report.curriculum_inventory = await q(`WITH
@@ -112,7 +112,7 @@ try {
     WHERE k.grade IS NOT NULL ORDER BY 1,2`);
   for (const r of report.curriculum_inventory) {
     if (r.questions && !r.yccds_active) report.attention.push(`${r.subject} khối ${r.grade}: có ${r.questions} câu nhưng chưa có YCCĐ ACTIVE (${r.outcomes} Outcome, ${r.yccds} YCCĐ tổng) → câu có mã không tự nhận chương trình được; cần nạp chương trình cho môn/khối này.`);
-    else if (r.yccds_active && !r.published) report.attention.push(`${r.subject} khối ${r.grade}: có ${r.yccds_active} YCCĐ ACTIVE nhưng chưa có phiên bản chương trình PUBLISHED → seed Bài (KHTN 7) sẽ dừng NO_PUBLISHED_VERSION; cần quyết định công bố phiên bản hay dùng --allow-legacy.`);
+    else if (r.yccds_active && !r.published) report.attention.push(`${r.subject} khối ${r.grade}: có ${r.yccds_active} YCCĐ ACTIVE nhưng chưa có phiên bản chương trình PUBLISHED → seed Bài KHTN (src/db/seed-khtn-lessons.js) sẽ dừng NO_PUBLISHED_VERSION; cần quyết định công bố phiên bản hay dùng --allow-legacy.`);
   }
 
   // ---- Hồ sơ rà soát đang mở ----
