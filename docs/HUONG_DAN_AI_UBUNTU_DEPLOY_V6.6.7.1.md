@@ -306,11 +306,13 @@ node scripts/perf-db-check.mjs    # ghi lại: Supavisor session/transaction, ma
 ---
 
 ## 7b. Ghi chú kiểm link công khai (2026-09-24)
-Kiểm từ Internet (DNS 8.8.8.8):
-- `studylab.io.vn` có bản ghi trên Cloudflare;
-- `nganhang.studylab.io.vn` **không có bản ghi DNS** (NXDOMAIN).
+Link công khai của app là **`https://studylab.io.vn`** (và `www.studylab.io.vn`), **không phải** `nganhang.studylab.io.vn`. Tên miền con này không có bản ghi DNS, nên gọi vào sẽ báo NXDOMAIN hoặc timeout.
 
-Timeout khi gọi `https://nganhang.studylab.io.vn/api/health` là do tên miền con chưa được trỏ, không do deploy. Trỏ DNS / Cloudflare Tunnel là việc của anh Hiếu trên Cloudflare; AI không tự sửa Caddy / DNS.
+Cloudflare Tunnel `supabase` (quản lý trên dashboard, 1 replica chạy trên máy Home) có 3 route:
+- `studylab.io.vn`, `www.studylab.io.vn` → `http://localhost:3001` (app ngân hàng);
+- `supabase.studylab.io.vn` → `http://localhost:8000` (Kong của Supabase; Studio có Basic Auth, REST cần key).
+
+Kiểm sau deploy: `curl -sS -m 10 https://studylab.io.vn/api/health`. Sửa route hoặc DNS là việc của anh Hiếu trên Cloudflare; AI không tự sửa Caddy / DNS / Tunnel.
 
 ## 8. Việc KHÔNG làm trong vòng này
 - k6 / load test: chưa có staging. Ghi `K6_STAGING = NOT_RUN`.

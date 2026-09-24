@@ -496,3 +496,17 @@ Anh Hiếu chốt: **workbook là chuẩn nguyên văn**; SGK/KHDH khác một c
 **Kiểm:** `v6671-lesson-seed` 4/4; lệnh kiểm tra 4 khối: 6 sạch, 7 risky 3, 8 sạch, 9 risky 1.
 
 **Việc tiếp:** push nhánh; AI Ubuntu chạy §10 A0→A4 ngoài giờ học; anh Hiếu thay file khối 8 trên ổ G bằng bản repo.
+
+## 2026-09-24 — Kiểm Cloudflare (chỉ đọc): link app đúng là studylab.io.vn
+
+**Yêu cầu:** anh Hiếu hỏi kết nối Cloudflare được không → anh tự đăng nhập trong khung trình duyệt, em chỉ đọc.
+
+**Phát hiện:**
+- DNS `studylab.io.vn`: 3 CNAME (`@`, `www`, `supabase`) → Tunnel `a90f7b75-…cfargotunnel.com`, proxied. Không có `nganhang`.
+- Tunnel `supabase` (quản lý trên dashboard), 1 replica trên máy Home, Healthy. Route: `supabase.studylab.io.vn` → `http://localhost:8000`; `studylab.io.vn` và `www` → `http://localhost:3001`.
+- `https://studylab.io.vn/api/health` và `www`: status ok, database/cache ok, version 6.6.7. Ghi chú "nganhang.studylab.io.vn chưa có DNS" trước đây là sai tên miền, app vẫn truy cập được.
+- `supabase.studylab.io.vn` mở công khai: `/` và `/rest/v1/` trả 401, Studio có Basic Auth. Trái `docs/HOME_REMOTE_ACCESS_RUNBOOK.md` ("Studio chỉ mở tạm") → báo anh Hiếu, không tự sửa.
+
+**Sửa:** hướng dẫn §7b ghi link đúng + bảng route; `AI_HANDOFF.md` bỏ việc DNS, thêm rủi ro route supabase.
+
+**Không thay đổi gì trên Cloudflare.**
