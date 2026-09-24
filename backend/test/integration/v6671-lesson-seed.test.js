@@ -1,7 +1,7 @@
 // V6.6.7.1 — quy trình sửa dữ liệu máy chủ, chạy trọn trên bản sao DB local:
 //   câu có mã được nhập khi CHƯA có chương trình → nạp workbook chính thức qua hồ sơ tin cậy + công bố →
 //   seed Bài ↔ YCCĐ theo KHDH (dùng lại Bài sẵn có theo số Bài) → nhận lại YCCĐ theo mã → câu có YCCĐ + đúng Bài.
-// Cần 4 workbook chính thức trên máy (G:), không có thì bỏ qua kèm lý do.
+// Workbook chính thức lấy từ repo (src/db/seed-data/curriculum), nạp bằng scripts/import-khtn-curriculum.mjs — đúng như máy chủ.
 import 'dotenv/config';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -13,11 +13,11 @@ import pg from 'pg';
 import bcrypt from 'bcryptjs';
 import {cleanupIntegration} from './helpers/cleanup.js';
 
-const SOURCE_DIR = process.env.OUTCOME_DIR || 'G:/NSHM/26 27/outcome/New folder';
-const workbookPath = grade => `${SOURCE_DIR}/Outcome_YCCD_KHTN_${grade}.xlsx`;
-const GRADES = [6, 9];
+// Workbook chính thức nằm trong repo (bản sạch metadata) — máy chủ chỉ dùng chung GitHub nên phải chạy được từ đây.
+const workbookPath = grade => path.resolve(`src/db/seed-data/curriculum/Outcome_YCCD_KHTN_${grade}.xlsx`);
+const GRADES = [6, 7, 8, 9];
 const hasSources = GRADES.every(g => fs.existsSync(workbookPath(g)));
-const skip = hasSources ? false : 'Không tìm thấy workbook chính thức trên máy này';
+const skip = hasSources ? false : 'Thiếu workbook trong src/db/seed-data/curriculum';
 
 const source = process.env.DB_NAME;
 if (!source?.startsWith('nganhang_personalized')) throw new Error('Integration tests require an isolated personalized database');
@@ -47,28 +47,6 @@ const run = (file, ...args) => {
   return {status: r.status, out: r.stdout, err: r.stderr};
 };
 const json = r => { assert.equal(r.status, 0, r.err + r.out); return JSON.parse(r.out); };
-
-// Nạp + công bố một khối qua đúng luồng giao diện dùng (hồ sơ tin cậy, sửa trùng số trong staging nếu có).
-async function loadGrade(grade) {
-  const created = await req('POST', '/curriculum/versions', {subject_id: subjectId, grade, version_code: `GDPT2018-K${grade}-T`, title: `KHTN khối ${grade}`,
-    source_name: `Outcome_YCCD_KHTN_${grade}.xlsx`, source_ref: 'Chương trình GDPT 2018'});
-  expect(created, 201);
-  const form = new FormData();
-  form.append('version_id', String(created.data.id));
-  form.append('file', new Blob([fs.readFileSync(workbookPath(grade))]), `Outcome_YCCD_KHTN_${grade}.xlsx`);
-  const up = await fetch(origin + '/api/curriculum/import', {method: 'POST', headers: {Authorization: 'Bearer ' + token}, body: form});
-  const job = await up.json();
-  assert.equal(up.status, 201, JSON.stringify(job));
-  const preview = await req('GET', '/curriculum/import/' + job.id + '/preview');
-  const sheet = preview.data.trusted.sheets.find(s => s.grade === grade);
-  expect(await req('PUT', '/curriculum/import/' + job.id + '/map', {sheet: sheet.sheet, header_row: sheet.header_row, columns: sheet.columns,
-    topic_as_outcome: true, source_profile: preview.data.trusted.profile, revision: job.revision}), 200);
-  const staged = await req('GET', '/curriculum/import/' + job.id + '/preview');
-  assert.equal(staged.data.rows.some(r => (r.mapped_payload.source_flags || []).includes('SOURCE_ORDINAL_DUPLICATE')), false, `Khối ${grade} có trùng số — test này chỉ dùng khối không trùng`);
-  expect(await req('POST', '/curriculum/import/' + job.id + '/commit', {revision: staged.data.job.revision, confirmed: true, reason: 'Nạp nguồn chính thức', accept_source_warnings: true}), 200);
-  const detail = await req('GET', '/curriculum/versions/' + created.data.id);
-  expect(await req('POST', `/curriculum/versions/${created.data.id}/publish`, {revision: detail.data.version.revision, confirmed: true, reason: 'Công bố'}), 200);
-}
 
 test.before(async () => {
   if (!hasSources) return;
@@ -114,8 +92,31 @@ test('V6671 seed: trước khi có chương trình — seed dừng NO_PUBLISHED_
   assert.match(refused.err, /NO_PUBLISHED_VERSION/);
 });
 
-test('V6671 seed: nạp + công bố KHTN 6 và 9 rồi seed — dùng lại 51 Bài sẵn có của khối 9, tạo Bài khối 6; chạy lại không đổi', {skip}, async () => {
-  for (const grade of GRADES) await loadGrade(grade);
+test('V6671 seed: nạp chương trình bằng script dòng lệnh — kiểm tra trước, dừng khi nguồn cần người quyết', {skip}, async () => {
+  const check = json(run('scripts/import-khtn-curriculum.mjs', '--grade', '8'));
+  assert.equal(check.mode, 'CHECK');
+  assert.equal(check.duplicates.length, 2, 'Khối 8: S.18.1 bị trùng số');
+  const versionsBefore = Number((await db.query('SELECT count(*) FROM curriculum_versions')).rows[0].count);
+  const refused = run('scripts/import-khtn-curriculum.mjs', '--grade', '8', '--apply', '--actor', 'v6671s_admin', '--publish');
+  assert.equal(refused.status, 3);
+  assert.match(refused.err, /SOURCE_ORDINAL_DUPLICATE/);
+  const warn = run('scripts/import-khtn-curriculum.mjs', '--grade', '7', '--apply', '--actor', 'v6671s_admin', '--publish');
+  assert.equal(warn.status, 3);
+  assert.match(warn.err, /SOURCE_WARNINGS/);
+  assert.equal(Number((await db.query('SELECT count(*) FROM curriculum_versions')).rows[0].count), versionsBefore, 'Dừng trước khi ghi bất cứ gì');
+
+  const flags = {6: [], 7: ['--accept-source-warnings'], 8: ['--renumber-duplicates'], 9: ['--accept-source-warnings']};
+  for (const grade of GRADES) {
+    const r = json(run('scripts/import-khtn-curriculum.mjs', '--grade', String(grade), '--apply', '--actor', 'v6671s_admin', '--publish', ...flags[grade]));
+    assert.equal(r.published, true, JSON.stringify(r));
+    if (grade === 8) assert.deepEqual(r.renumbered.map(x => x.from), ['S.18.1']);
+  }
+  const again = run('scripts/import-khtn-curriculum.mjs', '--grade', '9', '--apply', '--actor', 'v6671s_admin', '--publish', '--accept-source-warnings');
+  assert.equal(again.status, 3);
+  assert.match(again.err, /ALREADY_PUBLISHED/);
+});
+
+test('V6671 seed: seed Bài ↔ YCCĐ cả 4 khối — dùng lại 51 Bài sẵn có của khối 9, tạo Bài khối khác; chạy lại không đổi', {skip}, async () => {
   const topicsBefore = Number((await db.query('SELECT count(*) FROM topics WHERE subject_id=$1 AND grade=9', [subjectId])).rows[0].count);
 
   const dry = json(run('src/db/seed-khtn-lessons.js', '--grade', '9', '--dry-run'));
@@ -135,6 +136,10 @@ test('V6671 seed: nạp + công bố KHTN 6 và 9 rồi seed — dùng lại 51 
   const six = json(run('src/db/seed-khtn-lessons.js', '--grade', '6'));
   assert(six.topics_created > 30, JSON.stringify(six));
   assert(six.links_created > 50, JSON.stringify(six));
+  const seven = json(run('src/db/seed-khtn-lessons.js', '--grade', '7'));
+  assert(seven.links_created > 80, JSON.stringify(seven));
+  const eight = json(run('src/db/seed-khtn-lessons.js', '--grade', '8'));
+  assert(eight.links_created > 180, JSON.stringify(eight));
   // Bài 2 khối 9 ("Động năng. Thế năng") được liên kết với L.2.1 (biểu thức động năng).
   const link = (await db.query(`SELECT 1 FROM topic_yccd_map m JOIN curriculum_yccds y ON y.id=m.yccd_id JOIN curriculum_outcomes o ON o.id=y.outcome_id
     WHERE m.topic_id=$1 AND o.source_branch_code='L' AND o.source_ordinal=2 AND y.source_ordinal=1 AND o.grade=9`, [lesson2Id])).rows;

@@ -22,7 +22,7 @@ Cập nhật: 2026-09-24 · Phiên bản mã: **6.6.7**
 Còn mở:
 - `nganhang.studylab.io.vn` chưa có DNS;
 - đã xác nhận server không có Outcome/YCCĐ (mọi môn); 80 câu KHTN 9 có mã (`DRAFT`) chờ nạp chương trình → `reresolve-question-codes.mjs` (hướng dẫn §10);
-- seed Bài ↔ YCCĐ KHTN 6–9 đã dựng (`src/db/seed-khtn-lessons.js`, dữ liệu `seed-data/khtn{6..9}-lessons.json`, rà soát `docs/KHTN_BAI_YCCD_SEED_REVIEW.md`); chờ deploy + nạp/công bố chương trình (hướng dẫn §10); `seed-khtn7-vatli-lessons.js` cũ đã được gộp, không chạy riêng;
+- seed Bài ↔ YCCĐ KHTN 6–9 đã dựng (`src/db/seed-khtn-lessons.js`, dữ liệu `seed-data/khtn{6..9}-lessons.json`, rà soát `docs/KHTN_BAI_YCCD_SEED_REVIEW.md`); workbook chính thức (bản sạch) đã vào repo `src/db/seed-data/curriculum/`; máy chủ nạp bằng `scripts/import-khtn-curriculum.mjs` (hướng dẫn §10) — chờ anh Hiếu cho phép cờ `--accept-source-warnings` (khối 7, 9) và cách đánh số S.18.1 trùng (khối 8); `seed-khtn7-vatli-lessons.js` cũ đã được gộp, không chạy riêng;
 - smoke UI đăng nhập chưa làm.
 
 **PERF DoD: NOT DONE.** Không chạy load test trên production.

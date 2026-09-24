@@ -464,3 +464,19 @@ Anh Hiếu chốt: **workbook là chuẩn nguyên văn**; SGK/KHDH khác một c
 - Python biến `\b` thành backspace khi vá file → sửa lại bằng node, quét toàn repo không còn ký tự điều khiển;
 - ngưỡng 0,70 ghép sai (virus ↔ nguyên sinh vật) → chọn 0,75;
 - trigger `TOPIC_YCCD_MISMATCH` → luật sửa phân môn Bài như trên.
+
+## 2026-09-24 — Máy chủ chỉ dùng chung GitHub: đưa workbook vào repo + script nạp chương trình bằng lệnh
+
+**Bối cảnh:** anh Hiếu báo máy self-host là máy khác, chỉ dùng chung GitHub → không có ổ G trên máy chủ.
+
+**Làm:**
+- `backend/src/db/seed-data/curriculum/Outcome_YCCD_KHTN_{6..9}.xlsx`: bản sạch metadata. File gốc có tên giáo viên ở LastAuthor → chép lại giá trị ô sang workbook mới; đã kiểm `normalizeSourceRows` cho kết quả giống hệt bản gốc, không còn creator / lastModifiedBy.
+- `backend/scripts/import-khtn-curriculum.mjs`:
+  - mặc định KIỂM TRA (parseWorkbook + hồ sơ tin cậy + normalizeSourceRows, không ghi);
+  - `--apply --actor <admin> [--publish] [--accept-source-warnings] [--renumber-duplicates] [--new-version]` đi qua đúng service của giao diện (createVersion → upload → mapImport → editRows nếu trùng số → commitImport → publishVersion);
+  - thiếu cờ thì dừng TRƯỚC khi ghi (mã 3); khối đã PUBLISHED thì từ chối.
+- Nguồn cần người quyết:
+  - khối 7 có 3 dòng số viết sai (S.8.5, S.9.6, S.10.5); khối 9 có 1 dòng (H.8.1) → nội dung đúng, cần `--accept-source-warnings`;
+  - khối 8 S.18.1 trùng ("tác động của con người…" / "khái niệm ô nhiễm môi trường…") → `--renumber-duplicates` cho dòng sau thành S.18.5, hoặc sửa file gốc.
+- Test `v6671-lesson-seed` 4/4 chạy trọn bằng lệnh: kiểm tra → dừng khi thiếu cờ (không tạo phiên bản) → nạp + công bố 4 khối → nạp lại bị chặn → seed 4 khối → nhận lại theo mã.
+- Hướng dẫn mục 10 viết lại: A0 deploy → A1 nạp bằng lệnh (kiểm tra, xin phép cờ) → A2 seed → A3 nhận lại theo mã → A4 data-health.

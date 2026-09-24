@@ -358,105 +358,105 @@ Timeout khi gọi `https://nganhang.studylab.io.vn/api/health` là do tên miề
 
 ---
 
-## 10. Vòng 3 — Nạp chương trình, seed Bài ↔ YCCĐ, nhận lại YCCĐ theo mã
+## 10. Vòng 3 — Nạp chương trình, seed Bài ↔ YCCĐ, nhận lại YCCĐ theo mã (chỉ bằng lệnh, từ repo)
 
-**Kết quả vòng 2:**
-- DB máy chủ chưa có Outcome/YCCĐ nào.
-- KHTN 9 có 80 câu, đều có mã, đều `DRAFT`, đều lỗi vì chưa gắn YCCĐ.
-- KHTN 9 có 51 Bài nhưng 0 liên kết.
-
-**Chuẩn nguyên văn:** luôn là workbook `Outcome_YCCD_KHTN_{6..9}.xlsx` (anh Hiếu chốt: SGK / KHDH viết khác một chút cũng lấy workbook làm chuẩn).
-
-**Bài ↔ YCCĐ:** lấy từ KHDH 26-27 của trường (Tên bài ↔ Yêu cầu cần đạt), mục lục SGK KNTT, và file ThongKe Vật lí 7. Đã dựng sẵn thành `backend/src/db/seed-data/khtn{6..9}-lessons.json`. Báo cáo cho giáo viên rà: `docs/KHTN_BAI_YCCD_SEED_REVIEW.md`.
+**Máy chủ và máy soạn chỉ dùng chung GitHub.** Mọi thứ cần dùng đã nằm trong repo; không cần ổ G, không cần thao tác giao diện:
+- 4 workbook Outcome/YCCĐ chính thức (bản sạch metadata, nội dung giống hệt bản gốc): `backend/src/db/seed-data/curriculum/Outcome_YCCD_KHTN_{6..9}.xlsx`;
+- dữ liệu Bài ↔ YCCĐ: `backend/src/db/seed-data/khtn{6..9}-lessons.json`. Nguồn: KHDH 26-27 của trường + mục lục SGK + file ThongKe Vật lí 7. Nguyên văn YCCĐ luôn lấy từ workbook.
 
 | Khối | YCCĐ có Bài | Ghi chú |
 |---|---|---|
-| 9 | 187/191 | đủ 51/51 Bài |
+| 9 | 187/191 | 51/51 Bài |
 | 8 | 187/194 | |
 | 7 | 89/107 | |
-| 6 | 65/135 | KHDH khối 6 viết khác chương trình nhiều → giáo viên bổ sung trên giao diện |
+| 6 | 65/135 | |
 
-Thứ tự làm. **H** = anh Hiếu, **A** = AI trên máy này.
+Phần thiếu: `docs/KHTN_BAI_YCCD_SEED_REVIEW.md`.
 
-### A0. Deploy bản mới của nhánh (có thêm script + seed + sửa `lessonSeed.js`)
+**Tình trạng vòng 2:** DB máy chủ chưa có Outcome/YCCĐ; 80 câu KHTN 9 có mã (`DRAFT`) chờ nhận lại YCCĐ.
+
+### A0. Deploy bản mới của nhánh
 Làm lại **đúng mục 5** với TIP mới của `origin/perf-v6671-followup`:
 - thư mục deploy đứng ở `main` = bản đang chạy;
 - backup;
 - push fast-forward `main`;
 - CI "Verify & Deploy".
 
-Làm ngoài giờ học (app khởi động lại vài giây). Không có migration mới.
+Ngoài giờ học. Không có migration mới.
 
-### H1. Nạp + công bố chương trình (giao diện, admin) — khối 9 trước, rồi 6, 7, 8
-1. `/admin/curriculum` → "Môn học & Chương trình" → chọn **KHTN**, khối → **Tạo bản nháp**.
-2. Tab **"Nạp Outcome / YCCĐ"** → chọn `Outcome_YCCD_KHTN_{khối}.xlsx` (bộ `G:\NSHM\26 27\outcome\New folder`). Hồ sơ tin cậy tự nhận.
-3. Xem staging:
-   - khối 7 có ô chứa nhiều YCCĐ → khi ghi phải tick **chấp nhận cảnh báo nguồn**;
-   - khối 8 có YCCĐ trùng số (Chủ đề 18) → sửa số trong **"Sửa dữ liệu staging"**.
-
-   **Không sửa câu chữ YCCĐ.** Seed đối chiếu theo nguyên văn workbook, sửa chữ thì seed báo thiếu.
-4. Ghi nhập → **Công bố phiên bản**.
-
-### A1. Seed Bài ↔ YCCĐ (sau mỗi khối đã công bố) — chạy thử trước
+### A1. Nạp + công bố chương trình — KIỂM TRA trước, mỗi khối một lần
 ```bash
 cd /home/hieu/nganhang-personalized-v6.3/backend
-node ../scripts/backup.mjs                                   # backup trước khi ghi
-node src/db/seed-khtn-lessons.js --grade 9 --dry-run         # không ghi gì
+for g in 9 6 7 8; do node scripts/import-khtn-curriculum.mjs --grade $g 2>/dev/null; done     # chỉ đọc
 ```
-Đọc bản tóm tắt JSON:
+Mỗi khối in:
+- `yccd`, `outcomes`, `flags`;
+- `risky` (dòng có số thứ tự viết sai định dạng);
+- `duplicates` (YCCĐ trùng số);
+- `existing_versions`.
+
+Đã biết trước:
+- **Khối 7:** 3 dòng số viết sai định dạng (S.8.5, S.9.6, S.10.5), nội dung đúng → cần `--accept-source-warnings`.
+- **Khối 9:** 1 dòng (H.8.1), tương tự → cần `--accept-source-warnings`.
+- **Khối 8:** Chủ đề 18 có hai YCCĐ cùng số S.18.1 ("tác động của con người…" và "khái niệm ô nhiễm môi trường…") → cần quyết định đánh số. `--renumber-duplicates` giữ dòng đầu là S.18.1, dòng sau thành **S.18.5**. Hoặc anh Hiếu sửa file gốc rồi commit lại.
+
+**Chỉ khi anh Hiếu cho phép** các cờ trên mới ghi thật (mỗi lệnh tạo bản nháp → nạp → công bố; khối đã PUBLISHED sẽ bị từ chối):
+```bash
+node ../scripts/backup.mjs
+node scripts/import-khtn-curriculum.mjs --grade 9 --apply --actor <admin> --publish --accept-source-warnings
+node scripts/import-khtn-curriculum.mjs --grade 6 --apply --actor <admin> --publish
+node scripts/import-khtn-curriculum.mjs --grade 7 --apply --actor <admin> --publish --accept-source-warnings
+node scripts/import-khtn-curriculum.mjs --grade 8 --apply --actor <admin> --publish --renumber-duplicates   # chỉ khi anh Hiếu chọn cách này
+```
+Lỗi dừng (mã thoát 3):
+- `SOURCE_WARNINGS` / `SOURCE_ORDINAL_DUPLICATE` → **chưa ghi gì**, chờ quyết định;
+- `ALREADY_PUBLISHED` → khối đã nạp, bỏ qua;
+- lỗi khác → **STOP**, gửi nguyên thông báo.
+
+### A2. Seed Bài ↔ YCCĐ (sau khi khối đã công bố) — chạy thử trước
+```bash
+for g in 9 6 7 8; do node src/db/seed-khtn-lessons.js --grade $g --dry-run; done
+```
+Đọc:
 - `topics_reused` / `topics_created` / `links_created` / `skipped_uncertain`;
-- `topic_branch_corrected`: khối 9 dự kiến chuyển Bài 16, 17 từ Hoá sang Vật lí đúng theo chương trình;
+- `topic_branch_corrected`: khối 9 dự kiến chuyển Bài 16, 17 từ Hoá sang Vật lí, đúng chương trình;
 - `skipped_cross_branch`.
 
-Lỗi:
-- `NO_PUBLISHED_VERSION` → khối đó chưa công bố (H1), **STOP**.
-- `YCCD_NOT_FOUND` / `AMBIGUOUS_YCCD_TEXT` / `DUPLICATE_LESSON` → **STOP**, gửi nguyên thông báo (không có secret).
+Lỗi `YCCD_NOT_FOUND` / `AMBIGUOUS_YCCD_TEXT` / `DUPLICATE_LESSON` → **STOP**, gửi thông báo.
 
-Gửi tóm tắt cho anh Hiếu. **Được đồng ý** thì chạy thật:
-```bash
-node src/db/seed-khtn-lessons.js --grade 9
-```
-Lặp cho khối 6, 7, 8 khi đã công bố.
-- **Không** chạy `seed-khtn7-vatli-lessons.js` cũ: dữ liệu ThongKe Vật lí 7 đã gộp vào `khtn7-lessons.json`.
-- **Không** dùng `--include-uncertain` / `--allow-legacy` nếu anh Hiếu chưa cho.
+**Được đồng ý** thì chạy thật (bỏ `--dry-run`). Chạy lại nhiều lần không sinh trùng.
+- **Không** chạy `seed-khtn7-vatli-lessons.js` cũ: đã gộp vào `khtn7-lessons.json`.
+- **Không** dùng `--include-uncertain` / `--allow-legacy`.
 
-### A2. Nhận lại YCCĐ theo mã cho câu nháp — chạy thử trước
+### A3. Nhận lại YCCĐ theo mã cho câu nháp — chạy thử trước
 ```bash
-cd /home/hieu/nganhang-personalized-v6.3/backend
 node scripts/reresolve-question-codes.mjs --subject KHTN --grade 9 2>/dev/null
 ```
 - Chỉ đụng câu có mã, chưa có YCCĐ, bản hiện hành `DRAFT`.
-- Câu lệch mã → `conflicts` (bỏ qua); câu không phải nháp → `skipped_not_draft` (không sửa).
+- Câu lệch mã → `conflicts`, câu không phải nháp → `skipped_not_draft`; cả hai không bị sửa.
 
-Gửi tóm tắt: `candidates`, `resolved`, `applied`, `lesson_auto / unmapped / ambiguous`, `conflicts`, `not_resolved` + lý do.
-**Được đồng ý** thì ghi thật:
+**Được đồng ý** thì:
 ```bash
-node scripts/reresolve-question-codes.mjs --subject KHTN --grade 9 --apply --actor <tên đăng nhập admin anh Hiếu chỉ định>
+node scripts/reresolve-question-codes.mjs --subject KHTN --grade 9 --apply --actor <admin>
 ```
 
-### A3. Kiểm lại
+### A4. Kiểm lại
 ```bash
 node scripts/data-health.mjs 2>/dev/null
 ```
 Kỳ vọng:
-- KHTN 9: `yccds_active` ≈ 191, `published` 1, `lesson_links` > 180;
-- "Kiểm tra mã": `failed` giảm còn ≈ `conflicts + not_resolved` của A2.
+- KHTN 9: `yccds_active` 191, `published` 1, `lesson_links` > 180;
+- "Kiểm tra mã": `failed` ≈ `conflicts + not_resolved` của A3.
 
-### H2. Giáo viên rà phần còn thiếu
-`docs/KHTN_BAI_YCCD_SEED_REVIEW.md` liệt kê theo khối:
-- YCCĐ chưa gắn Bài nào;
-- dòng KHDH không khớp;
-- cặp khớp gần đúng;
-- mục từ ô gộp chưa chắc.
-
-Giáo viên liên kết thêm ở `/practice/curriculum` → "Liên kết bài học với YCCĐ". Câu có YCCĐ mà chưa có Bài thì dùng "Gán Bài hàng loạt" ở màn Duyệt.
+### H. Giáo viên rà phần còn thiếu (không gấp)
+Theo `docs/KHTN_BAI_YCCD_SEED_REVIEW.md`, liên kết thêm ở `/practice/curriculum`. Câu có YCCĐ mà chưa có Bài thì dùng "Gán Bài hàng loạt".
 
 ### Báo cáo vòng 3
 ```text
 A0: TIP deploy, workflow run, backup, health
-H1: khối đã công bố + mã phiên bản
-A1: tóm tắt dry-run từng khối; đã chạy thật khối nào (ai duyệt); topic_branch_corrected; skipped_*
-A2: tóm tắt dry-run; đã ghi thật chưa (ai duyệt, actor); tóm tắt sau ghi
-A3: data-health trước/sau (tồn kho KHTN, Kiểm tra mã)
-An toàn: SQL tay KHÔNG · secret KHÔNG · câu không phải nháp bị sửa KHÔNG · --include-uncertain/--allow-legacy KHÔNG (trừ khi được cho phép)
+A1: kết quả kiểm tra 4 khối; khối đã nạp + công bố (version_code, cờ đã dùng, ai cho phép); renumbered (khối 8)
+A2: tóm tắt dry-run + chạy thật từng khối; topic_branch_corrected; skipped_*
+A3: tóm tắt dry-run; đã ghi thật chưa (ai duyệt, actor); kết quả
+A4: data-health trước/sau
+An toàn: SQL tay KHÔNG · secret KHÔNG · câu không phải nháp bị sửa KHÔNG · cờ chỉ dùng khi được cho phép
 ```
