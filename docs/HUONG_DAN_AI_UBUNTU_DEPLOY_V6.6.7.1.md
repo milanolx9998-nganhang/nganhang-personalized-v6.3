@@ -245,6 +245,10 @@ Xử lý theo đúng các mục dưới đây. **Không tự sáng tạo thêm l
 ### D2. Bài ↔ YCCĐ KHTN 7 (Vật lí)
 Dấu hiệu: data-health báo `KHTN khối 7: … YCCĐ nhưng chưa có liên kết Bài nào`, hoặc số `yccd_linked` của KHTN 7 bằng 0.
 
+**Luôn chạy `--dry-run` để có căn cứ.** Dry-run chạy trong transaction và luôn rollback nên không ghi gì. Không cần chờ quyết định mới được chạy dry-run. Đọc thêm bảng "Tồn kho chương trình theo môn/khối" của data-health:
+- `yccds_active = 0` cho KHTN 7 → máy chủ **chưa có dữ liệu Outcome/YCCĐ**. Seed không có gì để liên kết; việc cần làm là nạp chương trình (xem D2b), không phải seed.
+- `yccds_active > 0`, `published = 0` → seed sẽ dừng `NO_PUBLISHED_VERSION`. Hỏi anh Hiếu: công bố phiên bản chương trình, hay dùng `--allow-legacy`.
+
 ```bash
 cd /home/hieu/nganhang-personalized-v6.3/backend
 node src/db/seed-khtn7-vatli-lessons.js --dry-run
@@ -255,6 +259,13 @@ node src/db/seed-khtn7-vatli-lessons.js --dry-run
   - Báo `NO_PUBLISHED_VERSION` → **STOP, hỏi anh Hiếu** có cho dùng `--allow-legacy` không. Không tự thêm cờ.
   - Báo nguyên văn khớp nhiều YCCĐ hoặc thiếu YCCĐ → **STOP + báo**.
 - Script idempotent: đã nạp rồi thì chạy lại không nhân đôi. Chạy lại data-health để xác nhận `yccd_linked > 0`.
+
+### D2b. Máy chủ thiếu dữ liệu chương trình (Outcome / YCCĐ)
+Dấu hiệu: data-health báo `có N câu nhưng chưa có YCCĐ ACTIVE`, và phần "Kiểm tra mã" có `no_yccd` ≈ `failed`.
+- **Không tạo Outcome / YCCĐ bằng SQL.**
+- Chương trình được nạp bằng giao diện **Chuẩn đầu ra** (admin), từ workbook chính thức qua hồ sơ tin cậy `KHTN_OUTCOME_YCCD_OFFICIAL_V1`: xem trước → sửa staging nếu cần → công bố phiên bản.
+- Workbook nằm trên máy của anh Hiếu. Đây là việc của người, AI chỉ báo số liệu.
+- Sau khi có chương trình, các câu có mã đã nhập trước đó vẫn chưa có YCCĐ. Báo anh Hiếu để có công cụ "nhận lại theo mã" riêng; **không** tự sửa từng câu.
 
 ### D3. Thao tác hoàn tác cũ
 App tự dọn khi khởi động và mỗi 24 giờ. Nếu data-health vẫn báo `prunable > 0` sau khi đã restart, báo kèm log khởi động. Không `DELETE` tay.
@@ -293,6 +304,13 @@ node scripts/perf-db-check.mjs    # ghi lại: Supavisor session/transaction, ma
 - `RATE_LIMIT_API_IP` chỉ nâng khi đã kiểm NAT (xem `docs/PERF_V6_6_7_REDIS_SUPAVISOR.md` §5), và phải được anh Hiếu đồng ý.
 
 ---
+
+## 7b. Ghi chú kiểm link công khai (2026-09-24)
+Kiểm từ Internet (DNS 8.8.8.8):
+- `studylab.io.vn` có bản ghi trên Cloudflare;
+- `nganhang.studylab.io.vn` **không có bản ghi DNS** (NXDOMAIN).
+
+Timeout khi gọi `https://nganhang.studylab.io.vn/api/health` là do tên miền con chưa được trỏ, không do deploy. Trỏ DNS / Cloudflare Tunnel là việc của anh Hiếu trên Cloudflare; AI không tự sửa Caddy / DNS.
 
 ## 8. Việc KHÔNG làm trong vòng này
 - k6 / load test: chưa có staging. Ghi `K6_STAGING = NOT_RUN`.

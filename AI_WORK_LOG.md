@@ -385,3 +385,23 @@ thu hồi PAT GitHub; commit khi user yêu cầu; deploy xong chạy `npm run mi
 **Lưu ý kỹ thuật cho deploy:** `deploy-server.sh` lấy `PREVIOUS_SHA` từ HEAD của thư mục deploy và reset nhánh đang checkout. Vì vậy máy Home phải đứng ở `main` = bản đang chạy, và đưa `main` lên bằng push, không merge tại chỗ; nếu không, rollback mất tác dụng. Nhánh không đổi `backend/src` / `frontend/src` / SQL so với `main`.
 
 **Chưa làm (cần máy Home / người):** deploy + dữ liệu theo hướng dẫn; k6 staging; UAT Word thật; thu hồi PAT.
+
+## 2026-09-24 — Sau deploy `a344eeb` lên Home: đọc báo cáo AI Ubuntu, bổ sung chẩn đoán dữ liệu
+
+**Báo cáo AI Ubuntu:**
+- Push fast-forward `main` 423be0c → a344eeb; CI "Verify & Deploy" run 35965226544 SUCCESS.
+- Có backup; health ok, cache ok; data-health: blocking 0, 80 câu không đạt kiểm tra mã, không trả dòng chương trình nào; seed KHTN7 chưa chạy (NEEDS_DECISION); link công khai timeout.
+
+**Kiểm từ máy Windows:** `nganhang.studylab.io.vn` NXDOMAIN trên DNS công khai (domain gốc có trên Cloudflare) → chưa trỏ DNS, không do deploy.
+
+**Chẩn đoán:** kiểm tra mã báo lỗi khi câu có mã nhưng `yccd_id` rỗng. Server không có dòng chương trình ACTIVE nào → khả năng cao DB server chưa có Outcome/YCCĐ, nên 80 câu có mã không tự nhận chương trình.
+
+**Đổi (chỉ nhánh `perf-v6671-followup`, không đẩy `main` để khỏi deploy / khởi động lại):**
+- `data-health.mjs` thêm:
+  - phân loại lỗi mã (chưa gắn YCCĐ / YCCĐ không tồn tại / lệch dạng / phân môn / số Outcome / số YCCĐ) + theo môn/khối;
+  - tồn kho chương trình theo môn/khối (Outcome, YCCĐ tổng / ACTIVE, phiên bản PUBLISHED, Bài, liên kết, số câu);
+  - câu theo lifecycle / trạng thái duyệt.
+- Hướng dẫn: D2 luôn chạy dry-run (không ghi); D2b (thiếu dữ liệu chương trình → nạp qua giao diện Chuẩn đầu ra, không SQL); 7b (DNS).
+- Local: KHTN 7 có 97 YCCĐ ACTIVE nhưng 0 phiên bản PUBLISHED (trước đây nạp bằng `--allow-legacy`).
+
+**Việc tiếp theo:** AI Ubuntu chạy data-health bản mới + seed dry-run, gửi số liệu. Nếu xác nhận thiếu chương trình: anh Hiếu nạp workbook qua giao diện, rồi làm công cụ "nhận lại theo mã" cho câu cũ (tạo phiên bản mới, không đưa câu đã duyệt về nháp trái ý).

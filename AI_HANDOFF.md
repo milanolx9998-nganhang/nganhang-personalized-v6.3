@@ -18,6 +18,13 @@ Cập nhật: 2026-09-24 · Phiên bản mã: **6.6.7**
   HEAD hiện tại của branch: xem `git log perf-v6671-followup` (không ghi cứng ở đây để khỏi cũ).
 - Branch **chưa merge `main`, chưa auto-deploy**. Deploy + sửa dữ liệu do AI trên máy Ubuntu làm theo `docs/HUONG_DAN_AI_UBUNTU_DEPLOY_V6.6.7.1.md`: push fast-forward `main` → CI "Verify & Deploy" → `data-health` → seed KHTN7 nếu thiếu. Nhánh không đổi `backend/src` / `frontend/src` / SQL.
 
+**Deploy Home 2026-09-24:** `main` = `a344eeb` (CI run 35965226544 SUCCESS; backup `backups/2026-09-24T06-34-06-238Z`; health ok, cache ok).
+Còn mở:
+- `nganhang.studylab.io.vn` chưa có DNS;
+- 80 câu có mã không đạt kiểm tra mã, nghi server thiếu Outcome/YCCĐ → chờ data-health bản mới;
+- seed KHTN7 chưa chạy;
+- smoke UI đăng nhập chưa làm.
+
 **PERF DoD: NOT DONE.** Không chạy load test trên production.
 
 | Gate | Trạng thái |
