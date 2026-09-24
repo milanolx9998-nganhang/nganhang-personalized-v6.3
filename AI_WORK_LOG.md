@@ -542,3 +542,9 @@ Anh Hiếu chốt: **workbook là chuẩn nguyên văn**; SGK/KHDH khác một c
 - lần 2 sau khi sửa: 153/156 đạt; 3 lỗi còn lại đều ở `v6671-lesson-seed`, do PostgreSQL local hết chỗ kết nối khi mọi file chạy song song (`53300 remaining connection slots`); chạy riêng file này: 4/4 đạt.
 
 **Kết quả:** gộp vào `main` bằng fast-forward rồi push; CI "Verify & Deploy" tự deploy. Dữ liệu (§10 A1–A4) vẫn do AI Ubuntu chạy.
+
+**CI sau khi đẩy main (`1ce88c6`):** run 36071707977.
+- Lần 1: Verify kẹt ở "Build frontend" 20 phút (máy Home: RAM trống 1,8 GiB, swap 2 GiB gần hết, load 35–48), rồi SUCCESS; Deploy SUCCESS.
+- AI Ubuntu bấm "Re-run all jobs" khi lần 1 vừa xong → lần 2 SUCCESS (Verify 43 giây, Deploy 33 giây). Deploy lại cùng commit, vô hại (backup + migrate không có gì mới + restart + health).
+- Thêm `timeout-minutes: 45` cho job Verify (cắt ngang an toàn); KHÔNG đặt cho Deploy vì dừng giữa backup/migrate nguy hiểm hơn chờ. Mới commit vào nhánh, đi theo lần đẩy main sau.
+- Việc tiếp: giảm tải máy Home (đóng Firefox/VS Code, xem `docker stats` các container Supabase không dùng).

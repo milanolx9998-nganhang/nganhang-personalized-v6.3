@@ -16,6 +16,9 @@ jobs:
   verify:
     name: Verify
     runs-on: [self-hosted, linux]
+    # Máy Home quá tải có thể làm build treo (2026-09-25: build frontend 20 phút). Verify chỉ build + test, cắt ngang an toàn;
+    # KHÔNG đặt timeout cho deploy: dừng giữa backup/migrate nguy hiểm hơn chờ.
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v4
