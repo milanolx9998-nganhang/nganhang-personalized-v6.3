@@ -93,24 +93,28 @@ test('V6671 seed: trước khi có chương trình — seed dừng NO_PUBLISHED_
 });
 
 test('V6671 seed: nạp chương trình bằng script dòng lệnh — kiểm tra trước, dừng khi nguồn cần người quyết', {skip}, async () => {
+  // Khối 8 trong repo đã đánh lại số YCCĐ từ 1 trong từng Chủ đề (quy tắc khối 7): không còn trùng số.
   const check = json(run('scripts/import-khtn-curriculum.mjs', '--grade', '8'));
   assert.equal(check.mode, 'CHECK');
-  assert.equal(check.duplicates.length, 2, 'Khối 8: S.18.1 bị trùng số');
+  assert.equal(check.duplicates.length, 0);
+  assert.equal(check.risky_rows, 0);
   const versionsBefore = Number((await db.query('SELECT count(*) FROM curriculum_versions')).rows[0].count);
-  const refused = run('scripts/import-khtn-curriculum.mjs', '--grade', '8', '--apply', '--actor', 'v6671s_admin', '--publish');
-  assert.equal(refused.status, 3);
-  assert.match(refused.err, /SOURCE_ORDINAL_DUPLICATE/);
   const warn = run('scripts/import-khtn-curriculum.mjs', '--grade', '7', '--apply', '--actor', 'v6671s_admin', '--publish');
   assert.equal(warn.status, 3);
   assert.match(warn.err, /SOURCE_WARNINGS/);
   assert.equal(Number((await db.query('SELECT count(*) FROM curriculum_versions')).rows[0].count), versionsBefore, 'Dừng trước khi ghi bất cứ gì');
 
-  const flags = {6: [], 7: ['--accept-source-warnings'], 8: ['--renumber-duplicates'], 9: ['--accept-source-warnings']};
+  const flags = {6: [], 7: ['--accept-source-warnings'], 8: [], 9: ['--accept-source-warnings']};
   for (const grade of GRADES) {
     const r = json(run('scripts/import-khtn-curriculum.mjs', '--grade', String(grade), '--apply', '--actor', 'v6671s_admin', '--publish', ...flags[grade]));
     assert.equal(r.published, true, JSON.stringify(r));
-    if (grade === 8) assert.deepEqual(r.renumbered.map(x => x.from), ['S.18.1']);
+    assert.deepEqual(r.renumbered, []);
   }
+  const ordinals = async (branch, outcome) => (await db.query(`SELECT y.source_ordinal FROM curriculum_yccds y JOIN curriculum_outcomes o ON o.id=y.outcome_id
+    JOIN curriculum_versions v ON v.id=o.curriculum_version_id WHERE v.status='PUBLISHED' AND o.subject_id=$1 AND o.grade=8 AND o.source_branch_code=$2 AND o.source_ordinal=$3
+    ORDER BY y.source_ordinal`, [subjectId, branch, outcome])).rows.map(r => r.source_ordinal);
+  assert.deepEqual(await ordinals('H', 2), [1, 2, 3, 4, 5, 6, 7, 8], 'Hoá 8 Chủ đề 2 đánh lại từ 1');
+  assert.deepEqual(await ordinals('S', 18), [1, 2, 3, 4, 5], 'Sinh 8 Chủ đề 18 hết trùng số');
   const again = run('scripts/import-khtn-curriculum.mjs', '--grade', '9', '--apply', '--actor', 'v6671s_admin', '--publish', '--accept-source-warnings');
   assert.equal(again.status, 3);
   assert.match(again.err, /ALREADY_PUBLISHED/);

@@ -45,56 +45,56 @@
     {
      "branch_code": "H",
      "outcome": 2,
-     "stt": 4,
+     "stt": 1,
      "matched_by": "exact",
      "text": "Nêu được khái niệm sự biến đổi vật lí, biến đổi hoá học."
     },
     {
      "branch_code": "H",
      "outcome": 2,
-     "stt": 5,
+     "stt": 2,
      "matched_by": "exact",
      "text": "Phân biệt được sự biến đổi vật lí, biến đổi hoá học. Đưa ra được ví dụ về sự biến đổi vật lí và sự biến đổi hoá học."
     },
     {
      "branch_code": "H",
      "outcome": 2,
-     "stt": 6,
+     "stt": 3,
      "matched_by": "exact",
      "text": "Tiến hành được một số thí nghiệm về sự biến đổi vật lí và biến đổi hoá học."
     },
     {
      "branch_code": "H",
      "outcome": 2,
-     "stt": 7,
+     "stt": 4,
      "matched_by": "exact",
      "text": "Nêu được khái niệm phản ứng hoá học, chất đầu và sản phẩm."
     },
     {
      "branch_code": "H",
      "outcome": 2,
-     "stt": 8,
+     "stt": 5,
      "matched_by": "exact",
      "text": "Nêu được sự sắp xếp khác nhau của các nguyên tử trong phân tử chất đầu và sản phẩm"
     },
     {
      "branch_code": "H",
      "outcome": 2,
-     "stt": 9,
+     "stt": 6,
      "matched_by": "exact",
      "text": "Chỉ ra được một số dấu hiệu chứng tỏ có phản ứng hoá học xảy ra."
     },
     {
      "branch_code": "H",
      "outcome": 2,
-     "stt": 10,
+     "stt": 7,
      "matched_by": "exact",
      "text": "Nêu được khái niệm và đưa ra được ví dụ minh hoạ về phản ứng toả nhiệt, thu nhiệt."
     },
     {
      "branch_code": "H",
      "outcome": 2,
-     "stt": 11,
+     "stt": 8,
      "matched_by": "exact",
      "text": "Trình bày được các ứng dụng phổ biến của phản ứng toả nhiệt (đốt cháy than, xăng, dầu)."
     }
@@ -110,42 +110,42 @@
     {
      "branch_code": "H",
      "outcome": 4,
-     "stt": 17,
+     "stt": 1,
      "matched_by": "exact",
      "text": "Nêu được khái niệm về mol (nguyên tử, phân tử)."
     },
     {
      "branch_code": "H",
      "outcome": 4,
-     "stt": 18,
+     "stt": 2,
      "matched_by": "exact",
      "text": "Tính được khối lượng mol (M); Chuyển đổi được giữa số mol (n) và khối lượng (m)"
     },
     {
      "branch_code": "H",
      "outcome": 4,
-     "stt": 19,
+     "stt": 3,
      "matched_by": "exact",
      "text": "Nêu được khái niệm tỉ khối, viết được công thức tính tỉ khối của chất khí."
     },
     {
      "branch_code": "H",
      "outcome": 4,
-     "stt": 20,
+     "stt": 4,
      "matched_by": "exact",
      "text": "So sánh được chất khí này nặng hay nhẹ hơn chất khí khác dựa vào công thức tính tỉ khối."
     },
     {
      "branch_code": "H",
      "outcome": 4,
-     "stt": 21,
+     "stt": 5,
      "matched_by": "fuzzy",
      "text": "Nêu được khái niệm thể tích mol của chất khí ở áp suất 1 bar và 25 °C."
     },
     {
      "branch_code": "H",
      "outcome": 4,
-     "stt": 22,
+     "stt": 6,
      "matched_by": "fuzzy",
      "text": "Sử dụng được công thức n (mol) = V (L) / 24,79 (L/mol) để chuyển đổi giữa số mol và thể tích chất khí ở điều kiện chuẩn: áp suất 1 bar và 25 °C."
     }
@@ -161,28 +161,28 @@
     {
      "branch_code": "H",
      "outcome": 6,
-     "stt": 25,
+     "stt": 1,
      "matched_by": "exact",
      "text": "Nêu được dung dịch là hỗn hợp lỏng đồng nhất của các chất đã tan trong nhau."
     },
     {
      "branch_code": "H",
      "outcome": 6,
-     "stt": 26,
+     "stt": 2,
      "matched_by": "exact",
      "text": "Nêu được định nghĩa độ tan của một chất trong nước, nồng độ phần trăm, nồng độ mol."
     },
     {
      "branch_code": "H",
      "outcome": 6,
-     "stt": 27,
+     "stt": 3,
      "matched_by": "exact",
      "text": "Tính được độ tan, nồng độ phần trăm; nồng độ mol theo công thức."
     },
     {
      "branch_code": "H",
      "outcome": 6,
-     "stt": 28,
+     "stt": 4,
      "matched_by": "exact",
      "text": "Tiến hành được thí nghiệm pha một dung dịch theo một nồng độ cho trước."
     }
@@ -198,14 +198,14 @@
     {
      "branch_code": "H",
      "outcome": 3,
-     "stt": 12,
+     "stt": 1,
      "matched_by": "exact",
      "text": "Tiến hành được thí nghiệm để chứng minh: Trong phản ứng hoá học, khối lượng được bảo toàn."
     },
     {
      "branch_code": "H",
      "outcome": 3,
-     "stt": 13,
+     "stt": 2,
      "matched_by": "exact",
      "text": "Phát biểu được định luật bảo toàn khối lượng."
     }
@@ -221,35 +221,35 @@
     {
      "branch_code": "H",
      "outcome": 3,
-     "stt": 14,
+     "stt": 3,
      "matched_by": "exact",
      "text": "Nêu được khái niệm phương trình hoá học và các bước lập phương trình hoá học."
     },
     {
      "branch_code": "H",
      "outcome": 3,
-     "stt": 15,
+     "stt": 4,
      "matched_by": "exact",
      "text": "Trình bày được ý nghĩa của phương trình hoá học."
     },
     {
      "branch_code": "H",
      "outcome": 3,
-     "stt": 16,
+     "stt": 5,
      "matched_by": "exact",
      "text": "Lập được sơ đồ phản ứng hoá học dạng chữ và phương trình hoá học (dùng công thức hoá học) của một số phản ứng hoá học cụ thể."
     },
     {
      "branch_code": "H",
      "outcome": 5,
-     "stt": 23,
+     "stt": 1,
      "matched_by": "fuzzy",
      "text": "Tính được lượng chất trong phương trình hóa học theo số mol, khối lượng hoặc thể tích ở điều kiện 1 bar và 25 °C."
     },
     {
      "branch_code": "H",
      "outcome": 5,
-     "stt": 24,
+     "stt": 2,
      "matched_by": "exact",
      "text": "Nêu được khái niệm hiệu suất của phản ứng và tính được hiệu suất của một phản ứng dựa vào lượng sản phẩm thu được theo lí thuyết và lượng sản phẩm thu được theo thực tế."
     }
@@ -265,21 +265,21 @@
     {
      "branch_code": "H",
      "outcome": 7,
-     "stt": 29,
+     "stt": 1,
      "matched_by": "exact",
      "text": "Nêu được khái niệm về tốc độ phản ứng (chỉ mức độ nhanh hay chậm của phản ứng hoá học)."
     },
     {
      "branch_code": "H",
      "outcome": 7,
-     "stt": 30,
+     "stt": 2,
      "matched_by": "exact",
      "text": "Trình bày được một số yếu tố ảnh hưởng đến tốc độ phản ứng và nêu được một số ứng dụng thực tế."
     },
     {
      "branch_code": "H",
      "outcome": 7,
-     "stt": 31,
+     "stt": 3,
      "matched_by": "exact",
      "text": "Tiến hành được thí nghiệm và quan sát thực tiễn:\n+ So sánh được tốc độ một số phản ứng hoá học;\n+ Nêu được các yếu tố làm thay đổi tốc độ phản ứng;\n+ Nêu được khái niệm về chất xúc tác."
     }
@@ -295,21 +295,21 @@
     {
      "branch_code": "H",
      "outcome": 8,
-     "stt": 32,
+     "stt": 1,
      "matched_by": "exact",
      "text": "Nêu được khái niệm acid (tạo ra ion H+)."
     },
     {
      "branch_code": "H",
      "outcome": 8,
-     "stt": 33,
+     "stt": 2,
      "matched_by": "exact",
      "text": "Tiến hành được thí nghiệm của hydrochloric acid (làm đổi màu chất chỉ thị; phản ứng với kim loại), nêu và giải thích được hiện tượng xảy ra trong thí nghiệm (viết phương trình hoá học) và rút ra nhận xét về tính chất của acid."
     },
     {
      "branch_code": "H",
      "outcome": 8,
-     "stt": 34,
+     "stt": 3,
      "matched_by": "fuzzy",
      "text": "Trình bày được một số ứng dụng của một số acid thông dụng (HCl, H₂SO₄, CH₃COOH)."
     }
@@ -325,21 +325,21 @@
     {
      "branch_code": "H",
      "outcome": 9,
-     "stt": 35,
+     "stt": 1,
      "matched_by": "exact",
      "text": "Nêu được khái niệm base (tạo ra ion OH–)."
     },
     {
      "branch_code": "H",
      "outcome": 9,
-     "stt": 36,
+     "stt": 2,
      "matched_by": "exact",
      "text": "Nêu được kiềm là các hydroxide tan tốt trong nước."
     },
     {
      "branch_code": "H",
      "outcome": 9,
-     "stt": 37,
+     "stt": 3,
      "matched_by": "exact",
      "text": "Tiến hành được thí nghiệm base là làm đổi màu chất chỉ thị, phản ứng với acid tạo muối, nêu và giải thích được hiện tượng xảy ra trong thí nghiệm (viết phương trình hoá học) và rút ra nhận xét về tính chất của base."
     }
@@ -355,28 +355,28 @@
     {
      "branch_code": "H",
      "outcome": 10,
-     "stt": 42,
+     "stt": 1,
      "matched_by": "exact",
      "text": "Nêu được khái niệm oxide là hợp chất của oxygen với một nguyên tố khác."
     },
     {
      "branch_code": "H",
      "outcome": 10,
-     "stt": 43,
+     "stt": 2,
      "matched_by": "exact",
      "text": "Viết được phương trình hoá học tạo oxide từ kim loại/phi kim với oxygen."
     },
     {
      "branch_code": "H",
      "outcome": 10,
-     "stt": 44,
+     "stt": 3,
      "matched_by": "exact",
      "text": "Phân loại được các oxide theo khả năng phản ứng với acid/base (oxide acid, oxide base, oxide lưỡng tính, oxide trung tính)."
     },
     {
      "branch_code": "H",
      "outcome": 10,
-     "stt": 45,
+     "stt": 4,
      "matched_by": "exact",
      "text": "Tiến hành được thí nghiệm oxide kim loại phản ứng với acid; oxide phi kim phản ứng với base; nêu và giải thích được hiện tượng xảy ra trong thí nghiệm (viết phương trình hoá học) và rút ra nhận xét về tính chất hoá học của oxide."
     }
@@ -392,42 +392,42 @@
     {
      "branch_code": "H",
      "outcome": 11,
-     "stt": 46,
+     "stt": 1,
      "matched_by": "contain",
      "text": "Nêu được khái niệm về muối (các muối thông thường là hợp chất được hình thành từ sự thay thế ion H+ của acid bởi ion kim loại hoặc ion NH₄⁺)."
     },
     {
      "branch_code": "H",
      "outcome": 11,
-     "stt": 47,
+     "stt": 2,
      "matched_by": "exact",
      "text": "Chỉ ra được một số muối tan và muối không tan từ bảng tính tan."
     },
     {
      "branch_code": "H",
      "outcome": 11,
-     "stt": 48,
+     "stt": 3,
      "matched_by": "exact",
      "text": "Trình bày được một số phương pháp điều chế muối."
     },
     {
      "branch_code": "H",
      "outcome": 11,
-     "stt": 49,
+     "stt": 4,
      "matched_by": "exact",
      "text": "Đọc được tên một số loại muối thông dụng."
     },
     {
      "branch_code": "H",
      "outcome": 11,
-     "stt": 50,
+     "stt": 5,
      "matched_by": "exact",
      "text": "Tiến hành được thí nghiệm muối phản ứng với kim loại, với acid, với base, với muối; nêu và giải thích được hiện tượng xảy ra trong thí nghiệm (viết phương trình hoá học) và rút ra kết luận về tính chất hoá học của muối."
     },
     {
      "branch_code": "H",
      "outcome": 11,
-     "stt": 51,
+     "stt": 6,
      "matched_by": "exact",
      "text": "Trình bày được mối quan hệ giữa acid, base, oxide và muối; rút ra được kết luận về tính chất hoá học của acid, base, oxide."
     }
@@ -443,28 +443,28 @@
     {
      "branch_code": "H",
      "outcome": 12,
-     "stt": 52,
+     "stt": 1,
      "matched_by": "exact",
      "text": "Trình bày được vai trò của phân bón (một trong những nguồn bổ sung một số nguyên tố: đa lượng, trung lượng, vi lượng dưới dạng vô cơ và hữu cơ) cho đất, cây trồng."
     },
     {
      "branch_code": "H",
      "outcome": 12,
-     "stt": 53,
+     "stt": 2,
      "matched_by": "exact",
      "text": "Nêu được thành phần và tác dụng cơ bản của một số loại phân bón hoá học đối với cây trồng (phân đạm, phân lân, phân kali, phân N–P–K)."
     },
     {
      "branch_code": "H",
      "outcome": 12,
-     "stt": 54,
+     "stt": 3,
      "matched_by": "exact",
      "text": "Trình bày được ảnh hưởng của việc sử dụng phân bón hoá học (không đúng cách, không đúng liều lượng) đến môi trường của đất, nước và sức khoẻ của con người."
     },
     {
      "branch_code": "H",
      "outcome": 12,
-     "stt": 55,
+     "stt": 4,
      "matched_by": "exact",
      "text": "Đề xuất được biện pháp giảm thiểu ô nhiễm của phân bón."
     }
@@ -1708,14 +1708,14 @@
     {
      "branch_code": "S",
      "outcome": 18,
-     "stt": 2,
+     "stt": 3,
      "matched_by": "grouped",
      "text": "Trình bày được sự cần thiết phải bảo vệ động vật hoang dã, nhất là những loài có nguy cơ bị tuyệt chủng cần được bảo vệ theo Công ước quốc tế về buôn bán các loài động, thực vật hoang dã (CITES) (ví dụ như các loài voi, tê giác, hổ, sếu đầu đỏ và các loài linh trưởng,…)."
     },
     {
      "branch_code": "S",
      "outcome": 18,
-     "stt": 3,
+     "stt": 4,
      "matched_by": "grouped",
      "text": "Nêu được khái niệm khái quát về biến đổi khí hậu và một số biện pháp chủ yếu nhằm thích ứng với biến đổi khí hậu."
     }
@@ -1738,7 +1738,14 @@
     {
      "branch_code": "S",
      "outcome": 18,
-     "stt": 4,
+     "stt": 2,
+     "matched_by": "grouped_named",
+     "text": "Nêu được khái niệm ô nhiễm môi trường. Trình bày được sơ lược về một số nguyên nhân gây ô nhiễm môi trường (ô nhiễm do chất thải sinh hoạt và công nghiệp, ô nhiễm hoá chất bảo vệ thực vật, ô nhiễm phóng xạ, ô nhiễm do sinh vật gây bệnh) và biện pháp hạn chế ô nhiễm môi trường."
+    },
+    {
+     "branch_code": "S",
+     "outcome": 18,
+     "stt": 5,
      "matched_by": "grouped_named",
      "text": "Điều tra được hiện trạng ô nhiễm môi trường ở địa phương."
     }

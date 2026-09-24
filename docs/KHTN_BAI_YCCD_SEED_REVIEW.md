@@ -1,6 +1,6 @@
 # Rà soát seed Bài ↔ YCCĐ KHTN 6–9
 
-Sinh tự động bởi `backend/scripts/build-khtn-lesson-seed.mjs` lúc 2026-09-24T08:12:23.543Z.
+Sinh tự động bởi `backend/scripts/build-khtn-lesson-seed.mjs` lúc 2026-09-24T11:27:35.816Z.
 Nguồn: KHDH 26-27 của trường (Tên bài ↔ Yêu cầu cần đạt), workbook Outcome/YCCĐ chính thức, mục lục SGK KNTT.
 
 ## Khối 6
@@ -509,21 +509,21 @@ Nguồn: KHDH 26-27 của trường (Tên bài ↔ Yêu cầu cần đạt), wor
 
 ### YCCĐ chính thức chưa gắn Bài nào (7)
 
-- H.9.38 — Tra được bảng tính tan để biết một hydroxide cụ thể thuộc loại kiềm hoặc base không tan.
-- H.9.39 — Nêu được thang pH, sử dụng pH để đánh giá độ acid - base của dung dịch.
-- H.9.40 — Tiến hành được một số thí nghiệm đo pH (bằng giấy chỉ thị) một số loại thực phẩm (đồ uống, hoa quả,...).
-- H.9.41 — Liên hệ được pH trong dạ dày, trong máu, trong nước mưa, đất.
+- H.9.4 — Tra được bảng tính tan để biết một hydroxide cụ thể thuộc loại kiềm hoặc base không tan.
+- H.9.5 — Nêu được thang pH, sử dụng pH để đánh giá độ acid - base của dung dịch.
+- H.9.6 — Tiến hành được một số thí nghiệm đo pH (bằng giấy chỉ thị) một số loại thực phẩm (đồ uống, hoa quả,...).
+- H.9.7 — Liên hệ được pH trong dạ dày, trong máu, trong nước mưa, đất.
 - L.3.2 — Dựa vào công thức, nêu được cách làm tăng, giảm áp suất.
 - L.3.3 — Vận dụng công thức tính áp suất trong các trường hợp cụ thể.
 - S.14.1 — Phát biểu được khái niệm quần xã sinh vật. Nêu được một số đặc điểm cơ bản của quần xã (Đặc điểm về độ đa dạng: số lượng loài và số cá thể của mỗi loài; đặc điể
 
 ### Dòng YCCĐ trong KHDH không khớp nguyên văn chính thức (6)
 
-- Bài 4: Ôn tập, hệ thống hóa các yêu cầu cần đạt đã học trong nửa đầu học kì. _(gần nhất H.9.41 (0.30))_
-- Bài 9: Ôn tập, hệ thống hóa các yêu cầu cần đạt đã học trong học kì. _(gần nhất H.9.41 (0.32))_
-- Bài 29: Ôn tập, hệ thống hóa các yêu cầu cần đạt đã học trong học kì. _(gần nhất H.9.41 (0.32))_
-- Bài 12: Ôn tập, hệ thống hóa các yêu cầu cần đạt đã học trong học kì. _(gần nhất H.9.41 (0.32))_
-- Bài 46: Ôn tập, hệ thống hóa các yêu cầu cần đạt đã học trong học kì. _(gần nhất H.9.41 (0.32))_
+- Bài 4: Ôn tập, hệ thống hóa các yêu cầu cần đạt đã học trong nửa đầu học kì. _(gần nhất H.9.7 (0.30))_
+- Bài 9: Ôn tập, hệ thống hóa các yêu cầu cần đạt đã học trong học kì. _(gần nhất H.9.7 (0.32))_
+- Bài 29: Ôn tập, hệ thống hóa các yêu cầu cần đạt đã học trong học kì. _(gần nhất H.9.7 (0.32))_
+- Bài 12: Ôn tập, hệ thống hóa các yêu cầu cần đạt đã học trong học kì. _(gần nhất H.9.7 (0.32))_
+- Bài 46: Ôn tập, hệ thống hóa các yêu cầu cần đạt đã học trong học kì. _(gần nhất H.9.7 (0.32))_
 - Bài 47: Ôn tập, củng cố các yêu cầu cần đạt của nội dung đã học. _(gần nhất L.6.4 (0.28))_
 
 ### Khớp gần đúng — cần người xác nhận (10)
@@ -545,8 +545,8 @@ Nguồn: KHDH 26-27 của trường (Tên bài ↔ Yêu cầu cần đạt), wor
 
 ### Ô KHDH gộp nhiều Bài — chưa chắc Bài nào, mặc định KHÔNG nạp (2)
 
-- Bài 46. Cân bằng tự nhiên ← S.18.2 — Trình bày được sự cần thiết phải bảo vệ động vật hoang dã, nhất là những loài có nguy cơ bị tuyệt chủng cần được bảo vệ theo Công ước quốc t
-- Bài 46. Cân bằng tự nhiên ← S.18.3 — Nêu được khái niệm khái quát về biến đổi khí hậu và một số biện pháp chủ yếu nhằm thích ứng với biến đổi khí hậu.
+- Bài 46. Cân bằng tự nhiên ← S.18.3 — Trình bày được sự cần thiết phải bảo vệ động vật hoang dã, nhất là những loài có nguy cơ bị tuyệt chủng cần được bảo vệ theo Công ước quốc t
+- Bài 46. Cân bằng tự nhiên ← S.18.4 — Nêu được khái niệm khái quát về biến đổi khí hậu và một số biện pháp chủ yếu nhằm thích ứng với biến đổi khí hậu.
 
 ## Khối 9
 

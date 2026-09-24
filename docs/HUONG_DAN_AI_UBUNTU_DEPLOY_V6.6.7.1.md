@@ -395,21 +395,27 @@ Mỗi khối in:
 - `duplicates` (YCCĐ trùng số);
 - `existing_versions`.
 
-Đã biết trước:
-- **Khối 7:** 3 dòng số viết sai định dạng (S.8.5, S.9.6, S.10.5), nội dung đúng → cần `--accept-source-warnings`.
-- **Khối 9:** 1 dòng (H.8.1), tương tự → cần `--accept-source-warnings`.
-- **Khối 8:** Chủ đề 18 có hai YCCĐ cùng số S.18.1 ("tác động của con người…" và "khái niệm ô nhiễm môi trường…") → cần quyết định đánh số. `--renumber-duplicates` giữ dòng đầu là S.18.1, dòng sau thành **S.18.5**. Hoặc anh Hiếu sửa file gốc rồi commit lại.
+Kết quả kiểm tra dự kiến (anh Hiếu đã chốt 2026-09-24):
+- **Khối 6:** sạch, không cần cờ. Chủ đề H.11 bắt đầu từ số 2 theo đúng file gốc, giữ nguyên.
+- **Khối 7:** `risky` 3 (S.8.5, S.9.6, S.10.5 số viết sai định dạng, nội dung đúng) → **anh Hiếu đã cho phép** `--accept-source-warnings`.
+- **Khối 9:** `risky` 1 (H.8.1), tương tự → **anh Hiếu đã cho phép** `--accept-source-warnings`.
+- **Khối 8:** `duplicates` 0, `risky` 0, **không cần cờ**. File trong repo đã đánh lại số YCCĐ từ 1 trong từng Chủ đề của từng phân môn, theo quy tắc khối 7. Ví dụ H.2.4 cũ (đánh số nối tiếp) nay là H.2.1; hai YCCĐ trùng S.18.1 cũ nay là S.18.1 và S.18.2. Câu chữ YCCĐ giữ nguyên. Mã câu hỏi khối 8 phải dùng số mới này.
 
-**Chỉ khi anh Hiếu cho phép** các cờ trên mới ghi thật (mỗi lệnh tạo bản nháp → nạp → công bố; khối đã PUBLISHED sẽ bị từ chối):
+Số liệu kiểm tra khác kỳ vọng trên (thêm dòng `risky`, `duplicates` > 0) → **STOP**, gửi nguyên kết quả.
+
+Ghi thật (mỗi lệnh: tạo bản nháp → nạp → công bố; khối đã PUBLISHED bị từ chối):
 ```bash
 node ../scripts/backup.mjs
 node scripts/import-khtn-curriculum.mjs --grade 9 --apply --actor <admin> --publish --accept-source-warnings
 node scripts/import-khtn-curriculum.mjs --grade 6 --apply --actor <admin> --publish
 node scripts/import-khtn-curriculum.mjs --grade 7 --apply --actor <admin> --publish --accept-source-warnings
-node scripts/import-khtn-curriculum.mjs --grade 8 --apply --actor <admin> --publish --renumber-duplicates   # chỉ khi anh Hiếu chọn cách này
+node scripts/import-khtn-curriculum.mjs --grade 8 --apply --actor <admin> --publish
 ```
+- **Không** dùng `--renumber-duplicates` (khối 8 đã sửa trong repo).
+- **Không** dùng `--new-version`.
+
 Lỗi dừng (mã thoát 3):
-- `SOURCE_WARNINGS` / `SOURCE_ORDINAL_DUPLICATE` → **chưa ghi gì**, chờ quyết định;
+- `SOURCE_WARNINGS` / `SOURCE_ORDINAL_DUPLICATE` → **chưa ghi gì**, STOP, gửi thông báo;
 - `ALREADY_PUBLISHED` → khối đã nạp, bỏ qua;
 - lỗi khác → **STOP**, gửi nguyên thông báo.
 
@@ -454,7 +460,7 @@ Theo `docs/KHTN_BAI_YCCD_SEED_REVIEW.md`, liên kết thêm ở `/practice/curri
 ### Báo cáo vòng 3
 ```text
 A0: TIP deploy, workflow run, backup, health
-A1: kết quả kiểm tra 4 khối; khối đã nạp + công bố (version_code, cờ đã dùng, ai cho phép); renumbered (khối 8)
+A1: kết quả kiểm tra 4 khối; khối đã nạp + công bố (version_code, cờ đã dùng); renumbered phải rỗng
 A2: tóm tắt dry-run + chạy thật từng khối; topic_branch_corrected; skipped_*
 A3: tóm tắt dry-run; đã ghi thật chưa (ai duyệt, actor); kết quả
 A4: data-health trước/sau

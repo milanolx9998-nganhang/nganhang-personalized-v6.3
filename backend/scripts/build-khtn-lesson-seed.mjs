@@ -16,7 +16,9 @@ import XLSX from 'xlsx';
 import {normalizeSourceRows} from '../src/services/curriculumMaster/trustedProfiles.js';
 
 const KHDH_DIR = process.env.KHDH_DIR || 'G:/NSHM/26 27/KHDH/4.2.3.2. NB_26-27_KHDH_KHTN';
-const OUTCOME_DIR = process.env.OUTCOME_DIR || 'G:/NSHM/26 27/outcome/New folder';
+// Workbook chuẩn là bản trong repo (sạch metadata; khối 8 đã đánh lại số YCCĐ từ 1 trong từng Chủ đề theo quy tắc
+// khối 7 — anh Hiếu chốt 2026-09-24), để số thứ tự trong seed trùng với số máy chủ nạp.
+const OUTCOME_DIR = process.env.OUTCOME_DIR || path.resolve('src/db/seed-data/curriculum');
 const SGK_DIR = process.env.SGK_DIR || 'G:/NSHM/SGK KHTN/TONG_QUAN_SGK';
 const OUT_DIR = path.resolve(process.env.OUT_DIR || 'src/db/seed-data');
 const REPORT = path.resolve(process.env.REPORT || '../docs/KHTN_BAI_YCCD_SEED_REVIEW.md');

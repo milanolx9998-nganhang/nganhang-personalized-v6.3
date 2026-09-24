@@ -480,3 +480,19 @@ Anh Hiếu chốt: **workbook là chuẩn nguyên văn**; SGK/KHDH khác một c
   - khối 8 S.18.1 trùng ("tác động của con người…" / "khái niệm ô nhiễm môi trường…") → `--renumber-duplicates` cho dòng sau thành S.18.5, hoặc sửa file gốc.
 - Test `v6671-lesson-seed` 4/4 chạy trọn bằng lệnh: kiểm tra → dừng khi thiếu cờ (không tạo phiên bản) → nạp + công bố 4 khối → nạp lại bị chặn → seed 4 khối → nhận lại theo mã.
 - Hướng dẫn mục 10 viết lại: A0 deploy → A1 nạp bằng lệnh (kiểm tra, xin phép cờ) → A2 seed → A3 nhận lại theo mã → A4 data-health.
+
+## 2026-09-24 — Chốt nguồn: cho phép cờ khối 7, 9; khối 8 đánh lại số theo quy tắc khối 7
+
+**Yêu cầu:** anh Hiếu: "1. cho phép 2. tự đánh số chuẩn theo quy tắc lớp 7".
+
+**Làm:**
+- `backend/src/db/seed-data/curriculum/Outcome_YCCD_KHTN_8.xlsx`: số YCCĐ bắt đầu lại từ 1 trong từng Chủ đề của từng phân môn, theo thứ tự dòng nguồn.
+  - 56 ô đổi số (vd H.2.4 → H.2.1; S.18.1 trùng thứ hai → S.18.2, S.18.2..4 → S.18.3..5).
+  - Câu chữ không đổi; `normalizeSourceRows` trước/sau giống nhau về nội dung, không cờ, số liên tục.
+- `build-khtn-lesson-seed.mjs`: OUTCOME_DIR mặc định = workbook trong repo → sinh lại seed; `khtn8-lessons.json` đổi stt, độ phủ không đổi (6: 65/135, 7: 89/107, 8: 187/194, 9: 187/191); review doc cập nhật.
+- Test `v6671-lesson-seed`: khối 8 kiểm tra 0 trùng, 0 risky; nạp không cờ; `renumbered` rỗng; số YCCĐ trong DB: Hoá 8 Chủ đề 2 = 1..8, Sinh 8 Chủ đề 18 = 1..5.
+- Hướng dẫn §10 A1: cờ khối 7, 9 đã được cho phép; khối 8 không cờ, không dùng `--renumber-duplicates`; kết quả khác kỳ vọng → STOP.
+
+**Kiểm:** `v6671-lesson-seed` 4/4; lệnh kiểm tra 4 khối: 6 sạch, 7 risky 3, 8 sạch, 9 risky 1.
+
+**Việc tiếp:** push nhánh; AI Ubuntu chạy §10 A0→A4 ngoài giờ học; anh Hiếu thay file khối 8 trên ổ G bằng bản repo.
