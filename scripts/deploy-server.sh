@@ -79,9 +79,24 @@ diagnostics() {
 # §8 Poll, never a single sleep+curl.
 wait_healthy() {
   local waited=0
+  local health
   while [ "$waited" -lt "$HEALTH_TIMEOUT" ]; do
-    if curl -s -f -m 5 "$HEALTH_URL" > /dev/null 2>&1; then
-      log "Health OK sau ${waited}s."
+    health="$(curl -sS -f -m 5 "$HEALTH_URL" 2>/dev/null || true)"
+    if [ -n "$health" ] && HEALTH_JSON="$health" python3 - <<'PY'
+import json, os, sys
+try:
+    payload = json.loads(os.environ['HEALTH_JSON'])
+except (KeyError, json.JSONDecodeError):
+    raise SystemExit(1)
+if payload.get('status') != 'ok':
+    raise SystemExit(1)
+cache = payload.get('cache')
+if cache not in {'ok', 'degraded'}:
+    raise SystemExit(1)
+print(f"CACHE_{cache.upper()}")
+PY
+    then
+      log "Health OK sau ${waited}s; cache state đã ghi ở trên."
       return 0
     fi
     sleep 2

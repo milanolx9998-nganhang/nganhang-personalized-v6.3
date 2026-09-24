@@ -1,12 +1,17 @@
 # AI HANDOFF
 
-Cập nhật: 2026-09-24 · Phiên bản mã: **6.6.7** (V6.6.6.2 đã commit `e243b69`; + V6.6.6.3 và PERF V6.6.7 chưa commit) (root/backend/frontend + `/api/health`)
-HEAD khi bắt đầu vòng này: `d01b801d129c179314a385796ae1e2f3751db1ba`
+Cập nhật: 2026-09-24 · Phiên bản mã: **6.6.7** · HEAD hiện tại: `423be0c20c65a86be82a588150dc913ac9e5f3cf` · CI run `35908645526` SUCCESS · `/api/health` local đã kiểm tra
+
+**Re-audit hiện tại:** implementation/runtime safety đã xử lý phần có thể xác minh; PERF DoD **chưa DONE**. Còn chờ staging `load100/load200`, burst k6 đủ `120/120`, NAT/IP thực tế và metrics cache-hit/DB-query/pool/p95. Không chạy load test trên production.
+
+**Thay đổi local chưa commit sau re-audit:** k6 acceptance harness, Redis systemd template + provisioning/check scripts, Compose Redis digest/version, deploy health cache-state, PERF documentation. Chỉ commit/push khi người dùng yêu cầu.
+
+HEAD khi bắt đầu vòng PERF trước: `cbd6558e80edbf420df4ff3f20063d4a879b42ee`
 
 ## Trạng thái hiện tại
 
-V6.6.5 đã triển khai trực tiếp trên `nganhang-personalized-v6.3`, **chưa commit, chưa push**.
-V6.6.4 (bulk workflow, question queue, review workspace, safe deploy) đã được commit ở `d01b801`.
+Các thay đổi đã nằm trên `main` đến HEAD `423be0c`; phần lịch sử V6.6.5/V6.6.6 bên dưới là nhật ký cũ, không dùng làm trạng thái hiện tại.
+V6.6.4 và các vòng sau đã được commit/push; không suy ra trạng thái release từ các câu “chưa commit” trong các mục lịch sử.
 
 Nội dung vòng V6.6.5:
 
@@ -19,17 +24,17 @@ Nội dung vòng V6.6.5:
 
 **Migration V6.6.5 là additive và đã áp lên DB local.** Máy chủ thật sẽ tự áp khi deploy.
 
-## PERF V6.6.7 — Redis tùy chọn, Supavisor, tối ưu luồng làm bài (đã xong local, chưa commit)
+## PERF V6.6.7 — Redis tùy chọn, Supavisor, tối ưu luồng làm bài (đã commit ở `423be0c`; re-audit chưa DONE)
 
 Chi tiết + số đo + checklist server: `docs/PERF_V6_6_7_REDIS_SUPAVISOR.md`.
 - Redis **tùy chọn**: `REDIS_URL` trống / Redis sập thì app vẫn chạy (`/api/health` → `cache: degraded`). Cache catalog / bài giao / dashboard / số đếm; không cache bài làm / đáp án. Thế hệ nội dung đổi khi giáo viên / quản trị ghi thành công.
 - Rate limit dùng store Redis, tự quay về bộ nhớ. **Login theo IP chỉ đếm lượt thất bại** (trước: cả lớp đăng nhập cùng lúc bị 429). Trần IP chỉnh qua `RATE_LIMIT_*`; kiểm NAT bằng `GET /api/practice/operations/client-ip`.
 - bcrypt đăng nhập chạy trong worker thread; tạo bài insert theo lô; Player không tải lại sau khi chốt.
 - Số liệu `/api/practice/operations`: `db.pool`, `db.queries.recent_slow`, `cache`, `rate_limit`, `hash_workers`.
-- Deploy Home: `compose.home.yaml` có service redis (không publish cổng) → thêm khóa PERF từ `.env.home.example` vào `.env.home`, rồi build lại image (gói `redis` mới).
-- Chờ server: Redis thật, Supavisor (`node scripts/perf-db-check.mjs` trong container), k6 staging.
+- Home runtime đã verify: `nganhang.service` + Redis private systemd, Supavisor session mode, Redis failure degradation. Repo nay có `deploy/systemd/nganhang-redis.service`, `scripts/install-home-redis.sh` và `scripts/check-home-runtime.sh`.
+- Re-audit còn release gate: staging `load100/load200`, burst k6 đủ `120/120`, NAT/IP thực tế, cache-hit/DB-query/pool/Redis peak metrics và p95 save. Không chạy load test trên production.
 
-## V6.6.6.3 — Sửa theo audit `e243b69` (đã xong, chưa commit)
+## V6.6.6.3 — Sửa theo audit `e243b69` (mục lịch sử; đã được tích hợp vào các commit sau)
 
 Chi tiết: `docs/V6_6_6_3_AUDIT_E243B69_FIXES.md`.
 - `POST /practice/imports/:id/submit` gọi lại an toàn: trả `submitted_now / already_submitted / already_handled / not_submitted`
@@ -58,14 +63,14 @@ Chi tiết + số đo: `docs/V6_6_6_1_AUDIT_A34AAB4_FIXES.md`. Điểm chính:
   `node scripts/cleanup-test-databases.mjs --apply` (238 DB ≈ 3,2 GB).
 - Test tải `v6661-scale.test.js` (20k câu): đếm chip ~1,1 s là API nặng nhất.
 
-## V6.6.6b — Đồng bộ giao diện toàn web (đã xong, chưa commit)
+## V6.6.6b — Đồng bộ giao diện toàn web (mục lịch sử; đã được tích hợp vào các commit sau)
 
 Font chung **Lexend** (+ JetBrains Mono cho mã câu), đóng gói trong build (chạy offline trong LAN). Một bảng
 màu cho cả web theo demo; `frontend/src/styles/theme.css` nạp **sau cùng** trong `main.jsx` (đặt ở App.jsx sẽ
 bị global.css đè). Test chụp giao diện `backend/test/integration/v666-ui-gallery.test.js` → `artifacts/ui-*.png`.
 Chi tiết: `docs/V6_6_6_UNIFIED_WORKBENCH.md` §5.
 
-## V6.6.6 — Bàn làm việc hợp nhất (đã xong, chưa commit)
+## V6.6.6 — Bàn làm việc hợp nhất (mục lịch sử; đã được tích hợp vào các commit sau)
 
 Cập nhật: 2026-09-23. User duyệt đề xuất giao diện ("duyệt, làm full nhé"). Chi tiết: `docs/V6_6_6_UNIFIED_WORKBENCH.md`.
 
@@ -82,7 +87,7 @@ Cập nhật: 2026-09-23. User duyệt đề xuất giao diện ("duyệt, làm 
 Kiểm chứng: unit 113/113 · pilot 34/34 · v63 47/50 (3 lỗi có sẵn) · v664 12/12 · bootstrap 7/7 ·
 resolver 10/10 · v6652 14/14 · **v666 7/7 (có Playwright)** · build OK.
 
-## V6.6.5.2 — Nhập Word thông minh, tự nhận chương trình, duyệt theo ngoại lệ (đã xong, chưa commit)
+## V6.6.5.2 — Nhập Word thông minh, tự nhận chương trình, duyệt theo ngoại lệ (mục lịch sử; đã được tích hợp vào các commit sau)
 
 Cập nhật: 2026-09-23. Chi tiết đầy đủ: `docs/V6_6_5_2_SMART_WORD_IMPORT.md`.
 

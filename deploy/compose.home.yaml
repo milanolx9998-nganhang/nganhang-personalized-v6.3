@@ -2,7 +2,7 @@ name: nganhang-home-app
 services:
   app:
     build: ..
-    image: nganhang-home-app:${APP_VERSION:-6.6.7.1}
+    image: nganhang-home-app:${APP_VERSION:-6.6.7}
     restart: unless-stopped
     init: true
     env_file: .env.home
@@ -19,8 +19,9 @@ services:
       retries: 3
   # Redis chỉ làm cache + bộ đếm rate limit (PERF V6.6.7). Không publish cổng 6379; app gọi redis://redis:6379
   # trong mạng nội bộ compose. Không lưu dữ liệu nghiệp vụ nên tắt ghi đĩa; Redis dừng thì app vẫn chạy (cache=degraded).
+  # Digest phải được cập nhật có chủ đích khi nâng Redis; không dùng floating tag trong runtime.
   redis:
-    image: redis:7.4-alpine
+    image: redis@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
     restart: unless-stopped
     command: ["redis-server", "--maxmemory", "${REDIS_MAXMEMORY:-256mb}", "--maxmemory-policy", "allkeys-lru", "--save", "", "--appendonly", "no"]
     networks: [default]

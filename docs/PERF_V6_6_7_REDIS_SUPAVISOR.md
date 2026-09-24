@@ -1,6 +1,10 @@
 # PERF V6.6.7 — Redis + Supavisor + tối ưu luồng làm bài
 
-Ngày: 2026-09-24 · Nguồn: `REDIS_SUPAVISOR_PERFORMANCE_PLAN_NGANHANG_V666.md` · Code baseline: `cbd6558e` (GitHub Actions run `35901506659` PASS) · Runtime verification: 2026-09-24
+Ngày cập nhật: 2026-09-24 · HEAD đã kiểm tra: `423be0c20c65a86be82a588150dc913ac9e5f3cf` · CI run `35908645526` PASS · Re-audit: `RE_AUDIT_V6.6.7.1_HEAD_423be0c.md`
+
+Nguồn kế hoạch: `REDIS_SUPAVISOR_PERFORMANCE_PLAN_NGANHANG_V666.md` · Code baseline trước thay đổi: `cbd6558e` · Runtime verification Home: 2026-09-24
+
+**Release gate:** implementation/runtime safety đã đạt phần có thể xác minh trên Home; **PERF DoD chưa DONE** vì chưa có staging load 100/200, burst k6, NAT thực tế và số liệu cache/DB/p95 đi kèm. Không dùng benchmark local hoặc CI xanh để thay thế các gate này.
 
 Kiến trúc giữ nguyên: **Trình duyệt → Caddy → Express → (Redis tùy chọn) + PostgreSQL / Supavisor**. Frontend không bao giờ gọi DB/Storage trực tiếp.
 
@@ -83,13 +87,16 @@ Các kết quả này chứng minh runtime/cache/Supavisor hiện tại; chưa t
 
 | Dữ liệu | Khóa | TTL | Làm mới |
 |---|---|---|---|
-| Catalog (môn, chủ đề, taxonomy) | `ngh:<env>:catalog:g<thế hệ>:v1` | 600 s + jitter | Đổi thế hệ nội dung |
+| Catalog (môn, chủ đề, taxonomy) | `ngh:<env>:catalog:g<thế hệ>:v2` | 600 s + jitter | Đổi thế hệ nội dung |
+| Curriculum/YCCĐ/content-options | `…:content-options:g<n>:<user>:<subject>:<grade>` | 600 s + jitter | Đổi thế hệ nội dung |
 | Bài giao của học sinh | `…:assignments:g<n>:student:<id>` | 20 s | Đổi thế hệ nội dung |
 | Dashboard học sinh | `…:dashboard:student:<id>` | 15 s | Xóa ngay khi học sinh tạo / bắt đầu / làm lại / nộp bài |
 | Số đếm bàn làm việc (việc của tôi, nhóm ngoại lệ) | `…:counts:g<n>:views|exceptions:<user>[:<hash bộ lọc>]` | 8 s | Đổi thế hệ nội dung |
 | Lượt làm bài, lưu bài, nộp, câu hỏi kèm đáp án | — | **không cache** | — |
 
 **Thế hệ nội dung:** mọi thao tác ghi *thành công* của giáo viên / quản trị (không phải GET, không phải học sinh) đều tăng `gen:content` **trước khi trả lời** (transaction đã commit). Vì vậy không phải liệt kê từng khóa cần xóa khi sửa chủ đề, câu hỏi hay bài giao. Học sinh lưu / nộp bài không làm đổi thế hệ. Mỗi lần Redis (tái) kết nối cũng đổi thế hệ, vì lúc mất kết nối có thể đã bỏ lỡ lệnh đổi. Chạy script sửa DB trực tiếp thì khởi động lại app hoặc chờ hết TTL.
+
+**Giới hạn đã biết của `content-options`:** endpoint hiện cache theo user + môn + khối, nhưng cache miss vẫn gọi `candidates()` đầy đủ (gồm lọc quyền và `last_seen`). Vì chưa có profiling staging chứng minh đây là hotspot, chưa refactor sang shared curriculum base/per-user overlay; do đó mục tiêu shared curriculum cache vẫn **PARTIAL** và không được tính là DoD đã đạt.
 
 **Chống dồn tải:**
 - trong một tiến trình, các request trùng khóa dùng chung một lần nạp;
@@ -119,7 +126,12 @@ Các kết quả này chứng minh runtime/cache/Supavisor hiện tại; chưa t
 
 ## 6. Supavisor / PostgreSQL — việc trên server
 
-Chạy trong container app:
+Runtime Home hiện chạy bằng systemd + Node host, nên kiểm tra từ repo bằng:
+```bash
+cd /home/hieu/nganhang-personalized-v6.3/backend
+node scripts/perf-db-check.mjs
+```
+Nếu dùng profile Compose độc lập, lệnh tương ứng là:
 ```bash
 docker compose --project-name nganhang-home-app --env-file deploy/.env.home -f deploy/compose.home.yaml exec app node scripts/perf-db-check.mjs
 ```
@@ -142,13 +154,15 @@ Khuyến nghị:
 
 ## 7. Đo tải trên staging (k6)
 
-`backend/test/load/k6-quiz.js`: `SCENARIO=ramp` (50→100→200), `burst_start` (120 start trong ≤5 giây), `burst_submit` (120 submit trong ≤10 giây), `soak` (100 người, 30 phút). Burst dùng `setup()` để chuẩn bị token/attempt, không tính login/think-time vào cửa sổ đo. Ngưỡng đạt:
-- lỗi < 1%;
-- p95 đọc chung < 300 ms;
-- p95 lưu bài < 500 ms;
-- p95 nộp bài < 2,5 s.
+`backend/test/load/k6-quiz.js` có các scenario release-gate chạy riêng: `load50`, `load100`, `load200`; ngoài ra có `ramp` để thăm dò tổng hợp, `burst_start` (120 start trong ≤5 giây), `burst_submit` (120 submit trong ≤10 giây), và `soak` (100 người, 30 phút). Burst dùng `setup()` để chuẩn bị token/attempt, không tính login/think-time vào cửa sổ burst; counter/threshold bắt buộc đủ `120/120` request hoàn tất.
 
-Cần tài khoản học sinh thử và một chủ đề có đủ câu đã duyệt trên **staging**. Không chạy vào production.
+Ngưỡng release-gate:
+- `load100`: lỗi < 1%; shared p95 < 300 ms; start/attempt p95 < 500 ms; save p95 < 500 ms; submit p95 < 2,5 s;
+- `load200`: lỗi < 1%; shared p95 < 500 ms; start/attempt p95 < 750 ms; save p95 < 750 ms; submit p95 < 3 s;
+- `burst_start`: đủ 120/120, success 100%, cửa sổ ≤ 5 s;
+- `burst_submit`: đủ 120/120, success 100%, cửa sổ ≤ 10 s.
+
+Cần tài khoản học sinh thử và một chủ đề có đủ câu đã duyệt trên **staging**. Không chạy vào production. Mỗi run phải lưu JSON summary và chụp cùng lúc health, operations, Redis, pool/connection, HTTP error và p50/p95/p99.
 
 ## 8. Triển khai Home
 
@@ -156,11 +170,13 @@ Cần tài khoản học sinh thử và một chủ đề có đủ câu đã du
 
 Máy Home hiện deploy app bằng `nganhang.service`, vì vậy không dùng hostname `redis` của Compose. Runtime đã được provision bằng:
 
-- `/home/hieu/.config/systemd/user/nganhang-redis.service`;
+- unit local `/home/hieu/.config/systemd/user/nganhang-redis.service`, có bản tái lập tại `deploy/systemd/nganhang-redis.service`;
+- `scripts/install-home-redis.sh` để cài unit, pull image digest và enable service;
+- `scripts/check-home-runtime.sh` để kiểm tra read-only bind, PONG, memory policy và `health.cache`;
 - `backend/.env`: `REDIS_URL=redis://127.0.0.1:6379` (file local, không commit);
 - Redis image `redis@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499`.
 
-Không đổi sang Compose giữa chừng. `deploy/compose.home.yaml` vẫn là profile Compose độc lập; image app đã đổi sang `${APP_VERSION:-6.6.7.1}` để không còn tag stale `6.5.3`.
+Không đổi sang Compose giữa chừng. `deploy/compose.home.yaml` vẫn là profile Compose độc lập; image app mặc định đồng bộ với `package.json` là `${APP_VERSION:-6.6.7}`, không dùng tag stale `6.5.3`.
 
 Đã kiểm chứng:
 
@@ -192,15 +208,15 @@ Không đổi sang Compose giữa chừng. `deploy/compose.home.yaml` vẫn là 
 | App vẫn chạy khi Redis sập | **ĐẠT (runtime Home)** | Dừng `nganhang-redis.service`: health vẫn `ok`, `cache: degraded`; bật lại khôi phục `cache: ok`. |
 | Redis không public cổng 6379 | **ĐẠT (runtime Home)** | systemd chỉ bind `127.0.0.1:6379`; Compose profile không publish Redis ra ngoài network nội bộ. |
 | Không cache đáp án / bí mật | **ĐẠT** | Chỉ cache catalog, bài giao, dashboard, số đếm (§3). Lượt làm bài / lưu / nộp / câu hỏi có đáp án không đi qua cache. |
-| Rate limit dùng Redis | **ĐẠT (code + unit)** | `FallbackRedisStore` + unit test với Redis giả. Trên server: xem `rate_limit.redis > 0`. |
+| Rate limit dùng Redis | **PARTIAL — code/unit PASS, runtime usage chờ** | `FallbackRedisStore` + unit test với Redis giả; cần operations xác nhận `rate_limit.redis > 0` sau load. |
 | Tỉ lệ trúng cache dữ liệu chung cao, số truy vấn DB giảm | **CHỜ SERVER** | `/api/practice/operations` → `cache.metrics` / `cache.redis.keyspace_*`, `db.queries.count`. |
-| Pool DB không chờ nhiều | **CÓ SỐ LIỆU** | `db.pool.waiting / max_waiting_seen / wait_ms_*`. |
-| p95 tốt hơn hoặc không xấu đi | **ĐẠT (local)** | §1: tổng giảm 28–34%; đăng nhập nhanh gấp 3; không API nào xấu đi vượt mức dao động. |
-| Bộ nhớ Redis có giới hạn, theo dõi được số khóa bị đẩy ra | **ĐẠT (cấu hình)** | `maxmemory` + `allkeys-lru`; `cache.redis.evicted_keys`. |
+| Pool DB không chờ nhiều | **CHỜ LOAD** | Có metrics trong `/api/practice/operations`; cần chụp `waiting / max_waiting_seen / wait_ms_*` cùng load 100/200. |
+| p95 tốt hơn hoặc không xấu đi | **CHƯA CHỨNG MINH** | Local có tổng flow tốt hơn, nhưng save draft p95 `478–941 ms` so với `520 ms`, save final `496–1257 ms` so với `595 ms`; cần staging theo từng mức tải. |
+| Bộ nhớ Redis có giới hạn, theo dõi được số khóa bị đẩy ra | **ĐẠT (cấu hình)** | `maxmemory` + `allkeys-lru`; `cache.redis.evicted_keys`; peak-load observation vẫn chờ. |
 | Ghi lại cấu hình Supavisor | **ĐẠT (runtime Home)** | `perf-db-check.mjs`: app dùng session mode ở cổng 5432; pooler env thật: transaction pool cho service pooler, default pool size 20, max client 100; PostgreSQL 17.6 / max 100. |
 | Đo tải 100 / 200 người đạt | **CHỜ STAGING** | `k6-quiz.js` (§7). Local: 120 người làm trọn luồng, 0 lỗi khi trần IP đúng. |
-| Dồn bắt đầu / nộp bài đạt | **ĐẠT (local script); k6 scenario đã bổ sung** | Local script: 120 start ~1,26 s, 120 submit ~0,89 s. k6 đã tách `burst_start`/`burst_submit`; staging vẫn chờ số đo thật. |
-| Trần NAT / IP không chặn nhầm cả lớp | **ĐẠT với đăng nhập; API cần cấu hình** | B1 đã sửa trong code. B3: kiểm `client-ip` rồi chỉnh `RATE_LIMIT_API_IP` (§5). |
+| Dồn bắt đầu / nộp bài đạt | **PARTIAL — harness đã sẵn sàng** | k6 đã tách `burst_start`/`burst_submit`, có threshold đủ `120/120`; local script không thay thế staging evidence. |
+| Trần NAT / IP không chặn nhầm cả lớp | **CHỜ THỰC TẾ** | B1 đã sửa trong code; cần kiểm `client-ip` qua Caddy từ nhiều máy rồi mới chỉnh `RATE_LIMIT_API_IP` (§5). |
 
 ## 11. Tệp đổi
 

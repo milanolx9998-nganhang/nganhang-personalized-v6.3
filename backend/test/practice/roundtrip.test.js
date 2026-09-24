@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import path from 'node:path';
 import AdmZip from 'adm-zip';
 import XLSX from 'xlsx';
 import {buildQtiZip} from '../../src/services/qtiExport.js';
@@ -9,7 +10,7 @@ import {normalizeQuestion,gradeQuestion,validateQuestion} from '../../src/servic
 import {validateSettings,defaults} from '../../src/services/practice/config.js';
 const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j2ioAAAAASUVORK5CYII=','base64');
 test('QTI roundtrip giữ năm dạng, bốn ý ĐS, ảnh, mức và đáp án',async()=>{
- fs.mkdirSync('uploads/media',{recursive:true});fs.writeFileSync('uploads/media/qti-fixture.png',png);
+ const mediaDir=path.resolve(process.env.UPLOAD_DIR||'uploads','media');fs.mkdirSync(mediaDir,{recursive:true});fs.writeFileSync(path.join(mediaDir,'qti-fixture.png'),png);
  const common={subject_id:1,topic_id:2,grade:9,cognitive_level:3,stem:'Mẫu kỹ thuật $x^2$ ![Hình](/uploads/media/qti-fixture.png)',explanation:'Giải thích'};
  const questions=[{type:'multiple_choice',options:['A','B','C','D'].map(id=>({id,text:id})),answer:{correct:'C'}},{type:'true_false',statements:['a','b','c','d'].map(id=>({id,text:id})),answer:{values:{a:true,b:false,c:true,d:false}}},{type:'short_answer',answer:{numeric:0,tolerance:0.1}},{type:'matching',left:[{id:'A',text:'a'},{id:'B',text:'b'}],right:[{id:'1',text:'một'},{id:'2',text:'hai'}],answer:{pairs:{A:'2',B:'1'}}},{type:'essay',answer:{reference:'GV chấm'}}].map(q=>({...common,...q}));
  const buffer=await buildQtiZip({title:'Kiểm thử QTI',questions});const zip=new AdmZip(buffer);assert(zip.getEntry('imsmanifest.xml'));assert.equal(zip.getEntries().filter(e=>e.entryName.startsWith('media/')).length,1);

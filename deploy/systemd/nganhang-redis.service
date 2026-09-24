@@ -1,0 +1,18 @@
+[Unit]
+Description=Private Redis cache for Ngan Hang app
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=exec
+# Redis is cache/rate-limit state only; bind it to loopback and bound its memory.
+ExecStartPre=/bin/sh -c '/usr/bin/docker rm -f nganhang-redis >/dev/null 2>&1 || true'
+ExecStart=/usr/bin/docker run --rm --name nganhang-redis -p 127.0.0.1:6379:6379 redis@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499 redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --save "" --appendonly no
+ExecStop=/usr/bin/docker stop -t 5 nganhang-redis
+Restart=always
+RestartSec=5
+TimeoutStartSec=60
+TimeoutStopSec=15
+
+[Install]
+WantedBy=default.target

@@ -1,5 +1,22 @@
 # AI Work Log
 
+> Ghi chú trạng thái: các mục bên dưới là nhật ký theo thời điểm. Trạng thái hiện tại phải đọc ở `AI_HANDOFF.md` và kiểm tra lại bằng `git status`, `git rev-parse HEAD` cùng CI/runtime; không dùng câu “chưa commit” trong mục lịch sử làm trạng thái hiện tại.
+
+## 2026-09-24 — Re-audit HEAD 423be0c: đóng gap reproducibility và acceptance harness
+
+**Nguồn:** `RE_AUDIT_V6.6.7.1_HEAD_423be0c.md`.
+
+**Đã xử lý:**
+- K6 thêm `load50`, `load100`, `load200` chạy riêng; thêm threshold `start`, ngưỡng riêng 100/200 và custom counter/rate bắt buộc burst đủ `120/120`.
+- Thêm `deploy/systemd/nganhang-redis.service`, `scripts/install-home-redis.sh` và `scripts/check-home-runtime.sh`; không chứa secret, Redis bind loopback, digest pin, 256 MB LRU, không persistence.
+- Compose pin Redis bằng digest và đồng bộ app image mặc định với package version `6.6.7`.
+- Deploy health parse JSON và log `CACHE_OK` hoặc `CACHE_DEGRADED`, không đánh tráo Redis optional thành deployment failure.
+- PERF report sửa các kết luận p95/local và key `catalog v2`/`content-options`; AI handoff bỏ trạng thái stale “chưa commit/chờ Redis thật”.
+
+**Kiểm chứng:** `bash -n` các script, `node --check` k6 + fixture tests, `git diff --check`, Compose config bằng env placeholder tạm, và `REQUIRE_REDIS=1 scripts/check-home-runtime.sh` đạt. Backend unit/practice đạt `124 pass, 0 fail, 1 skipped`; security `27/27`; frontend build PASS. Hai fixture export/QTI được sửa để dùng đúng `UPLOAD_DIR` local, không chạm dữ liệu `uploads/` cần giữ. Chưa chạy k6 vì máy chưa có binary và chưa có staging credentials; không chạy production.
+
+**Còn release gate:** staging `load100/load200`, burst k6 thật, NAT/IP qua Caddy, cache-hit/DB-query/pool/Redis peak metrics và p95 save. Chỉ commit/push khi người dùng yêu cầu.
+
 ## 2026-09-23 — V6.6.5.1 hotfix theo audit `3ab8f7f` + nạp Bài khối 7
 
 **P1 — trusted source hardening**

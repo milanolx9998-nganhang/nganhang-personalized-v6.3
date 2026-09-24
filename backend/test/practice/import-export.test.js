@@ -17,8 +17,8 @@ test('Legacy Excel 20 cột: đúng cột dữ liệu, dòng nguồn, bốn ý �
 });
 test('Không nhận sai mức 14 hoặc chuỗi có chữ số',()=>{for(const value of ['14','M10','abc2','0','M5'])assert.equal(levelNumber(value),null);assert.equal(levelNumber('M4 (VDC)'),4);});
 test('Word/PDF: năm dạng, công thức, ảnh, bảng và đáp án 0',{timeout:60000},async()=>{
- const artifacts=path.resolve('../artifacts');fs.mkdirSync(artifacts,{recursive:true});fs.mkdirSync('uploads/media',{recursive:true});
- const png=await sharp({create:{width:100,height:60,channels:3,background:'#2563eb'}}).png().toBuffer();fs.writeFileSync('uploads/media/export-fixture.png',png);
+ const artifacts=path.resolve('../artifacts');fs.mkdirSync(artifacts,{recursive:true});const mediaDir=path.resolve(process.env.UPLOAD_DIR||'uploads','media');fs.mkdirSync(mediaDir,{recursive:true});
+ const png=await sharp({create:{width:100,height:60,channels:3,background:'#2563eb'}}).png().toBuffer();fs.writeFileSync(path.join(mediaDir,'export-fixture.png'),png);
  const items=[
  {type:'multiple_choice',stem:'[Mẫu kiểm thử] Tốc độ $v=\\frac{s}{t}$.\n\n![Hình](/uploads/media/export-fixture.png)\n\n| s (m) | t (s) |\n| --- | --- |\n| 10 | 2 |',options:['A','B','C','D'].map(id=>({id,text:'Lựa chọn '+id})),answer:{correct:'B'}},
  {type:'true_false',stem:'[Mẫu kiểm thử] Các nhận định',statements:['a','b','c','d'].map(id=>({id,text:'Nhận định '+id})),answer:{values:{a:true,b:false,c:true,d:false}}},
