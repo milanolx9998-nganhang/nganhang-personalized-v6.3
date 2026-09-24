@@ -1,16 +1,44 @@
 # AI HANDOFF
 
-Cập nhật: 2026-09-24 · Phiên bản mã: **6.6.7** · HEAD hiện tại: `423be0c20c65a86be82a588150dc913ac9e5f3cf` · CI run `35908645526` SUCCESS · `/api/health` local đã kiểm tra
+Cập nhật: 2026-09-24 · Phiên bản mã: **6.6.7**
 
-**Re-audit hiện tại:** implementation/runtime safety đã xử lý phần có thể xác minh; PERF DoD **chưa DONE**. Còn chờ staging `load100/load200`, burst k6 đủ `120/120`, NAT/IP thực tế và metrics cache-hit/DB-query/pool/p95. Không chạy load test trên production.
+**Trạng thái nhánh (pre-merge final hardening):**
+- `main` an toàn: `423be0c20c65a86be82a588150dc913ac9e5f3cf` (CI run `35908645526` SUCCESS · `/api/health` local đã kiểm tra). `main` chưa nhận phần follow-up.
+- Follow-up re-audit đã được **commit/push trên branch `perf-v6671-followup`**. Base follow-up commit: `69108dc6befbb4fec3baf2083c99d07d3ffbc57d`. Gồm:
+  - k6 acceptance harness;
+  - Redis systemd template + provisioning/check scripts;
+  - Compose Redis digest/version;
+  - deploy health cache-state;
+  - PERF documentation.
+- Sau base có:
+  - commit docs-only thêm `docs/RUNBOOK_SIEU_CHI_TIET_AI_PERF_V6.6.7.1_PRE_MERGE.md`;
+  - commit pre-merge hardening (handoff này + k6 release-gate 2m/5m/1m).
 
-**Thay đổi local chưa commit sau re-audit:** k6 acceptance harness, Redis systemd template + provisioning/check scripts, Compose Redis digest/version, deploy health cache-state, PERF documentation. Chỉ commit/push khi người dùng yêu cầu.
+  HEAD hiện tại của branch: xem `git log perf-v6671-followup` (không ghi cứng ở đây để khỏi cũ).
+- Branch **chưa merge `main`, chưa auto-deploy**. Chờ audit cuối; chỉ merge sau audit.
+
+**PERF DoD: NOT DONE.** Không chạy load test trên production.
+
+| Gate | Trạng thái |
+|---|---|
+| staging load100 | PENDING |
+| staging load200 | PENDING |
+| burst staging (start/submit 120/120) | PENDING |
+| soak staging | PENDING |
+| NAT/IP thực tế | PENDING |
+| cache hit / DB query reduction | PENDING |
+| DB pool under real load | PENDING |
+| Redis peak / evictions | PENDING |
+| save p95/p99 | PENDING |
+| shared curriculum cache | PARTIAL |
+
+Khi chạy acceptance staging: **không đặt `USERS` thấp hơn target**. load100 cần ≥ 100 tài khoản độc lập, load200 cần ≥ 200. Chỉ đặt thấp hơn khi cố ý kiểm tra việc dùng lại tài khoản.
 
 HEAD khi bắt đầu vòng PERF trước: `cbd6558e80edbf420df4ff3f20063d4a879b42ee`
 
 ## Trạng thái hiện tại
 
-Các thay đổi đã nằm trên `main` đến HEAD `423be0c`; phần lịch sử V6.6.5/V6.6.6 bên dưới là nhật ký cũ, không dùng làm trạng thái hiện tại.
+Các thay đổi đã nằm trên `main` đến `423be0c`; phần follow-up PERF nằm trên branch `perf-v6671-followup` (xem đầu file). Phần lịch sử V6.6.5/V6.6.6 bên dưới là nhật ký cũ, không dùng làm trạng thái hiện tại.
 V6.6.4 và các vòng sau đã được commit/push; không suy ra trạng thái release từ các câu “chưa commit” trong các mục lịch sử.
 
 Nội dung vòng V6.6.5:
@@ -31,7 +59,7 @@ Chi tiết + số đo + checklist server: `docs/PERF_V6_6_7_REDIS_SUPAVISOR.md`.
 - Rate limit dùng store Redis, tự quay về bộ nhớ. **Login theo IP chỉ đếm lượt thất bại** (trước: cả lớp đăng nhập cùng lúc bị 429). Trần IP chỉnh qua `RATE_LIMIT_*`; kiểm NAT bằng `GET /api/practice/operations/client-ip`.
 - bcrypt đăng nhập chạy trong worker thread; tạo bài insert theo lô; Player không tải lại sau khi chốt.
 - Số liệu `/api/practice/operations`: `db.pool`, `db.queries.recent_slow`, `cache`, `rate_limit`, `hash_workers`.
-- Home runtime đã verify: `nganhang.service` + Redis private systemd, Supavisor session mode, Redis failure degradation. Repo nay có `deploy/systemd/nganhang-redis.service`, `scripts/install-home-redis.sh` và `scripts/check-home-runtime.sh`.
+- Home runtime đã verify: `nganhang.service` + Redis private systemd, Supavisor session mode, Redis failure degradation. Branch `perf-v6671-followup` (từ `69108dc`, chưa ở `main`) thêm `deploy/systemd/nganhang-redis.service`, `scripts/install-home-redis.sh` và `scripts/check-home-runtime.sh`.
 - Re-audit còn release gate: staging `load100/load200`, burst k6 đủ `120/120`, NAT/IP thực tế, cache-hit/DB-query/pool/Redis peak metrics và p95 save. Không chạy load test trên production.
 
 ## V6.6.6.3 — Sửa theo audit `e243b69` (mục lịch sử; đã được tích hợp vào các commit sau)
@@ -178,7 +206,8 @@ tích hợp gây fail dây chuyền giả. Chạy từng file một.
 ## Việc tiếp theo
 
 1. Thu hồi và thay GitHub token (ưu tiên cao nhất, tồn hai vòng).
-2. Commit V6.6.6.1 + dọn DB tạm (`scripts/cleanup-test-databases.mjs --apply`, user tự chạy). Commit + push V6.6.5.2 (khi user yêu cầu). Sau deploy: `npm run migrate`; seed KHTN7 cần bản
+2. Audit cuối branch `perf-v6671-followup` → chỉ sau đó mới merge `main`. Rồi chạy các gate staging ở bảng đầu file.
+   Dọn DB tạm local (`scripts/cleanup-test-databases.mjs --apply`, user tự chạy). Sau deploy: `npm run migrate`. Seed KHTN7 cần bản
    PUBLISHED hoặc `--allow-legacy`.
 3. ~~Triển khai đề xuất giao diện~~ — xong ở V6.6.6. Tiếp theo có thể: lưu "chỉnh riêng" phía máy chủ
    nếu cần giữ qua phiên; hoàn tác nhiều bước; điều tra 3 test lỗi có sẵn.

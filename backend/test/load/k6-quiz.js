@@ -33,10 +33,12 @@ const burstStartSuccess = new Rate('burst_start_success');
 const burstSubmitCompleted = new Counter('burst_submit_completed');
 const burstSubmitSuccess = new Rate('burst_submit_success');
 
+// Release gate: 2 phút tăng tải + 5 phút ổn định + 1 phút giảm tải (8 phút mỗi mức). Cửa sổ ổn định đủ dài
+// để quan sát DB pool / cache / Redis dưới tải đều, và tách được kết quả 100 với 200 người.
 const flowStages = target => [
-  {duration: '30s', target},
   {duration: '2m', target},
-  {duration: '30s', target: 0},
+  {duration: '5m', target},
+  {duration: '1m', target: 0},
 ];
 
 const scenarios = {
