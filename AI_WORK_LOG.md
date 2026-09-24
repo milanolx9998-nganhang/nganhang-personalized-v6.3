@@ -405,3 +405,26 @@ thu hồi PAT GitHub; commit khi user yêu cầu; deploy xong chạy `npm run mi
 - Local: KHTN 7 có 97 YCCĐ ACTIVE nhưng 0 phiên bản PUBLISHED (trước đây nạp bằng `--allow-legacy`).
 
 **Việc tiếp theo:** AI Ubuntu chạy data-health bản mới + seed dry-run, gửi số liệu. Nếu xác nhận thiếu chương trình: anh Hiếu nạp workbook qua giao diện, rồi làm công cụ "nhận lại theo mã" cho câu cũ (tạo phiên bản mới, không đưa câu đã duyệt về nháp trái ý).
+
+## 2026-09-24 — Vòng 2 dữ liệu Home: server không có chương trình → công cụ nhận lại YCCĐ theo mã
+
+**Báo cáo vòng 2 (AI Ubuntu, chỉ đọc):**
+- DB server không có Outcome/YCCĐ ở mọi môn/khối.
+- KHTN 9: 80 câu có mã, tất cả `DRAFT`, tất cả thiếu YCCĐ, không lệch dạng / phân môn / số; 51 Bài, 0 liên kết.
+- KHTN 7: không có Bài / YCCĐ; seed dry-run `NO_PUBLISHED_VERSION`.
+
+**Làm:**
+- `backend/scripts/reresolve-question-codes.mjs`:
+  - chỉ câu có mã + `yccd_id` rỗng + bản hiện hành `DRAFT` + chưa lưu trữ;
+  - cùng `resolveQuestionFromCode` + `applyResolution` như lúc nhập Word; lưu bằng `persistQuestion`, mỗi câu một savepoint;
+  - bỏ qua câu `CODE_METADATA_CONFLICT`, đếm câu không phải nháp;
+  - chạy thử = transaction rồi rollback; `--apply` bắt buộc `--actor <admin>`; ghi `practice_audit` `QUESTION_CODE_RERESOLVE`.
+- Test `v6671-reresolve.test.js` 3/3:
+  - chạy thử không ghi;
+  - ghi thật đúng 2/5 câu (1 tự gắn Bài, 1 chưa có liên kết Bài);
+  - lệch mã / thiếu YCCĐ / đang chờ duyệt không bị đụng;
+  - chạy lại không đổi;
+  - thiếu actor → mã thoát 2.
+- Hướng dẫn §10 (vòng 3): H1 anh Hiếu nạp 4 workbook qua `/admin/curriculum` (khối 9 trước) → A1 data-health → A2 reresolve chạy thử, chỉ ghi thật khi được duyệt → A3 seed KHTN7 → H2 liên kết Bài KHTN 9.
+
+**Không đẩy `main`.** AI Ubuntu chạy script qua `git show` từ nhánh, không cần deploy / khởi động lại.

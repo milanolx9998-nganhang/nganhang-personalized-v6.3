@@ -355,3 +355,69 @@ Timeout khi gọi `https://nganhang.studylab.io.vn/api/health` là do tên miề
    k6 production: KHÔNG
 8. Trạng thái cuối: DEPLOYED_DATA_OK / DEPLOYED_NEEDS_DECISION / STOPPED (lý do)
 ```
+
+---
+
+## 10. Vòng 3 — Nạp chương trình + nhận lại YCCĐ theo mã (sau báo cáo vòng 2)
+
+**Kết quả vòng 2:**
+- DB máy chủ **chưa có Outcome/YCCĐ nào** (mọi môn/khối).
+- KHTN 9 có 80 câu, cả 80 đều có mã, đều `DRAFT`, đều lỗi vì chưa gắn YCCĐ (không lệch dạng / phân môn / số).
+- KHTN 7 chưa có Bài lẫn YCCĐ; seed dừng `NO_PUBLISHED_VERSION`.
+
+Thứ tự làm. **H** = anh Hiếu làm trên giao diện; **A** = AI trên máy này.
+
+### H1. Nạp chương trình KHTN (làm khối 9 trước vì có 80 câu; rồi 7, 6, 8)
+1. Đăng nhập admin, mở **`/admin/curriculum`** → "Môn học & Chương trình".
+2. Chọn môn **KHTN**, khối **9** → **Tạo bản nháp** (vd. mã phiên bản `KHTN9-GDPT2018-v1`).
+3. Tab **"Nạp Outcome / YCCĐ"** → chọn `Outcome_YCCD_KHTN_9.xlsx` (bộ 4 workbook chính thức). Hệ thống tự nhận hồ sơ tin cậy `KHTN_OUTCOME_YCCD_OFFICIAL_V1` và tự chọn sheet / cột.
+4. Xem staging. Dòng lỗi thì sửa trong **"Sửa dữ liệu staging"** theo tài liệu gốc. Đã biết trước: khối 8, Chủ đề 18 có hai YCCĐ cùng số 1.
+5. Ghi nhập (ghi lý do) → tab **"Công bố phiên bản"** → xác nhận + lý do → Công bố.
+
+### A1. Kiểm lại dữ liệu (chỉ đọc)
+```bash
+cd /home/hieu/nganhang-personalized-v6.3 && git fetch origin
+git show origin/perf-v6671-followup:backend/scripts/data-health.mjs > backend/scripts/data-health.tmp.mjs
+cd backend && node scripts/data-health.tmp.mjs 2>/dev/null; echo "exit=$?"
+```
+Kỳ vọng dòng KHTN 9: `yccds_active > 0`, `published ≥ 1`. Nếu vẫn 0 → H1 chưa xong, **STOP**.
+
+### A2. Nhận lại YCCĐ theo mã cho câu nháp — chạy thử trước
+```bash
+cd /home/hieu/nganhang-personalized-v6.3
+git show origin/perf-v6671-followup:backend/scripts/reresolve-question-codes.mjs > backend/scripts/reresolve.tmp.mjs
+cd backend && node scripts/reresolve.tmp.mjs --subject KHTN --grade 9 2>/dev/null
+```
+- Script **chỉ** xét câu có mã, chưa có YCCĐ, bản hiện hành `DRAFT`. Câu đã duyệt / chờ duyệt chỉ được đếm (`skipped_not_draft`), không bị sửa.
+- Câu có mã lệch với mức / dạng đã khai → `conflicts`, bỏ qua để người xem.
+- Chạy thử = làm thật trong transaction rồi ROLLBACK, không ghi gì.
+
+Gửi anh Hiếu bảng tóm tắt: `candidates`, `resolved`, `applied`, `lesson_auto / unmapped / ambiguous`, `conflicts`, `not_resolved` + lý do, `save_failed`.
+**Chỉ khi anh Hiếu đồng ý** mới ghi thật:
+```bash
+node scripts/reresolve.tmp.mjs --subject KHTN --grade 9 --apply --actor <tên đăng nhập admin anh Hiếu chỉ định>
+node scripts/data-health.tmp.mjs 2>/dev/null     # "Kiểm tra mã" failed phải giảm còn ≈ conflicts + not_resolved
+rm -f scripts/reresolve.tmp.mjs scripts/data-health.tmp.mjs && cd .. && git status --short
+```
+- Có backup mới trước khi ghi thật: `cd backend && node ../scripts/backup.mjs`.
+- Mỗi câu ghi qua `persistQuestion` (giữ phiên bản, nhật ký metadata), cộng một dòng `practice_audit` `QUESTION_CODE_RERESOLVE`. Chạy lại lần hai không đổi thêm.
+
+### A3. Bài KHTN 7 (sau khi H1 đã công bố khối 7)
+```bash
+cd /home/hieu/nganhang-personalized-v6.3/backend
+node src/db/seed-khtn7-vatli-lessons.js --dry-run
+```
+Dry-run sạch thì chạy thật (bỏ `--dry-run`). Vẫn `NO_PUBLISHED_VERSION` → H1 khối 7 chưa công bố, **STOP**. Không dùng `--allow-legacy` nếu anh Hiếu chưa cho.
+
+### H2. Liên kết Bài ↔ YCCĐ cho KHTN 9 (51 Bài, 0 liên kết)
+Chưa có dữ liệu ánh xạ sẵn như KHTN 7. Giáo viên / tổ trưởng liên kết ở **`/practice/curriculum`** → "Liên kết bài học với YCCĐ". Nếu có file ánh xạ Bài ↔ YCCĐ cho khối 9, gửi để làm seed như khối 7. Liên kết xong, câu đã có YCCĐ mà chưa có Bài được gắn qua nút "Gán Bài hàng loạt" ở màn Duyệt.
+
+### Báo cáo vòng 3
+```text
+H1: khối đã công bố (6/7/8/9) + mã phiên bản
+A1: data-health trước/sau (bảng tồn kho KHTN)
+A2: tóm tắt chạy thử; đã ghi thật chưa (ai duyệt, actor); tóm tắt sau ghi
+A3: dry-run KHTN7; đã nạp chưa
+H2: số liên kết Bài ↔ YCCĐ KHTN 9
+An toàn: SQL tay KHÔNG · secret KHÔNG · deploy KHÔNG · câu không phải nháp bị sửa KHÔNG
+```

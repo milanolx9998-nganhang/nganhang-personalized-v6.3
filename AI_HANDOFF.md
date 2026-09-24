@@ -21,8 +21,8 @@ Cập nhật: 2026-09-24 · Phiên bản mã: **6.6.7**
 **Deploy Home 2026-09-24:** `main` = `a344eeb` (CI run 35965226544 SUCCESS; backup `backups/2026-09-24T06-34-06-238Z`; health ok, cache ok).
 Còn mở:
 - `nganhang.studylab.io.vn` chưa có DNS;
-- 80 câu có mã không đạt kiểm tra mã, nghi server thiếu Outcome/YCCĐ → chờ data-health bản mới;
-- seed KHTN7 chưa chạy;
+- đã xác nhận server không có Outcome/YCCĐ (mọi môn); 80 câu KHTN 9 có mã (`DRAFT`) chờ nạp chương trình → `reresolve-question-codes.mjs` (hướng dẫn §10);
+- seed KHTN7 chờ khối 7 được công bố;
 - smoke UI đăng nhập chưa làm.
 
 **PERF DoD: NOT DONE.** Không chạy load test trên production.
