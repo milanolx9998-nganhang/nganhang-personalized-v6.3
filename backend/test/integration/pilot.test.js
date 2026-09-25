@@ -65,8 +65,9 @@ test('Trình duyệt tick nhiều bài, tìm/bỏ chọn, chuyển YCCĐ và t�
  await p.getByLabel('Khối',{exact:true}).selectOption('8');assert.equal(await p.locator('.scope-v2-lesson > label > input:checked').count(),0);await p.getByLabel('Khối',{exact:true}).selectOption('9');
  await p.getByLabel('Tìm bài / chuyên đề',{exact:true}).fill('Bài tick A');await lessons.filter({hasText:'Bài tick A'}).getByRole('checkbox').first().check();await p.getByLabel('Số câu',{exact:true}).selectOption('10');await p.getByText('Tùy chỉnh nâng cao · mức độ và dạng câu',{exact:true}).click();await p.getByLabel('Phân bố mức độ',{exact:true}).selectOption('M1');
  await p.setViewportSize({width:390,height:844});await p.waitForFunction(()=>document.querySelector('.sidebar').getBoundingClientRect().right<=1);assert(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2));await p.screenshot({path:path.join(artifacts,'content-picker-yccd-mobile.png'),fullPage:true});
- const response=p.waitForResponse(r=>r.url().endsWith('/api/practice/availability'));await p.getByRole('button',{name:'Kiểm tra số câu trong kho',exact:true}).click();assert.equal((await response).status(),200);
- const created=p.waitForResponse(r=>r.url().endsWith('/api/practice/attempts')&&r.request().method()==='POST');await p.getByRole('button',{name:'Tạo bài luyện',exact:true}).click();const result=await (await created).json();assert.equal(result.config.content_scope_v2.clauses[0].topic_id,scopeFixture.groups[0].topic);await p.getByRole('heading',{name:'Bài luyện của em'}).waitFor();
+ // Tự kiểm số câu: không còn nút "Kiểm tra"; đủ câu thì nút "Bắt đầu luyện" mở.
+ await p.getByText(/Có đủ câu phù hợp/).waitFor();
+ const created=p.waitForResponse(r=>r.url().endsWith('/api/practice/attempts')&&r.request().method()==='POST');await p.getByRole('button',{name:'Bắt đầu luyện',exact:true}).click();const result=await (await created).json();assert.equal(result.config.content_scope_v2.clauses[0].topic_id,scopeFixture.groups[0].topic);await p.getByRole('heading',{name:'Bài luyện của em'}).waitFor();
 
  }finally{await b.close();}
 });
