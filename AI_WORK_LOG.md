@@ -548,3 +548,15 @@ Anh Hiếu chốt: **workbook là chuẩn nguyên văn**; SGK/KHDH khác một c
 - AI Ubuntu bấm "Re-run all jobs" khi lần 1 vừa xong → lần 2 SUCCESS (Verify 43 giây, Deploy 33 giây). Deploy lại cùng commit, vô hại (backup + migrate không có gì mới + restart + health).
 - Thêm `timeout-minutes: 45` cho job Verify (cắt ngang an toàn); KHÔNG đặt cho Deploy vì dừng giữa backup/migrate nguy hiểm hơn chờ. Mới commit vào nhánh, đi theo lần đẩy main sau.
 - Việc tiếp: giảm tải máy Home (đóng Firefox/VS Code, xem `docker stats` các container Supabase không dùng).
+
+## 2026-09-25 — Báo cáo AI Ubuntu: dữ liệu §10 xong
+
+- A1: kiểm tra 4 khối đúng kỳ vọng (6 và 8 sạch, 7 risky 3, 9 risky 1); cả 4 khối đã có 1 bản PUBLISHED nên không nạp lại.
+- A2 (backup trước): seed thật 4 khối. Khối 9 dùng lại 51 Bài, 188 liên kết, sửa phân môn 2 Bài. Khối 6 / 7 / 8 tạo 39 / 39 / 47 Bài với 75 / 88 / 187 liên kết. Bỏ qua mục chưa chắc: 1 / 0 / 3 / 2 (khối 9 / 6 / 7 / 8).
+- A3: 80/80 câu nhận lại theo mã, 0 xung đột.
+- A4: data-health exit 0, blocking 0, attention 0; runtime ok.
+- Máy Home sau CI: load 1,0; RAM available 1,8 GiB; swap còn 4 MiB. Container lớn nhất: studio 186 MiB, realtime 132 MiB; edge-functions đang restart liên tục. Chưa tắt gì, chờ anh Hiếu.
+- Còn mở:
+  - xác nhận số YCCĐ khối 8 trong DB là số mới;
+  - migration applied 29 > expected 27 (không chặn);
+  - khoá Supabase + đổi khoá chưa thấy trong báo cáo.
