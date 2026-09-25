@@ -6,6 +6,9 @@
 .practice-page :focus-visible,.portfolio-tab-select select:focus-visible{outline:3px solid #1E5A7A;outline-offset:3px}
 .portfolio-overview>.portfolio-stats,.decision-stats{grid-template-columns:repeat(4,minmax(0,1fr))}
 .decision-stats a{display:block;font-size:14px;line-height:1.6}
+.decision-stats .stat-link{display:block;min-height:44px;padding:0;border:0;background:none;color:#1E5A7A;font:inherit;font-size:14px;line-height:1.6;text-align:left;text-decoration:underline;cursor:pointer}
+.decision-stats article.active{outline:3px solid #1E5A7A;outline-offset:-3px}
+.row-actions{white-space:nowrap}
 .resume-priority{border-left:5px solid #1E5A7A!important;background:#E3EEF3!important}
 .portfolio-extra{margin:12px 0;padding:12px;border:1px solid #E2DFD6;border-radius:12px;background:#fff}
 .portfolio-tab-select{display:none}
