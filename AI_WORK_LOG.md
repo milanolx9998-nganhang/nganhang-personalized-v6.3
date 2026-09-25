@@ -659,3 +659,51 @@ Anh Hiếu chốt: **workbook là chuẩn nguyên văn**; SGK/KHDH khác một c
 - **Giai đoạn 2, đánh bóng:** Player "?" + nút xem câu chưa làm/chưa chắc + 1 CTA chính sau nộp; bỏ thuật ngữ và mã lỗi kỹ thuật trên UI; empty state có nút hành động; duyệt đơn giản mặc định.
 - **Giai đoạn 3:** thử với người thật (5–10 HS, 3–5 GV, 1–2 tổ trưởng), bấm giờ 3 chỉ tiêu, rồi mới quyết wizard giao bài / trang tổ trưởng.
 - **Không làm bây giờ:** wizard ma trận 7 bước, tracking analytics (học sinh vị thành niên), Ctrl+K toàn app, dashboard mới, thêm vai trò.
+
+## 2026-09-26 — V6.7 giai đoạn 1 + 2 (UX)
+
+**Yêu cầu:** anh Hiếu "làm 1 2", tức giai đoạn 1 (giảm ma sát) và giai đoạn 2 (đánh bóng) theo phương án đã chốt.
+
+**Commit, lên nhánh trước:**
+- `9d4ecc1`: nhãn nguồn dùng `NULLIF`; mã phân môn rỗng không sinh ".2.1".
+- `3c90730` (1.3):
+  - thẻ "Hôm nay cần chú ý" dẫn tới `/practice?status=inactive|down|pending` và `/practice/reviews?tab=pending`;
+  - Tiến độ lớp đọc `?class/status`, tự mở khi chỉ có một lớp, thẻ số liệu bấm được để lọc, có "Bỏ lọc", thêm cột Hành động (Hồ sơ · Giao củng cố).
+- `398fe4c` (1.4): trang HS đưa bài giao hạn < 48 giờ lên ngay sau bài đang dở, đếm giờ, nút "Làm bài" mở thẳng lượt làm.
+- `dcbaf94` (1.2): tự luyện bỏ nút "Kiểm tra số câu trong kho".
+  - Tự kiểm sau 0,4 giây, kết quả cũ bị bỏ.
+  - Khi thiếu câu, gợi ý các cách chắc chắn hợp lệ (chép đúng `allocate()` của máy chủ): giảm số câu; giữ số câu và chia lại mức; luyện số câu hiện có; chọn thêm nội dung.
+  - Nút chính "Bắt đầu luyện".
+- `cd3d1d4` (1.1): form giao bài.
+  - 3 bước; phần "Nâng cao" gom cách bốc, số lượt, đáp án, luyện lại sau hạn.
+  - "N học sinh sẽ nhận bài" (`/classes` thêm `student_count`); "Xem lại trước khi giao" một câu, kèm "Còn thiếu".
+  - Nút "Giao bài"; sau khi giao hiện "✓ Đã giao…" với Sao chép link · Xem tiến độ · Tạo bài khác.
+  - Chưa làm wizard nhiều trang.
+- `796d529` (2.1): Player.
+  - Bản đồ câu ○ ✓ ? ★ (cùng lúc), bộ lọc "? Chưa chắc".
+  - Hộp nộp có "Xem câu chưa trả lời / chưa chắc / đã đánh dấu".
+  - Sau khi nộp có một nút chính: "Luyện lại N câu cần củng cố" (cùng điều kiện với retry của máy chủ) hoặc "Luyện tiếp".
+- `66338d1` (2.2):
+  - lỗi trigger DB (P0001) → 409 kèm câu tiếng Việt (`middleware/dbRuleErrors.js`), thay vì 500 / mã thô;
+  - ma trận bỏ chữ "snapshot".
+- `1c89a5b` (2.3): màn trống có nút hành động (Assignments, WorkspaceHome, tổng quan / thành thạo / tab bài giao trong hồ sơ; link giao bài chỉ hiện khi có quyền `assignment.create`).
+- `843b7ae` (2.4): màn Duyệt mặc định chế độ đơn giản.
+  - Tắt phím tắt một chữ, bảng lệnh, duyệt lô sạch, chọn cả trang, dòng hướng dẫn.
+  - "Mở công cụ duyệt nhanh" bật lại, lưu lựa chọn ở `localStorage review.tools`.
+
+**Kiểm từng bước:**
+- pilot 34/34 (sau 1.2 và 1.1);
+- pilot + v63 84/84 (sau 2.1);
+- unit `dbRuleErrors` 3/3;
+- gallery + workbench 11/11 (sau 2.4);
+- build frontend đạt ở mọi bước.
+
+Kết quả chạy toàn bộ: xem mục kế tiếp.
+
+**Chạy toàn bộ (2026-09-26 00:20):**
+- unit 128/128, security 27/27, build frontend đạt;
+- integration 155/156. Lỗi duy nhất là test tải `v6661-scale`: `exception_counts` mất khoảng 3,0 giây, ngân sách 1,5 giây, chạy riêng vẫn vậy.
+- Máy lúc đó 100% CPU (Zalo, Chrome, 38 tiến trình node của MCP `npx`, không tiến trình nào thuộc repo).
+- `exceptionCounts` / `CHECK_SQL` không đổi so với lần 156/156 ngày 2026-09-25 (sau `f6bb759`).
+- Hàng đợi có nhãn mới: 145–220 ms.
+- Kết luận: lỗi thời gian do môi trường. Chạy lại khi máy rảnh: `node --test test/integration/v6661-scale.test.js`.
