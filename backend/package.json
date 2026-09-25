@@ -17,7 +17,7 @@
     "seed-khoa-hoc": "node src/db/seed-khoa-hoc.js",
     "seed:khtn7-lessons": "node src/db/seed-khtn7-vatli-lessons.js",
     "test": "node test/matrixBalancer.test.js && node --test test/practice/*.test.js",
-    "test:integration": "node --test test/integration/*.test.js",
+    "test:integration": "node --test --test-concurrency=3 test/integration/*.test.js",
     "test:security": "node --test test/security/*.test.js",
     "mastery:recalculate": "node src/services/practice/recalculate.js"
   },

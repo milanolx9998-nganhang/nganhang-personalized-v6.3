@@ -40,7 +40,7 @@ export async function enrichMetadata(client,raw,{autoThreshold}={}){
  const suggestions=candidates.map(y=>{
   const target=fold(y.yccd_text),terms=new Set(target.split(/[^a-z0-9]+/).filter(t=>t.length>2));
   const overlap=[...terms].filter(t=>tokens.has(t)).length/Math.max(1,terms.size);
-  return {id:y.id,outcome_id:y.outcome_id,branch_id:y.branch_id,code:y.yccd_code,text:y.yccd_text,confidence:source.includes(target)?96:Math.round(Math.min(85,overlap*85)),reason:source.includes(target)?'Nội dung trùng nguyên văn YCCĐ trong phạm vi đã chọn':'Từ khóa trùng trong đúng môn/khối/phân môn; chưa xác nhận ý nghĩa'};
+  return {id:y.id,outcome_id:y.outcome_id,branch_id:y.branch_id,code:y.yccd_code,label:y.yccd_label,text:y.yccd_text,confidence:source.includes(target)?96:Math.round(Math.min(85,overlap*85)),reason:source.includes(target)?'Nội dung trùng nguyên văn YCCĐ trong phạm vi đã chọn':'Từ khóa trùng trong đúng môn/khối/phân môn; chưa xác nhận ý nghĩa'};
  }).filter(s=>s.confidence>0).sort((a,b)=>b.confidence-a.confidence).slice(0,5);
  const detected=suggestType(q),level=Number.isInteger(raw.reasoning_steps)?{value:raw.reasoning_steps===0?1:raw.reasoning_steps===1?2:3,confidence:75,reason:'Số bước suy luận do người nhập cung cấp; cần kiểm tra ngữ cảnh'}:null;
  const autoApplied=[];

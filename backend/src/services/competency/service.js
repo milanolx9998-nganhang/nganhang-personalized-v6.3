@@ -2,6 +2,7 @@ import {z} from 'zod';
 import {pool,tx} from '../../db/pool.js';
 import {can,canBank} from '../accessResolver.js';
 import {fail,log} from '../practice/config.js';
+import {outcomeLabelSql,yccdLabelSql} from '../curriculumLabel.js';
 import {portfolioAccess,answered} from '../practice/portfolio.js';
 import {canRevealAnswer} from '../practice/answerRelease.js';
 import {candidates} from '../practice/attempts.js';
@@ -60,7 +61,7 @@ export async function setMapping(actor,type,id,raw){
 }
 export async function mappingCatalog(actor,subject,grade){
  await permit(actor,'competency.manage_mapping',subject,grade);
- return {outcomes:(await pool.query('SELECT id,code,title,status FROM curriculum_outcomes WHERE subject_id=$1 AND grade=$2 ORDER BY id',[subject,grade])).rows,yccds:(await pool.query('SELECT y.id,y.code,y.text,y.status FROM curriculum_yccds y JOIN curriculum_outcomes o ON o.id=y.outcome_id WHERE o.subject_id=$1 AND o.grade=$2 ORDER BY y.id',[subject,grade])).rows,mappings:(await pool.query('SELECT DISTINCT ON(target_type,target_id) * FROM competency_mapping_versions WHERE subject_id=$1 AND grade=$2 ORDER BY target_type,target_id,id DESC',[subject,grade])).rows};
+ return {outcomes:(await pool.query('SELECT id,code,'+outcomeLabelSql('curriculum_outcomes')+' AS label,title,status FROM curriculum_outcomes WHERE subject_id=$1 AND grade=$2 ORDER BY id',[subject,grade])).rows,yccds:(await pool.query('SELECT y.id,y.code,'+yccdLabelSql('y','o')+' AS label,y.text,y.status FROM curriculum_yccds y JOIN curriculum_outcomes o ON o.id=y.outcome_id WHERE o.subject_id=$1 AND o.grade=$2 ORDER BY y.id',[subject,grade])).rows,mappings:(await pool.query('SELECT DISTINCT ON(target_type,target_id) * FROM competency_mapping_versions WHERE subject_id=$1 AND grade=$2 ORDER BY target_type,target_id,id DESC',[subject,grade])).rows};
 }
 export async function studentScope(actor,id,subject,grade){
  id=integer.parse(id);subject=integer.parse(subject);grade=integer.max(12).parse(grade);
@@ -100,7 +101,7 @@ export async function enterRubric(actor,raw){
 }
 export async function knowledge(actor,id,raw){
  const q=z.object({subject_id:integer,grade:integer.max(12)}).strict().parse(raw),s=await studentScope(actor,id,q.subject_id,q.grade);
- const rows=(await pool.query("SELECT o.id outcome_id,o.code outcome_code,o.title,o.domain_code,y.id yccd_id,y.code,y.text FROM curriculum_outcomes o JOIN curriculum_yccds y ON y.outcome_id=o.id WHERE o.subject_id=$1 AND o.grade=$2 AND o.status='ACTIVE' AND y.status='ACTIVE' ORDER BY o.order_index,y.order_index",[s.subject,s.grade])).rows;
+ const rows=(await pool.query("SELECT o.id outcome_id,o.code outcome_code,"+outcomeLabelSql('o')+" outcome_label,o.title,o.domain_code,y.id yccd_id,y.code,"+yccdLabelSql('y','o')+" label,y.text FROM curriculum_outcomes o JOIN curriculum_yccds y ON y.outcome_id=o.id WHERE o.subject_id=$1 AND o.grade=$2 AND o.status='ACTIVE' AND y.status='ACTIVE' ORDER BY o.order_index,y.order_index",[s.subject,s.grade])).rows;
  const states=(await pool.query("SELECT m.state,t.id topic_id,t.name,m.cognitive_level,map.yccd_id FROM mastery_states m JOIN topics t ON t.id=m.topic_id JOIN topic_yccd_map map ON map.topic_id=t.id AND map.status='ACTIVE' WHERE m.student_id=$1 AND t.subject_id=$2 AND t.grade=$3",[s.id,s.subject,s.grade])).rows;
  return {items:rows.map(r=>({...r,linked_topic_mastery:states.filter(m=>m.yccd_id===r.yccd_id).map(m=>({topic_id:m.topic_id,topic_name:m.name,level:m.cognitive_level,score:m.state.mastery_score,confidence:m.state.confidence})),note:'Mastery cấp bài liên kết; không suy thành điểm YCCĐ chính xác nếu chưa có minh chứng riêng.'}))};
 }

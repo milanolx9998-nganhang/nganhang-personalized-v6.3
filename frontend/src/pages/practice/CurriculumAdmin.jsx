@@ -1,10 +1,7 @@
 import {useState} from 'react';
 import {api} from '../../api/client.js';
 import {base,useLoad,ErrorBox} from './shared.jsx';
-// Mã hiển thị lấy theo nguồn chương trình (phân môn.Chủ đề.YCCĐ) — cùng số giáo viên viết trong mã câu "Câu L. 2. 1. …".
-// Mã máy (O-…/Y-…) chỉ để trong tooltip; chuẩn nhập tay chưa có số nguồn mới hiện mã máy.
-const outcomeLabel=o=>o.source_branch_code&&o.source_ordinal!=null?`${o.source_branch_code}.${o.source_ordinal}`:o.code;
-const yccdLabel=(y,o)=>o?.source_branch_code&&o.source_ordinal!=null&&y.source_ordinal!=null?`${o.source_branch_code}.${o.source_ordinal}.${y.source_ordinal}`:y.code;
+import {outcomeLabel,yccdLabel} from '../../utils/curriculumLabel.js';
 const STATUS_LABEL={DRAFT:'Nháp',RETIRED:'Ngừng dùng',CANDIDATE:'Đề xuất'};
 const statusNote=st=>st&&st!=='ACTIVE'?' — '+(STATUS_LABEL[st]||st):'';
 const pageLabel=loc=>!loc?'':/^d+(s*[-–]s*d+)?$/.test(String(loc).trim())?'tr. '+loc:String(loc);

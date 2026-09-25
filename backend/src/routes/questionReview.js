@@ -8,6 +8,7 @@ import {canReviewQuestion,reviewQuestionAccess,classifyQuestionChange,openReview
 import {persistQuestion} from '../services/practice/questions.js';
 import {normalizeQuestion} from '../services/practice/grading.js';
 import {fail,log} from '../services/practice/config.js';
+import {outcomeLabelSql,yccdLabelSql} from '../services/curriculumLabel.js';
 const r=Router(),wrap=fn=>async(req,res,next)=>{try{await fn(req,res);}catch(e){next(e);}};
 r.get('/review-cases',wrap(async(req,res)=>{
  if(req.user.role==='student')fail('Học sinh không truy cập hàng đợi duyệt',403);
@@ -33,7 +34,7 @@ r.get('/questions/:id/reviewers',wrap(async(req,res)=>{
 r.get('/questions/:id/compare',wrap(async(req,res)=>{
  const q=await reviewQuestionAccess(pool,req.user,Number(req.params.id));
  if(!await can(req.user,'content.view_answer',{subjectId:q.subject_id,grade:q.grade,bankId:q.bank_id}))fail('Không có quyền xem đáp án để so sánh phiên bản',403);
- const versions=(await pool.query('SELECT * FROM question_versions WHERE question_id=$1 ORDER BY version_number DESC',[q.id])).rows;
+ const versions=(await pool.query('SELECT v.*,'+outcomeLabelSql('o')+' AS outcome_label,'+yccdLabelSql('y','yo')+' AS yccd_label FROM question_versions v LEFT JOIN curriculum_yccds y ON y.id=v.yccd_id LEFT JOIN curriculum_outcomes yo ON yo.id=y.outcome_id LEFT JOIN curriculum_outcomes o ON o.id=v.outcome_id WHERE v.question_id=$1 ORDER BY v.version_number DESC',[q.id])).rows;
  const after=versions.find(v=>v.id===(req.query.after||q.current_version_id)),before=versions.find(v=>v.id===(req.query.before||after?.based_on_version_id||q.active_version_id))||null;
  if(!after)fail('Không tìm thấy phiên bản',404);
  const diff=classifyQuestionChange(before?.content||{},after.content);

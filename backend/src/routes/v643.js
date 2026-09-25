@@ -20,7 +20,7 @@ r.get('/content-scope/catalog',wrap(async(req,res)=>{
  const d=context.parse(req.query);await subjectAccess(req.user,d.subject_id,d.grade);
  const topics=(await pool.query("SELECT t.id,t.subject_id,t.grade,t.branch_id,t.name,t.chapter,t.order_index FROM topics t WHERE t.subject_id=$1 AND t.grade=$2 AND t.status='ACTIVE' ORDER BY t.order_index,t.id",[d.subject_id,d.grade])).rows;
  let yccds=await curriculumCatalog(d),maps=(await pool.query("SELECT m.topic_id,m.yccd_id,m.relation_type FROM topic_yccd_map m JOIN topics t ON t.id=m.topic_id WHERE t.subject_id=$1 AND t.grade=$2 AND t.status='ACTIVE' AND "+activeMapSQL(),[d.subject_id,d.grade])).rows;
- if(req.user.role==='student')yccds=yccds.map(({id,outcome_id,yccd_code,yccd_text,outcome_code,outcome_title,branch_id})=>({id,outcome_id,yccd_code,yccd_text,outcome_code,outcome_title,branch_id}));
+ if(req.user.role==='student')yccds=yccds.map(({id,outcome_id,yccd_code,yccd_label,yccd_text,outcome_code,outcome_label,outcome_title,branch_id})=>({id,outcome_id,yccd_code,yccd_label,yccd_text,outcome_code,outcome_label,outcome_title,branch_id}));
  res.json({topics,yccds,maps});
 }));
 r.post('/content-scope/resolve-matrix',wrap(async(req,res)=>{const d=normalizeContentScope(req.body);if(req.user.role==='student')fail('Không đủ quyền',403);await subjectAccess(req.user,d.subject_id,d.grade);res.json(await resolveMatrixScope(d,pool));}));

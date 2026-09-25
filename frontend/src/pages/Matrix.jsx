@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import {rowOutcome,rowYccd} from '../utils/curriculumLabel.js';
 import { api } from '../api/client.js';
 import { useAuth, can } from '../hooks/useAuth.js';
 import MatrixBuilder from '../components/MatrixBuilder.jsx';
@@ -226,7 +227,7 @@ function MatrixViewModal({ matrix, onClose }) {
                       <td><span className="q-type-chip">{TYPE_LABELS[c.q_type] || c.q_type}</span></td>
                       <td><span className={`level-chip ${c.cognitive_level}`}>{c.cognitive_level} ({LEVEL_LABELS[c.cognitive_level]})</span></td>
                       <td style={{ color: c.branch_color || 'var(--text-muted)' }}>{c.branch_name || '-'}</td>
-                      <td title={c.yccd_text}>{c.outcome_code||'—'} / {c.yccd_code||'Chưa gán'}</td><td><strong>{c.question_count}</strong></td>
+                      <td title={c.yccd_text}>{rowOutcome(c)||'—'} / {rowYccd(c)||'Chưa gán'}</td><td><strong>{c.question_count}</strong></td>
                       <td>{Number(c.score_per_question).toFixed(2)}đ</td>
                       <td><strong>{(c.question_count * Number(c.score_per_question)).toFixed(2)}đ</strong></td>
                     </tr>

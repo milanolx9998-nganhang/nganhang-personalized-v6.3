@@ -2,6 +2,7 @@ import {pool} from '../../db/pool.js';
 import {questionScope, questionAccessScope, applyQuestionFilters, QUESTION_FROM, CHECK_SQL, ROW_FLAG_SQL, exceptionOverColumns} from './questions.js';
 import {MAX_BULK_IDS} from './bulkWorkflow.js';
 import {fail} from './config.js';
+import {outcomeLabelSql,yccdLabelSql} from '../curriculumLabel.js';
 
 // §14 — a queue row is a scanning aid, never a source of answers. The column list is explicit so a
 // column later added to `questions` cannot start leaking through a `q.*`, and the DTO below is a
@@ -14,6 +15,7 @@ const SUMMARY_COLUMNS = `q.id,q.question_code,q.current_version_id,q.active_vers
  COALESCE(q.normalized_content->>'display_code',q.question_code) AS display_code,
  v.review_status,v.version_number,b.name AS bank_name,s.name AS subject_name,t.name AS topic_name,br.name AS branch_name,
  o.code AS outcome_code,y.code AS yccd_code,u.full_name AS author_name,
+ ${outcomeLabelSql('o')} AS outcome_label,(SELECT ${yccdLabelSql('y', 'yo')} FROM curriculum_outcomes yo WHERE yo.id=y.outcome_id) AS yccd_label,
  (SELECT min(c.severity) FROM question_review_cases c WHERE c.question_id=q.id AND c.status IN('OPEN','IN_REVIEW')) AS open_case_severity,
  (SELECT count(*) FROM question_review_cases c WHERE c.question_id=q.id AND c.status IN('OPEN','IN_REVIEW'))::int AS open_cases,
  ${Object.entries(CHECK_SQL).map(([k, sql]) => `${sql} AS chk_${k}`).join(', ')}`;
@@ -43,8 +45,10 @@ function summaryDto(row, withAuthor) {
     topic_name: row.topic_name,
     outcome_id: row.outcome_id,
     outcome_code: row.outcome_code,
+    outcome_label: row.outcome_label,
     yccd_id: row.yccd_id,
     yccd_code: row.yccd_code,
+    yccd_label: row.yccd_label,
     cognitive_level: row.cognitive_level,
     q_type: row.q_type,
     content_number: row.content_number,

@@ -3,12 +3,13 @@ import {compileQuestionScopeSQL} from './contentScopeV2.js';
 import {contentCapability} from './capabilities.js';
 import {pool} from '../db/pool.js';
 import {matrixError,validateMatrixNumbers} from './matrixValidation.js';
+import {outcomeLabelSql,yccdLabelSql} from './curriculumLabel.js';
 import {normalizeQuestion,legacyTypes} from './practice/grading.js';
 const shuffle=arr=>{const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
 async function matrixData(client,id){
  const m=(await client.query('SELECT m.*,s.name AS subject_name FROM matrix_templates m JOIN subjects s ON s.id=m.subject_id WHERE m.id=$1',[id])).rows[0];
  if(!m)throw Object.assign(new Error('Không tìm thấy ma trận'),{status:404});
- m.cells=(await client.query('SELECT mc.*,b.name AS branch_name,t.name AS topic_name,y.code AS yccd_code,y.text AS yccd_text,o.code AS outcome_code FROM matrix_cells mc LEFT JOIN branches b ON b.id=mc.branch_id LEFT JOIN topics t ON t.id=mc.topic_id LEFT JOIN curriculum_yccds y ON y.id=mc.yccd_id LEFT JOIN curriculum_outcomes o ON o.id=mc.outcome_id WHERE template_id=$1 ORDER BY order_index,mc.id',[id])).rows;
+ m.cells=(await client.query('SELECT mc.*,b.name AS branch_name,t.name AS topic_name,y.code AS yccd_code,y.text AS yccd_text,o.code AS outcome_code,'+outcomeLabelSql('o')+' AS outcome_label,'+yccdLabelSql('y','yo')+' AS yccd_label FROM matrix_cells mc LEFT JOIN branches b ON b.id=mc.branch_id LEFT JOIN topics t ON t.id=mc.topic_id LEFT JOIN curriculum_yccds y ON y.id=mc.yccd_id LEFT JOIN curriculum_outcomes o ON o.id=mc.outcome_id LEFT JOIN curriculum_outcomes yo ON yo.id=y.outcome_id WHERE template_id=$1 ORDER BY order_index,mc.id',[id])).rows;
  return m;
 }
 export async function exactPool(client,matrix,cell,actor=null){
@@ -46,7 +47,7 @@ function coverageRows(matrix,pools,recent){
  const feasible=allocateExact(matrix.cells,pools);
  return matrix.cells.map((c,i)=>{
   const unresolved=!c.yccd_id||!c.outcome_id,exact=pools[i].length,need=c.question_count;
-  return {cell_id:c.id,part_name:c.part_name,q_type:c.q_type,cognitive_level:c.cognitive_level,branch_name:c.branch_name,topic_name:c.topic_name,outcome_id:c.outcome_id,yccd_id:c.yccd_id,outcome_code:c.outcome_code,yccd_code:c.yccd_code,yccd_text:c.yccd_text,subject_id:matrix.subject_id,grade:matrix.grade,
+  return {cell_id:c.id,part_name:c.part_name,q_type:c.q_type,cognitive_level:c.cognitive_level,branch_name:c.branch_name,topic_name:c.topic_name,outcome_id:c.outcome_id,yccd_id:c.yccd_id,outcome_code:c.outcome_code,yccd_code:c.yccd_code,yccd_label:c.yccd_label,outcome_label:c.outcome_label,yccd_text:c.yccd_text,subject_id:matrix.subject_id,grade:matrix.grade,
    topic_id:c.topic_id,branch_id:c.branch_id,question_count:need,need,exact_available:exact,available_after_anti_repeat:pools[i].filter(q=>!recent.has(q.id)).length,shortage:Math.max(0,need-exact),
    status:unresolved?'BLOCKED':exact<need||!feasible?'SHORTAGE':'EXACT_READY',
    reason:unresolved?'Chưa ánh xạ YCCĐ chuẩn':!feasible&&exact>=need?'Các ô giao nhau không đủ câu khác nhau trong một mã':null,

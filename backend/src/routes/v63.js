@@ -3,6 +3,7 @@ import {contentSubjects} from '../services/capabilities.js';
 import {can} from '../services/accessResolver.js';
 import {staffQuestionDto} from '../services/access/visibility.js';
 import {questionList} from '../services/practice/questions.js';
+import {outcomeLabelSql,yccdLabelSql} from '../services/curriculumLabel.js';
 import {questionWorkbook} from '../services/questionWorkbook.js';
 import {Router} from 'express';
 import {z} from 'zod';
@@ -51,10 +52,12 @@ r.get('/learning-map/:studentId',wrap(async(req,res)=>{
  i.id item_id,a.id attempt_id,qv.question_id,(i.grade_result->>'score')::numeric score
  FROM attempt_items i JOIN attempts a ON a.id=i.attempt_id JOIN question_versions qv ON qv.id=i.question_version_id
  WHERE a.student_id=$1 AND a.status='completed' AND ($2::int[] IS NULL OR qv.subject_id=ANY($2)))
- SELECT yccd_id,code,text,outcome_id,outcome_code,subject_id,grade,count(item_id)::int evidence_count,
- count(DISTINCT attempt_id)::int attempts,count(DISTINCT question_id)::int unique_questions,avg(score)*100 observed_score
- FROM evidence WHERE yccd_id IS NOT NULL GROUP BY yccd_id,code,text,outcome_id,outcome_code,subject_id,grade
- ORDER BY outcome_id,yccd_id`,[id,subjects])).rows;
+ SELECT e.yccd_id,e.code,e.text,e.outcome_id,e.outcome_code,e.subject_id,e.grade,
+ ${yccdLabelSql('ly','lo')} AS yccd_label,${outcomeLabelSql('lo')} AS outcome_label,count(e.item_id)::int evidence_count,
+ count(DISTINCT e.attempt_id)::int attempts,count(DISTINCT e.question_id)::int unique_questions,avg(e.score)*100 observed_score
+ FROM evidence e LEFT JOIN curriculum_yccds ly ON ly.id=e.yccd_id LEFT JOIN curriculum_outcomes lo ON lo.id=ly.outcome_id
+ WHERE e.yccd_id IS NOT NULL GROUP BY e.yccd_id,e.code,e.text,e.outcome_id,e.outcome_code,e.subject_id,e.grade,ly.id,lo.id
+ ORDER BY e.outcome_id,e.yccd_id`,[id,subjects])).rows;
  res.json({rows:rows.map(x=>({...x,confidence:x.unique_questions>=10&&x.attempts>=3?'MEDIUM':'LOW',interpretation:x.unique_questions>=10&&x.attempts>=3?(Number(x.observed_score)>=80?'Điểm mạnh quan sát được':Number(x.observed_score)<50?'Cần củng cố':'Đang hình thành'):'Chưa đủ bằng chứng để kết luận'})),note:'Tổng hợp bằng chứng theo phiên bản đã làm, không thay công thức Mastery. Lượt cũ chưa gắn YCCĐ vẫn xem ở bản đồ theo bài.'});
 }));
 export default r;

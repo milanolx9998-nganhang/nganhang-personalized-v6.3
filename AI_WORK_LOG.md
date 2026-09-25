@@ -608,3 +608,35 @@ Anh Hiếu chốt: **workbook là chuẩn nguyên văn**; SGK/KHDH khác một c
 **Deploy:** lần đẩy main sau. `deploy-server.sh` tự backup → migrate → restart → health. data-health sẽ thấy expected tăng 1.
 
 **Deploy `9ed430a`** (anh Hiếu bảo "up main" lúc 14:47): CI run 36109472066 SUCCESS; Verify 49 giây, Deploy 36 giây. Lên web: màn Chuẩn đầu ra hiện mã nguồn, migration đổi tên "Kho trường", timeout Verify. Chưa kiểm trên giao diện (cần đăng nhập).
+
+## 2026-09-25 — Nhãn nguồn L.2 / L.2.1 cho mọi màn hiện mã Outcome/YCCĐ
+
+**Yêu cầu:** anh Hiếu: "sửa full" các màn còn hiện mã máy.
+
+**Quyết định:**
+- Không đổi `code` trong dữ liệu:
+  - chương trình đã công bố là bất biến (trigger `PUBLISHED_CURRICULUM_IMMUTABLE`);
+  - `code` còn dùng để đối chiếu (`smartMetadata`, `curriculum_aliases`, snapshot).
+- Thay vào đó, API trả thêm **nhãn hiển thị** `outcome_label` / `yccd_label`, giao diện ưu tiên nhãn.
+
+**Backend:**
+- `services/curriculumLabel.js`: `outcomeLabelSql`, `yccdLabelSql` = `COALESCE(branch.ordinal(.ordinal), code)`.
+- Thêm nhãn vào:
+  - hàng đợi câu hỏi (cả allowlist DTO);
+  - danh mục YCCĐ cho picker (`curriculum.js`);
+  - snapshot nhãn ma trận (`matrixContentScope`; `mappingChanged` chỉ so `clauses`, nên ma trận đã khoá không bị báo đổi);
+  - ô ma trận khi xem và khi sinh đề (join thêm Outcome của chính YCCĐ);
+  - độ phủ ma trận (allowlist trường);
+  - năng lực: danh mục ánh xạ và hồ sơ;
+  - allowlist học sinh (`v643`);
+  - DTO câu hỏi (`visibility.js`);
+  - so sánh phiên bản (`questionReview` compare);
+  - gợi ý metadata (`smartMetadata`);
+  - bản đồ YCCĐ học sinh (`v63` learning-map, nhãn lấy từ chương trình hiện hành theo `yccd_id`).
+
+**Frontend:**
+- `utils/curriculumLabel.js` dùng chung;
+- sửa ContentScopePicker, CurriculumPicker, MatrixBuilder, Matrix, QuestionReviewPanel, workspace/labels (bảng kho), CompetencyPortfolio, OutcomeMap, CompetencyManager, CurriculumManager, Teacher, CurriculumAdmin;
+- mã máy chỉ còn trong tooltip.
+
+**Test:** `v6671-lesson-seed` thêm kiểm `curriculumCatalog` trả `yccd_label` L.2.1, `outcome_label` L.2, mã `Y-…` giữ nguyên. Kết quả: unit 125/125, security 27/27, integration 156/156, build frontend đạt; kiểm import helper đủ ở mọi file. `test:integration` nay chạy `--test-concurrency=3` (chạy hết song song thì PostgreSQL local hết kết nối). Chưa xem trực tiếp giao diện (cần đăng nhập).

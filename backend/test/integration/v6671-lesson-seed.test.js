@@ -149,6 +149,14 @@ test('V6671 seed: seed Bài ↔ YCCĐ cả 4 khối — dùng lại 51 Bài sẵ
     WHERE m.topic_id=$1 AND o.source_branch_code='L' AND o.source_ordinal=2 AND y.source_ordinal=1 AND o.grade=9`, [lesson2Id])).rows;
   assert.equal(link.length, 1);
 
+  // Nhãn hiển thị theo nguồn (L.2.1) đi kèm, mã máy giữ nguyên để đối chiếu.
+  const {curriculumCatalog} = await import('../../src/services/curriculum.js');
+  const catalog = await curriculumCatalog({subject_id: subjectId, grade: 9}, db);
+  const l21 = catalog.find(r => r.yccd_label === 'L.2.1');
+  assert(l21, 'Danh mục YCCĐ có nhãn nguồn L.2.1');
+  assert.equal(l21.outcome_label, 'L.2');
+  assert.match(l21.yccd_code, /^Y-/, 'Mã máy không đổi');
+
   // Dữ liệu seed có Bài thiếu số → dừng trước khi ghi, không khớp nhầm mọi Bài không đánh số.
   const {seedGradeLessons} = await import('../../src/services/curriculumMaster/lessonSeed.js');
   const data9 = JSON.parse(fs.readFileSync('src/db/seed-data/khtn9-lessons.json', 'utf8'));

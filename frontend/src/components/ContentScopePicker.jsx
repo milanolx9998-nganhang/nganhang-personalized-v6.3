@@ -1,4 +1,5 @@
 import {useEffect,useRef,useState} from 'react';
+import {rowOutcome,rowYccd} from '../utils/curriculumLabel.js';
 import {api} from '../api/client.js';
 function Tick({checked,mixed=false,children,onChange,...props}){
  const ref=useRef(null);useEffect(()=>{if(ref.current)ref.current.indeterminate=mixed;},[mixed]);
@@ -26,7 +27,7 @@ export default function ContentScopePicker({value,onChange,student=false,types=[
  function toggle(tid,ids,check){const current=selected(tid),next=check?[...new Set([...current,...ids])]:current.filter(id=>!ids.includes(id));setTopic(tid,next.length?{mode:'yccds',yccd_ids:next}:null);}
  function standards(tid){
   const ys=ysFor(tid),chosen=selected(tid),groups=Object.groupBy(ys,y=>y.outcome_id);
-  return <div className="scope-v2-standards">{!ys.length&&<p>Chưa có mục tiêu được liên kết với bài. Vẫn có thể chọn toàn bộ bài; giáo viên cần xác nhận liên kết từ chương trình.</p>}{Object.entries(groups).map(([id,rows])=><details key={id}><summary><Tick checked={rows.every(y=>chosen.includes(y.id))} mixed={rows.some(y=>chosen.includes(y.id))&&!rows.every(y=>chosen.includes(y.id))} onClick={e=>e.stopPropagation()} onChange={e=>toggle(tid,rows.map(y=>y.id),e.target.checked)}>{rows[0].outcome_title}<small>{rows[0].outcome_code} · {rows.filter(y=>chosen.includes(y.id)).length}/{rows.length} mục tiêu</small></Tick></summary>{rows.map(y=><Tick key={y.id} checked={chosen.includes(y.id)} onChange={e=>toggle(tid,[y.id],e.target.checked)}>{y.yccd_text}<small>{y.yccd_code}</small></Tick>)}</details>)}</div>;
+  return <div className="scope-v2-standards">{!ys.length&&<p>Chưa có mục tiêu được liên kết với bài. Vẫn có thể chọn toàn bộ bài; giáo viên cần xác nhận liên kết từ chương trình.</p>}{Object.entries(groups).map(([id,rows])=><details key={id}><summary><Tick checked={rows.every(y=>chosen.includes(y.id))} mixed={rows.some(y=>chosen.includes(y.id))&&!rows.every(y=>chosen.includes(y.id))} onClick={e=>e.stopPropagation()} onChange={e=>toggle(tid,rows.map(y=>y.id),e.target.checked)}>{rows[0].outcome_title}<small>{rowOutcome(rows[0])} · {rows.filter(y=>chosen.includes(y.id)).length}/{rows.length} mục tiêu</small></Tick></summary>{rows.map(y=><Tick key={y.id} checked={chosen.includes(y.id)} onChange={e=>toggle(tid,[y.id],e.target.checked)}>{y.yccd_text}<small title={y.yccd_code}>{rowYccd(y)}</small></Tick>)}</details>)}</div>;
  }
  const visible=catalog.topics.filter(t=>fold(t.name+' '+(t.chapter||'')).includes(fold(search))),chapters=Object.groupBy(visible,t=>t.chapter||'Các bài học');
  return <section className="scope-v2" aria-label="Chọn nội dung học tập"><div className="scope-v2-tabs"><button type="button" className="btn" aria-pressed={tab==='lessons'} onClick={()=>setTab('lessons')}>Theo bài / chuyên đề</button><button type="button" className="btn" aria-pressed={tab==='standards'} onClick={()=>setTab('standards')}>{student?'Mục tiêu học tập · nâng cao':'Outcome / YCCĐ trực tiếp'}</button></div>

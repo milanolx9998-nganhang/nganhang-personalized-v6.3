@@ -9,6 +9,7 @@ import {contentCapability} from '../services/capabilities.js';
 import {validateMatrixNumbers,matrixError} from '../services/matrixValidation.js';
 import {validateMatrixCurriculum} from '../services/curriculum.js';
 import {previewCoverage} from '../services/examGenerator.js';
+import {outcomeLabelSql,yccdLabelSql} from '../services/curriculumLabel.js';
 const r=Router();r.use(auth);
 const wrap=fn=>async(req,res,next)=>{try{await fn(req,res);}catch(e){next(e);}};
 const nullableId=z.number().int().positive().nullable().optional();
@@ -18,8 +19,8 @@ async function permitted(user,action,subject,client=pool,grade){if(!await can(us
 async function load(client,id,lock=false){
  const m=(await client.query('SELECT * FROM matrix_templates WHERE id=$1'+(lock?' FOR UPDATE':''),[id])).rows[0];
  if(!m)throw Object.assign(new Error('Không tìm thấy ma trận'),{status:404});
- m.cells=(await client.query('SELECT mc.*,b.name AS branch_name,b.code AS branch_code,b.color AS branch_color,t.name AS topic_name,y.code AS yccd_code,y.text AS yccd_text,o.code AS outcome_code FROM matrix_cells mc LEFT JOIN branches b ON b.id=mc.branch_id LEFT JOIN topics t ON t.id=mc.topic_id LEFT JOIN curriculum_yccds y ON y.id=mc.yccd_id LEFT JOIN curriculum_outcomes o ON o.id=mc.outcome_id WHERE template_id=$1 ORDER BY mc.order_index,mc.id',[id])).rows;
- if(m.scope_snapshot)m.cells=m.cells.map(c=>{const y=m.scope_snapshot.labels?.find(y=>y.id===c.yccd_id),t=m.scope_snapshot.topics?.find(t=>t.id===c.topic_id);return {...c,yccd_code:y?.code||c.yccd_code,yccd_text:y?.text||c.yccd_text,outcome_code:y?.outcome_code||c.outcome_code,topic_name:t?.name||c.topic_name};});
+ m.cells=(await client.query('SELECT mc.*,b.name AS branch_name,b.code AS branch_code,b.color AS branch_color,t.name AS topic_name,y.code AS yccd_code,y.text AS yccd_text,o.code AS outcome_code,'+outcomeLabelSql('o')+' AS outcome_label,'+yccdLabelSql('y','yo')+' AS yccd_label FROM matrix_cells mc LEFT JOIN branches b ON b.id=mc.branch_id LEFT JOIN topics t ON t.id=mc.topic_id LEFT JOIN curriculum_yccds y ON y.id=mc.yccd_id LEFT JOIN curriculum_outcomes o ON o.id=mc.outcome_id LEFT JOIN curriculum_outcomes yo ON yo.id=y.outcome_id WHERE template_id=$1 ORDER BY mc.order_index,mc.id',[id])).rows;
+ if(m.scope_snapshot)m.cells=m.cells.map(c=>{const y=m.scope_snapshot.labels?.find(y=>y.id===c.yccd_id),t=m.scope_snapshot.topics?.find(t=>t.id===c.topic_id);return {...c,yccd_code:y?.code||c.yccd_code,yccd_text:y?.text||c.yccd_text,outcome_code:y?.outcome_code||c.outcome_code,yccd_label:y?.label||c.yccd_label,outcome_label:y?.outcome_label||c.outcome_label,topic_name:t?.name||c.topic_name};});
  m.yccd_scope=(await client.query('SELECT yccd_id FROM matrix_yccd_scope WHERE template_id=$1 ORDER BY yccd_id',[id])).rows.map(x=>x.yccd_id);
  return m;
 }

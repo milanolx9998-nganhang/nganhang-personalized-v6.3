@@ -1,3 +1,4 @@
+import {rowCurriculum} from '../../../utils/curriculumLabel.js';
 // Một nơi duy nhất dịch enum kỹ thuật sang tiếng Việt. Giao diện không được hiển thị lifecycle,
 // review_status, metadata_status, import_job_id, current_version_id hay P0/P1 ở dạng thô.
 
@@ -29,14 +30,14 @@ export function questionStatus(row) {
 }
 
 export const lessonLabel = row => row?.topic_name || LESSON_STATUS[row?.lesson_status] || 'Chưa gắn Bài';
-export const curriculumLabel = row => [row?.outcome_code, row?.yccd_code].filter(Boolean).join(' · ') || 'Chưa gán chuẩn';
+export const curriculumLabel = row => rowCurriculum(row) || 'Chưa gán chuẩn';
 export const levelLabel = row => LEVELS[row?.cognitive_level] || '—';
 export const formLabel = row => FORMS[row?.q_type] || '—';
 
 // Nhãn gộp cho cột "Bài / YCCĐ" của bảng kho.
 export function lessonAndCurriculum(row) {
   const lesson = row?.topic_name || (row?.lesson_status === 'AMBIGUOUS' ? 'Nhiều Bài' : 'Chưa gắn Bài');
-  const curriculum = [row?.outcome_code, row?.yccd_code].filter(Boolean).join('.');
+  const curriculum = rowCurriculum(row);
   return curriculum ? `${lesson} · ${curriculum}` : lesson;
 }
 
