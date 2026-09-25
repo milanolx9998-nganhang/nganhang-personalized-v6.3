@@ -590,3 +590,19 @@ Anh Hiếu chốt: **workbook là chuẩn nguyên văn**; SGK/KHDH khác một c
 - Dừng bằng compose chưa phải vĩnh viễn: nếu dịch vụ Supabase chạy lại `docker compose up -d` (vd khởi động lại máy) thì 3 container có thể bật lại. Muốn tắt hẳn thì cần override compose.
 - KHTN 8: `GDPT2018-KHTN8-2026-09-24`, công bố 11:52Z (sau deploy `33dd060`); H.2 có 8 YCCĐ, đánh số 1..8 → dùng số mới. Kiểm trên giao diện: NOT_RUN (cần đăng nhập).
 - Bảo mật Supabase (thu quyền anon, tắt đăng ký, đổi khoá): **vẫn chưa làm**.
+
+## 2026-09-25 — Đổi tên "Kho trường chuyển tiếp V4" → "Kho trường"
+
+**Yêu cầu:** anh Hiếu đồng ý đổi tên cho dễ hiểu.
+
+**Làm:**
+- `backend/src/db/migration-v6672-school-bank-name.sql`: `UPDATE banks SET name='Kho trường' WHERE kind='school' AND name='Kho trường chuyển tiếp V4'`. Chỉ đổi khi còn đúng tên gốc; id, quyền, câu hỏi giữ nguyên.
+- `upgrade.js` thêm file vào danh sách.
+
+**Kiểm:**
+- cổng `migration-safety` báo `additive: true`;
+- migrate trên DB local: tên đổi, chạy lại không làm gì;
+- không code/test nào dùng tên cũ, ngoài migration gốc.
+- security 27/27; `v664-bulk` (kho, thao tác hàng loạt) 12/12.
+
+**Deploy:** lần đẩy main sau. `deploy-server.sh` tự backup → migrate → restart → health. data-health sẽ thấy expected tăng 1.
