@@ -29,7 +29,7 @@ async function save(client,user,data,id=null){
  if(data.content_scope_v2){
   if(Number(data.content_scope_v2.subject_id)!==data.subject_id||Number(data.content_scope_v2.grade)!==data.grade)throw matrixError('MATRIX_SCOPE_MISMATCH','Phạm vi không khớp môn/khối ma trận');
   const latest=await resolveMatrixScope(data.content_scope_v2,client),prior=id?(await client.query('SELECT scope_snapshot FROM matrix_templates WHERE id=$1',[id])).rows[0]?.scope_snapshot:null;
-  if(prior&&mappingChanged(prior,latest)&&!data.scope_decision)throw matrixError('MATRIX_MAPPING_CHANGED','Liên kết đã đổi: chọn giữ snapshot hoặc làm mới phạm vi',{before:prior,after:latest});
+  if(prior&&mappingChanged(prior,latest)&&!data.scope_decision)throw matrixError('MATRIX_MAPPING_CHANGED','Liên kết chương trình đã đổi từ lúc lưu ma trận: chọn "Giữ phạm vi như lúc lưu" hoặc "Cập nhật theo chương trình hiện tại".',{before:prior,after:latest});
   data.scope_snapshot=prior&&data.scope_decision==='keep'?prior:latest;
   data.yccd_scope=data.scope_snapshot.yccd_ids;
   for(const c of data.cells){if(!data.scope_snapshot.clauses.some(cl=>cl.yccd_ids.includes(c.yccd_id)&&(!cl.topic_id||!c.topic_id||cl.topic_id===c.topic_id)))throw matrixError('MATRIX_CELL_SCOPE','Ô nằm ngoài phạm vi bài / YCCĐ đã chọn');}
