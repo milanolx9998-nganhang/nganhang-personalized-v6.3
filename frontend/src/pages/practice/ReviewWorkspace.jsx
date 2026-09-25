@@ -138,6 +138,10 @@ function QuestionTab({tab, params, setParams, user}) {
   const [scope, setScope] = useState('one');
   const [overrides, setOverrides] = useState({});
   const [lessonIds, setLessonIds] = useState(null);
+  // Mặc định chế độ đơn giản cho người duyệt thỉnh thoảng: không phím tắt một chữ (tránh bấm nhầm A là duyệt),
+  // không bảng lệnh / duyệt lô sạch / chọn cả trang. "Công cụ duyệt nhanh" bật lại tất cả và được nhớ trên trình duyệt.
+  const [power, setPower] = useState(() => { try { return localStorage.getItem('review.tools') === '1'; } catch { return false; } });
+  const togglePower = () => setPower(on => { try { localStorage.setItem('review.tools', on ? '0' : '1'); } catch { /* không lưu được: chỉ áp dụng phiên này */ } return !on; });
   const chips = useRef(null);
   const inspector = useRef(null);
   const selection = useSelection();
@@ -242,7 +246,7 @@ function QuestionTab({tab, params, setParams, user}) {
     'mod+k': () => setPaletteOpen(true),
     'mod+z': () => (undo.entry?.undo ? (undo.run(), true) : false),
     'escape': () => setPaletteOpen(false),
-  }, !paletteOpen && !deepId && !lessonIds);
+  }, power && !paletteOpen && !deepId && !lessonIds);
 
   const commands = query => {
     const list = [];
@@ -318,20 +322,21 @@ function QuestionTab({tab, params, setParams, user}) {
       <SimpleFilterBar params={params} setParams={setParams} catalog={catalog.data} hideKeys={['lifecycle', 'review_status']}/>
       <ExceptionChips value={params.get('exception')} counts={exceptionCounts} onPick={key => setFilter('exception', key)}>
         {params.get('ids') && <button className="chip" onClick={() => setFilter('ids', '')}>Bỏ lọc {params.get('ids').split(',').length} câu đang xem ×</button>}
-        <button className="btn palette-trigger" onClick={() => setPaletteOpen(true)}><span>Tìm lệnh…</span><kbd>Ctrl K</kbd></button>
+        {power && <button className="btn palette-trigger" onClick={() => setPaletteOpen(true)}><span>Tìm lệnh…</span><kbd>Ctrl K</kbd></button>}
+        <button className="btn" aria-pressed={power} onClick={togglePower}>{power ? 'Ẩn công cụ duyệt nhanh' : 'Mở công cụ duyệt nhanh'}</button>
       </ExceptionChips>
       {params.get('import_job_id') &&
         <p className="ok-box">Đang xem nhóm câu vừa nhập. Phạm vi môn, khối và kho vẫn áp dụng như bình thường.</p>}
       <ErrorBox error={error || queue.error}/>
-      {tab === 'pending' && canApprove && !params.get('ids') && (params.get('exception') || '') !== 'clean' &&
+      {power && tab === 'pending' && canApprove && !params.get('ids') && (params.get('exception') || '') !== 'clean' &&
         <CleanBatch search={search} reloadKey={reloadKey} onDone={() => { reload(); setActiveId(null); }}
                     onFocusIds={ids => setFilter('ids', ids.join(','))}/>}
-      <div className="practice-actions select-actions">
+      {power && <div className="practice-actions select-actions">
         <button className="btn" onClick={() => selection.setRows(rows, true)}>Chọn trang này ({rows.length})</button>
         <button className="btn" onClick={() => selection.selectFiltered(search.toString()).catch(e => setError(e.message))}>
           Chọn tất cả kết quả ({total})
         </button>
-      </div>
+      </div>}
       {selection.count > 0 &&
         <BulkQuestionToolbar selection={selection} actions={TAB_ACTIONS[tab]} banks={banks.data || []} requestedAction={requestedAction}
                              onDone={() => { reload(); setActiveId(null); setOverrides({}); }}
@@ -345,7 +350,7 @@ function QuestionTab({tab, params, setParams, user}) {
                                           } : null);
                                           reload();
                                         }}/>}
-      <p className="queue-hint">Phím tắt: J/K chuyển câu · Space/X chọn · A duyệt · R trả sửa · S gửi duyệt · E xem kỹ · Ctrl K bảng lệnh · Shift+tick chọn cả đoạn.</p>
+      {power && <p className="queue-hint">Phím tắt: J/K chuyển câu · Space/X chọn · A duyệt · R trả sửa · S gửi duyệt · E xem kỹ · Ctrl K bảng lệnh · Shift+tick chọn cả đoạn.</p>}
       <div className="queue-layout">
         <QuestionQueueTable rows={rows} selection={selection} activeId={activeId} onActivate={row => setActiveId(row.id)}
                             badges={Object.fromEntries(Object.keys(overrides).map(id => [id, 'chỉnh riêng']))}

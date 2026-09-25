@@ -164,6 +164,13 @@ test('V666 UI: bộ sưu tập các màn chính sau khi đồng bộ giao diện
     await page.goto(origin + '/practice/reviews?tab=pending&subject_id=' + subjectId);
     await page.locator('.queue-table tbody tr').first().click();
     await page.getByRole('group', {name: 'Lý do trả sửa'}).waitFor();
+    // V6.7 — mặc định chế độ đơn giản: không dòng phím tắt / bảng lệnh; bật "công cụ duyệt nhanh" mới hiện.
+    assert.equal(await page.locator('.queue-hint').count(), 0);
+    await page.getByRole('button', {name: 'Mở công cụ duyệt nhanh', exact: true}).click();
+    await page.locator('.queue-hint').waitFor();
+    await page.getByRole('button', {name: /Tìm lệnh/}).waitFor();
+    await page.getByRole('button', {name: 'Ẩn công cụ duyệt nhanh', exact: true}).click();
+    assert.equal(await page.locator('.queue-hint').count(), 0);
     await page.waitForTimeout(400);
     await shot('review-pending');
 
