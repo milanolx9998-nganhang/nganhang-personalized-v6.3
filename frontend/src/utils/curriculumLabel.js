@@ -3,7 +3,7 @@
 //  - Dòng API đã có sẵn nhãn (outcome_label / yccd_label, hoặc label) → dùng nhãn đó.
 //  - Dòng thô của bảng chương trình (SELECT *) → tự tính từ source_branch_code + source_ordinal.
 //  - Chuẩn chưa có số nguồn (nhập tay) → dùng mã.
-const sourced = o => o?.source_branch_code && o.source_ordinal != null;
+const sourced = o => String(o?.source_branch_code ?? '').trim() !== '' && o.source_ordinal != null;
 
 export const outcomeLabel = o => (sourced(o) ? `${o.source_branch_code}.${o.source_ordinal}` : o?.label || o?.code || '');
 export const yccdLabel = (y, o) => (sourced(o) && y?.source_ordinal != null

@@ -642,3 +642,20 @@ Anh Hiếu chốt: **workbook là chuẩn nguyên văn**; SGK/KHDH khác một c
 **Test:** `v6671-lesson-seed` thêm kiểm `curriculumCatalog` trả `yccd_label` L.2.1, `outcome_label` L.2, mã `Y-…` giữ nguyên. Kết quả: unit 125/125, security 27/27, integration 156/156, build frontend đạt; kiểm import helper đủ ở mọi file. `test:integration` nay chạy `--test-concurrency=3` (chạy hết song song thì PostgreSQL local hết kết nối). Chưa xem trực tiếp giao diện (cần đăng nhập).
 
 **Deploy `f6bb759`** (anh Hiếu bảo "up main" lúc 17:06): CI run 36122161793 SUCCESS; Verify 51 giây, Deploy 30 giây. Chưa kiểm trên giao diện (cần đăng nhập).
+
+## 2026-09-25 — Phản biện UX audit (mốc f6bb759) và chốt phương án V6.7
+
+**Đối chiếu code:**
+- Tự luyện có nút "Kiểm tra số câu trong kho" (`Student.jsx`).
+- Giao bài: CTA "Lưu và tạo link" (`Assignments.jsx`); "Cách giao" ĐÃ là câu tiếng Việt ("Mỗi học sinh bốc riêng…" / "Cùng một bộ câu đã khóa"), audit nói "dynamic/fixed" là chưa đúng.
+- `WorkspaceHome` đã có "Hôm nay cần chú ý", nhưng mọi thẻ đều dẫn tới `/practice` chung, chưa lọc.
+- Player: bản đồ câu có ✓ ★ ○, chưa có "?" (chưa chắc); câu đánh dấu che trạng thái đã trả lời. Hộp nộp chỉ có "Quay lại xem" / "Vẫn nộp bài".
+- Ma trận: nút "Giữ snapshot đã lưu" / "Làm mới khi lưu" (thuật ngữ).
+- `main` chưa được bảo vệ (API: `protected: false`).
+
+**Chốt:**
+- **Giai đoạn 0, an toàn:** khoá Supabase + đổi khoá (AI Ubuntu); thu hồi PAT (anh Hiếu); ruleset nhẹ cho `main` (cấm force-push/xoá, bắt buộc CI xanh; không bắt review vì chỉ có một người duyệt); CI mới trên máy GitHub, không dùng máy Home: unit + security + build + 5 journey smoke với Postgres riêng; `NULLIF` cho nhãn.
+- **Giai đoạn 1, giảm ma sát:** giao bài sửa trong form hiện tại (CTA "Giao bài", tóm tắt trước khi giao, số HS nhận, màn sau giao, gom Nâng cao), chưa làm wizard; tự kiểm số câu khi tự luyện; thẻ trang GV dẫn đúng danh sách; bài gần hạn lên đầu trang HS.
+- **Giai đoạn 2, đánh bóng:** Player "?" + nút xem câu chưa làm/chưa chắc + 1 CTA chính sau nộp; bỏ thuật ngữ và mã lỗi kỹ thuật trên UI; empty state có nút hành động; duyệt đơn giản mặc định.
+- **Giai đoạn 3:** thử với người thật (5–10 HS, 3–5 GV, 1–2 tổ trưởng), bấm giờ 3 chỉ tiêu, rồi mới quyết wizard giao bài / trang tổ trưởng.
+- **Không làm bây giờ:** wizard ma trận 7 bước, tracking analytics (học sinh vị thành niên), Ctrl+K toàn app, dashboard mới, thêm vai trò.
