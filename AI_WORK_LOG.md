@@ -582,3 +582,11 @@ Anh Hiếu chốt: **workbook là chuẩn nguyên văn**; SGK/KHDH khác một c
 **Còn:** `curriculum/CurriculumManager.jsx`, `CompetencyManager.jsx`, `portfolio/*` cũng hiện `{o.code}`/`{y.code}` → làm cùng kiểu nếu anh Hiếu muốn.
 
 **Chưa lên main:** đang giờ học; đẩy main là deploy + khởi động lại app.
+
+## 2026-09-25 — Báo cáo AI Ubuntu: giảm tải + xác nhận KHTN 8
+
+- Đã dừng `supabase-edge-functions`, `realtime`, `supabase-studio` (anh Hiếu cho phép); giữ imgproxy. Sau đó: load 0,87, RAM available 1,9 GiB, swap vẫn 1,8/2 GiB.
+- Tăng swap bị chặn vì sudo cần mật khẩu → anh Hiếu tự chạy lệnh thêm 6 GiB nếu muốn. AI Ubuntu đã đưa lệnh.
+- Dừng bằng compose chưa phải vĩnh viễn: nếu dịch vụ Supabase chạy lại `docker compose up -d` (vd khởi động lại máy) thì 3 container có thể bật lại. Muốn tắt hẳn thì cần override compose.
+- KHTN 8: `GDPT2018-KHTN8-2026-09-24`, công bố 11:52Z (sau deploy `33dd060`); H.2 có 8 YCCĐ, đánh số 1..8 → dùng số mới. Kiểm trên giao diện: NOT_RUN (cần đăng nhập).
+- Bảo mật Supabase (thu quyền anon, tắt đăng ký, đổi khoá): **vẫn chưa làm**.
