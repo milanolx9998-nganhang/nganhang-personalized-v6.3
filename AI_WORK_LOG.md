@@ -640,3 +640,5 @@ Anh Hiếu chốt: **workbook là chuẩn nguyên văn**; SGK/KHDH khác một c
 - mã máy chỉ còn trong tooltip.
 
 **Test:** `v6671-lesson-seed` thêm kiểm `curriculumCatalog` trả `yccd_label` L.2.1, `outcome_label` L.2, mã `Y-…` giữ nguyên. Kết quả: unit 125/125, security 27/27, integration 156/156, build frontend đạt; kiểm import helper đủ ở mọi file. `test:integration` nay chạy `--test-concurrency=3` (chạy hết song song thì PostgreSQL local hết kết nối). Chưa xem trực tiếp giao diện (cần đăng nhập).
+
+**Deploy `f6bb759`** (anh Hiếu bảo "up main" lúc 17:06): CI run 36122161793 SUCCESS; Verify 51 giây, Deploy 30 giây. Chưa kiểm trên giao diện (cần đăng nhập).
