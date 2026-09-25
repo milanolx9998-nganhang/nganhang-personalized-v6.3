@@ -560,3 +560,25 @@ Anh Hiếu chốt: **workbook là chuẩn nguyên văn**; SGK/KHDH khác một c
   - xác nhận số YCCĐ khối 8 trong DB là số mới;
   - migration applied 29 > expected 27 (không chặn);
   - khoá Supabase + đổi khoá chưa thấy trong báo cáo.
+
+## 2026-09-25 — Màn Chuẩn đầu ra · Bài–YCCĐ: bỏ mã máy, hiện mã theo nguồn
+
+**Yêu cầu:** anh Hiếu hỏi các mã `O-4650c1961c06`, `Y-126819fa-148`, chữ `ACTIVE`, `59-60` có ý nghĩa gì.
+
+**Giải thích:**
+- `O-…`/`Y-…` là mã máy sinh khi nạp workbook: Outcome = băm môn + tên Chủ đề; YCCĐ = UUID. Không có ý nghĩa với giáo viên.
+- `ACTIVE` là trạng thái.
+- `59-60` là trang trong văn bản chương trình (cột trang của workbook → `source_locator`).
+
+**Sửa** `frontend/src/pages/practice/CurriculumAdmin.jsx`:
+- hiện mã theo nguồn `L.2` / `L.2.1`, cùng số với mã câu; mã máy chỉ còn trong tooltip, trừ chuẩn nhập tay chưa có số nguồn;
+- trạng thái chỉ hiện khi khác ACTIVE (Nháp / Ngừng dùng / Đề xuất);
+- trang ghi "tr. 59-60".
+
+Áp dụng cho cả danh sách liên kết, mục "Quản lý chuẩn" và 2 ô chọn Outcome.
+
+**Kiểm:** build frontend đạt; không test nào dựa vào chữ cũ. Chưa xem trực tiếp trên trình duyệt (cần đăng nhập).
+
+**Còn:** `curriculum/CurriculumManager.jsx`, `CompetencyManager.jsx`, `portfolio/*` cũng hiện `{o.code}`/`{y.code}` → làm cùng kiểu nếu anh Hiếu muốn.
+
+**Chưa lên main:** đang giờ học; đẩy main là deploy + khởi động lại app.
