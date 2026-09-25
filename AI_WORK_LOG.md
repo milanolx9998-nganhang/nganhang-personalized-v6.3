@@ -606,3 +606,5 @@ Anh Hiếu chốt: **workbook là chuẩn nguyên văn**; SGK/KHDH khác một c
 - security 27/27; `v664-bulk` (kho, thao tác hàng loạt) 12/12.
 
 **Deploy:** lần đẩy main sau. `deploy-server.sh` tự backup → migrate → restart → health. data-health sẽ thấy expected tăng 1.
+
+**Deploy `9ed430a`** (anh Hiếu bảo "up main" lúc 14:47): CI run 36109472066 SUCCESS; Verify 49 giây, Deploy 36 giây. Lên web: màn Chuẩn đầu ra hiện mã nguồn, migration đổi tên "Kho trường", timeout Verify. Chưa kiểm trên giao diện (cần đăng nhập).
