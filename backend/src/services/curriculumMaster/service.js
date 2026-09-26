@@ -8,6 +8,7 @@ import {curriculumImpact} from '../curriculumManagement.js';
 import {mapRows,validateRows,fields} from './importRules.js';
 import {detectTrustedProfile,normalizeSourceRows,BLOCKING_SOURCE_FLAGS,HARD_BLOCK_SOURCE_FLAGS,TRUSTED_PROFILE} from './trustedProfiles.js';
 import {canonicalKey} from '../questionCode.js';
+import {applyLessonPlan,versionContent,currentLessons} from './lessonPlan.js';
 export async function permitted(actor,capability,version,c=pool){
  if(!await can(actor,capability,{subjectId:version.subject_id,grade:version.grade},c))fail('Không có quyền chương trình trong môn/khối này',403);
 }
@@ -72,14 +73,19 @@ export async function copyVersion(actor,id,raw){
  await c.query('INSERT INTO curriculum_replacements(entity_type,original_id,replacement_id,version_id,created_by) VALUES(\'outcome\',$1,$2,$3,$4)',[o.id,n.id,v.id,actor.id]);
  const ys=(await c.query('SELECT * FROM curriculum_yccds WHERE outcome_id=$1',[o.id])).rows;
  for(const y of ys){const yn=(await c.query("INSERT INTO curriculum_yccds(outcome_id,code,text,source_locator,source_row,order_index,status,curriculum_version_id,lineage_id,source_ordinal,canonical_key,source_text,source_page) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id",[n.id,y.code,y.text,y.source_locator,y.source_row,y.order_index,y.status==='RETIRED'?'RETIRED':'DRAFT',v.id,y.lineage_id,y.source_ordinal,y.canonical_key,y.source_text,y.source_page])).rows[0];await c.query("INSERT INTO curriculum_replacements(entity_type,original_id,replacement_id,version_id,created_by) VALUES('yccd',$1,$2,$3,$4)",[y.id,yn.id,v.id,actor.id]);}}
- await audit(c,actor,v,'VERSION_COPIED',{id},v,'Sao chép, giữ lineage; không tự sao chép mapping bài học');return v;});
+ // V6.6.7.3: liên kết Bài ↔ YCCĐ không tự chép giữa phiên bản; bản nháp mang theo kế hoạch Bài (Bài có số + mã YCCĐ đang liên kết)
+ // để lúc công bố dựng lại liên kết cho YCCĐ của bản mới.
+ const plan=(await currentLessons(c,old.subject_id,old.grade,await versionContent(c,{versionId:id}))).filter(l=>l.number>0&&l.codes.length);
+ if(plan.length)await c.query('UPDATE curriculum_versions SET lesson_plan=$2 WHERE id=$1',[v.id,JSON.stringify({lessons:plan})]);
+ await audit(c,actor,v,'VERSION_COPIED',{id},{...v,lesson_plan_lessons:plan.length},'Sao chép, giữ lineage; mang theo kế hoạch Bài hiện có');return v;});
 }
 export async function publishVersion(actor,id,raw){
  const d=z.object({revision:z.number().int(),confirmed:z.literal(true),reason:z.string().trim().min(3).max(1000)}).strict().parse(raw);
  return tx(async c=>{const v=await getVersion(c,id,true);await permitted(actor,'curriculum.publish',v,c);draft(v);if(v.revision!==d.revision)fail('Tải lại phiên bản trước khi công bố',409);
  const count=(await c.query("SELECT count(*)::int n FROM curriculum_yccds y JOIN curriculum_outcomes o ON o.id=y.outcome_id WHERE y.curriculum_version_id=$1 AND y.status<>'RETIRED' AND o.status<>'RETIRED'",[id])).rows[0].n;if(!count)fail('Cần ít nhất một YCCĐ có Outcome hợp lệ');
  await c.query("UPDATE curriculum_outcomes SET status='ACTIVE' WHERE curriculum_version_id=$1 AND status='DRAFT'",[id]);await c.query("UPDATE curriculum_yccds SET status='ACTIVE' WHERE curriculum_version_id=$1 AND status='DRAFT'",[id]);
- await c.query("UPDATE curriculum_versions SET status='PUBLISHED',published_by=$2,published_at=now() WHERE id=$1",[id,actor.id]);await audit(c,actor,v,'PUBLISHED',v,{status:'PUBLISHED',count},d.reason);return {ok:true};});
+ let lessons=null;if(v.lesson_plan?.lessons?.length){await permitted(actor,'curriculum.manage_lessons',v,c);lessons=await applyLessonPlan(c,v);}
+ await c.query("UPDATE curriculum_versions SET status='PUBLISHED',published_by=$2,published_at=now() WHERE id=$1",[id,actor.id]);await audit(c,actor,v,'PUBLISHED',{...v,lesson_plan:undefined},{status:'PUBLISHED',count,lessons},d.reason);return {ok:true,lessons};});
 }
 export async function diffVersions(actor,a,b){
  const x=await detail(actor,a),y=await detail(actor,b);if(x.version.subject_id!==y.version.subject_id||x.version.grade!==y.version.grade)fail('Chỉ đối chiếu cùng môn/khối');

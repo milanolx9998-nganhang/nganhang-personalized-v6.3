@@ -24,10 +24,10 @@ const read=['competency.read','competency.view_student','student.read','learning
 export const PRESETS=Object.freeze({
  SUBJECT_TEACHER:teaching,
  HOMEROOM:[...learning,'student.manage_basic','student.reset_password'],
- DEPT_LEADER:['competency.read','competency.view_student','student.read','learning.read','learning.read_subject','learning.read_attempt','content.read','content.write','content.create_version','content.view_answer','content.review','content.approve','question_quality.read','coverage.read','matrix.read','matrix.create','matrix.review','matrix.approve','exam.read','exam.create','exam.generate','curriculum.read','curriculum.manage_lessons','curriculum.propose_mapping','analytics.read','bank.read','bank.write','bank.review'],
+ DEPT_LEADER:['competency.read','competency.view_student','student.read','learning.read','learning.read_subject','learning.read_attempt','content.read','content.write','content.create_version','content.view_answer','content.review','content.approve','question_quality.read','coverage.read','matrix.read','matrix.create','matrix.review','matrix.approve','exam.read','exam.create','exam.generate','curriculum.read','curriculum.manage_lessons','curriculum.propose_mapping','curriculum.import','curriculum.edit_draft','analytics.read','bank.read','bank.write','bank.review'],
  GRADE_LEADER:learning,
  BOARD:[...read,'learning.read_all_subjects'],
- BOARD_PROFESSIONAL:[...read,'learning.read_all_subjects','content.view_answer','content.review','content.approve','matrix.review','matrix.approve','curriculum.manage_lessons','curriculum.propose_mapping'],
+ BOARD_PROFESSIONAL:[...read,'learning.read_all_subjects','content.view_answer','content.review','content.approve','matrix.review','matrix.approve','curriculum.manage_lessons','curriculum.propose_mapping','curriculum.import','curriculum.edit_draft','curriculum.publish'],
  VIEWER:read,
  ADMIN:CAPABILITIES
 });

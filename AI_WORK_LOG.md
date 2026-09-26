@@ -729,3 +729,45 @@ Kết quả chạy toàn bộ: xem mục kế tiếp.
 - Tiêu đề tab trình duyệt vẫn là "Ngân hàng câu hỏi V4.3".
 
 **Dữ liệu local để lại:** 1 bài giao "Kiểm thử V6.7 (xoá được)" cho lớp 9-DEMO.
+
+## 2026-09-26 — Sửa theo đề xuất + file mẫu chương trình môn học (Bài / Outcome / YCCĐ)
+
+**Yêu cầu:** "sửa theo đề xuất" (web chưa publish, giữ mật khẩu demo); "chuẩn hóa template các môn: BGH up Bài, Outcome, YCCĐ; 1 file mẫu, chỗ up, có mục sửa nội dung".
+
+**Sửa theo đề xuất (`0a63d30`):**
+- `GET /practice/catalog/my-subjects` (content.read); ô "Môn học" chỉ liệt kê môn được phép.
+- Tiêu đề tab "Ngân hàng câu hỏi".
+- Seed: GV Lí/Hoá/Sinh THCS gắn môn KHTN.
+- DB local: phân công lớp 9-DEMO của `gv_ly_01` chuyển Vật Lí → KHTN (+ `access_version`).
+
+**File mẫu:**
+- Migration `migration-v6673-curriculum-template.sql`: `curriculum_versions.lesson_plan jsonb`.
+- `services/curriculumMaster/lessonPlan.js`:
+  - đọc nội dung phiên bản / Bài hiện có;
+  - `applyLessonPlan` lúc công bố: tìm Bài theo số (không có số thì theo tên), đổi tên / chương / thứ tự, tạo Bài mới, thêm liên kết tới YCCĐ bản mới; khác phân môn thì bỏ qua và báo lại; Bài không có trong kế hoạch giữ nguyên.
+- `services/curriculumMaster/template.js`:
+  - file 3 sheet (Hướng dẫn / Chương trình / Bài học), tải về kèm dữ liệu hiện tại;
+  - đọc bằng `parseWorkbook` sẵn có (worker, chặn file nén độc);
+  - kiểm lỗi từng dòng: thiếu số / tên, trùng số YCCĐ, phân môn không có, Chủ đề trùng số khác tên, mã YCCĐ của Bài không có, Bài trùng số, sai phân môn;
+  - `diffData` so với bản đang dùng; `createDraft` lưu trữ bản nháp cũ (ARCHIVED), giữ lineage theo nhãn, canonical_key như bộ đọc mã câu;
+  - `startDraft`: sửa trên web; `saveLessonPlan`: sửa danh sách Bài.
+- `service.js`: `publishVersion` áp dụng `lesson_plan` (cần `curriculum.manage_lessons`); `copyVersion` mang theo kế hoạch Bài từ liên kết hiện có (trước đây công bố bản sao làm mất liên kết Bài).
+- Routes `/api/curriculum/template` (tải), `/template/workspace`, `/template/preview`, `/template/import`, `/template/draft`, `PUT /versions/:id/lesson-plan`.
+- Quyền:
+  - DEPT_LEADER + `curriculum.import` + `curriculum.edit_draft`;
+  - BOARD_PROFESSIONAL + import + edit_draft + `curriculum.publish`.
+- Giao diện `pages/curriculum/CurriculumTemplate.jsx`: tab đầu "Chương trình môn học" ở "Môn học & cấu hình nội dung", ẩn công cụ phiên bản nâng cao khi ở tab này.
+  - Chọn môn/khối → trạng thái → Tải file mẫu → Tải lên + Kiểm tra (lỗi / thay đổi) → Tạo bản nháp.
+  - Sửa Chủ đề / YCCĐ (chữ), sửa danh sách Bài (số, tên, chương, phân môn, mã) → Công bố.
+
+**Kiểm:**
+- localhost: tải file mẫu KHTN 7 (dữ liệu cũ, 30 / 97 / 13 / 31) rồi tải lên lại nguyên file → hợp lệ, 0 thay đổi; giao diện tab hiện đúng;
+- không tạo bản nháp / công bố trên DB local vì DB này là nguồn cho test;
+- test `v6673-template` (DB tạm, KHTN 9 nạp bằng CLI + seed Bài): xem mục kế tiếp.
+- `v6673-template` 4/4:
+  - tải về rồi tải lại → 0 thay đổi;
+  - file lỗi báo đúng sheet / dòng, không tạo phiên bản; GV thường 403;
+  - sửa trong file → bản nháp → sửa Bài trên web (mã sai 422) → công bố: Bài 99 được tạo với liên kết L.2.1 / L.2.2 của bản mới, Bài 2 đổi tên, bộ đọc mã câu đọc YCCĐ đã sửa của bản mới;
+  - mở bản nháp trên web mang theo Bài + liên kết, gọi lại vẫn dùng đúng bản nháp đó.
+- Toàn bộ: unit 128/128, security 27/27, integration 160/160 (sau khi sửa `v66-checks`: tab mặc định nay là "Chương trình môn học", test bấm sang tab nâng cao), build đạt.
+- File mẫu thử (không commit): `artifacts/Mau_chuong_trinh_KHTN_khoi7.xlsx`, `Mau_chuong_trinh_Toan_khoi6.xlsx`.
