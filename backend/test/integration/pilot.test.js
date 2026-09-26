@@ -169,7 +169,7 @@ test('Trình duyệt GV: nhập mẫu, xem kho, giao bài và theo dõi lớp',{
   assert.equal(await page.locator('.filter-row select').count()<=4,true,'Bộ lọc mặc định phải gọn');
   await page.goto(origin+'/practice/assignments');await page.getByRole('button',{name:'Tạo bài giao',exact:true}).click();await page.getByText('Hoặc chọn từng học sinh',{exact:true}).waitFor();
   // Form giao bài: nút chính là 'Giao bài', khoá khi chưa có tên bài và người nhận; có phần xem lại trước khi giao.
-  assert.equal(await page.getByRole('button',{name:'Giao bài',exact:true}).isDisabled(),true);await page.getByText('Còn thiếu: tên bài, lớp hoặc học sinh nhận bài.',{exact:true}).waitFor();await page.getByRole('region',{name:'Xem lại trước khi giao'}).waitFor();
+  assert.equal(await page.getByRole('button',{name:'Giao bài',exact:true}).isDisabled(),true);await page.getByText('Còn thiếu: tên bài, nội dung, lớp hoặc học sinh nhận bài.',{exact:true}).waitFor();await page.getByRole('region',{name:'Xem lại trước khi giao'}).waitFor();
   await page.goto(origin+'/practice');await page.getByLabel('Năm học · Lớp').selectOption(String(classId));await page.getByText('pilot_test_student · pilot_test_student',{exact:true}).waitFor();await page.screenshot({path:path.join(artifacts,'teacher-dashboard.png'),fullPage:true});assert.deepEqual(errors,[]);
  }finally{await browser.close();}
 });

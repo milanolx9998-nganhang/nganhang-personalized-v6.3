@@ -707,3 +707,25 @@ Kết quả chạy toàn bộ: xem mục kế tiếp.
 - `exceptionCounts` / `CHECK_SQL` không đổi so với lần 156/156 ngày 2026-09-25 (sau `f6bb759`).
 - Hàng đợi có nhãn mới: 145–220 ms.
 - Kết luận: lỗi thời gian do môi trường. Chạy lại khi máy rảnh: `node --test test/integration/v6661-scale.test.js`.
+
+## 2026-09-26 — Chạy thử giao diện thật trên máy local bằng tài khoản demo
+
+**Cách làm:** anh Hiếu đưa tài khoản demo. Chỉ dùng trên `http://localhost:3003` (server local, DB `nganhang_personalized_v63`, `.claude/launch.json` cấu hình `nganhang-local`), không dùng trên `studylab.io.vn`. Không ghi mật khẩu vào ghi chú.
+
+**Kiểm được, đều đúng:**
+- form giao bài 3 bước, sĩ số lớp, câu xem lại, "Còn thiếu", màn "✓ Đã giao bài cho 1 học sinh" với 3 nút;
+- `/practice?status=inactive` tự mở lớp duy nhất, đang lọc + "Bỏ lọc", cột Hành động;
+- màn Duyệt: mặc định ẩn công cụ nhanh, bật/tắt đúng;
+- Kho câu hỏi và Chuẩn đầu ra: không còn mã máy; nhãn H.1 / L.1 / H.1.1.
+
+**Lỗi tìm ra khi chạy thật, đã sửa:**
+- Form giao bài không kiểm số câu: phải bấm "Giao bài" mới biết "Kho chưa đủ câu cho bài giao" (không nói thiếu mức nào). Đã tách `pages/practice/availability.jsx` (hook + khung trạng thái + các cách sửa) dùng chung cho Tự luyện và Giao bài. Giao bài tự kiểm, nút khoá khi thiếu, "Còn thiếu" nêu cả nội dung và số câu.
+- Gợi ý "Giao/Luyện N câu hiện có" trước đây chỉ hiện khi không giảm được số câu (kho 6 câu chỉ được gợi ý "Giảm còn 2 câu"). Nay hiện khi dùng được nhiều câu hơn, xếp trước.
+- Tỉ lệ chia lại là số thập phân (33,33…), cộng lại 99,999…, nên form tưởng chưa đủ 100%. Nay `rebalance` trả tỉ lệ nguyên, kiểm lại bằng `allocate()`; kiểm 100% dùng sai số 0,00001 như máy chủ.
+
+**Phát hiện chưa sửa:**
+- Ô "Môn" ở form giao bài / tự luyện liệt kê đủ 14 môn, kể cả môn không có quyền (GV chọn thì mới báo "Không có quyền với môn này").
+- Tài khoản mẫu `gv_ly_01` gắn môn "Vật Lí" (id 4), nhưng Bài / câu KHTN 6–9 nằm ở môn "KHTN" (id 3), nên giáo viên này không giao được bài KHTN. Là dữ liệu phân quyền mẫu, không phải lỗi form.
+- Tiêu đề tab trình duyệt vẫn là "Ngân hàng câu hỏi V4.3".
+
+**Dữ liệu local để lại:** 1 bài giao "Kiểm thử V6.7 (xoá được)" cho lớp 9-DEMO.
