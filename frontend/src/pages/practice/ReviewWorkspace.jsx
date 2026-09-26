@@ -17,6 +17,12 @@ import UndoToast, {useUndo} from './workspace/UndoToast.jsx';
 import {useHotkeys} from './workspace/useHotkeys.js';
 import ExceptionChips, {useExceptionCounts} from './workspace/ExceptionChips.jsx';
 
+// V6.6.7.4: mỗi tab một câu giải thích — người mới biết câu đang ở bước nào và việc cần làm tiếp.
+const TAB_HELP = {
+  author: 'Câu bạn đã nhập / soạn và câu bị trả sửa — đang là nháp, học sinh chưa thấy. Rà lại, gắn Bài nếu thiếu, rồi bấm Gửi duyệt (S).',
+  pending: 'Câu giáo viên đã gửi. Duyệt (A) thì câu dùng được để giao bài, tạo đề; Trả sửa (R) kèm lý do để người soạn sửa lại.',
+  cases: 'Câu bị báo vấn đề (lệch chương trình, lỗi hình ảnh, nghi trùng…). Xử lý xong câu mới tiếp tục được dùng.',
+};
 const TABS = [
   {id: 'author', label: 'Bản nháp của tôi', capabilities: ['content.write']},
   {id: 'pending', label: 'Chờ duyệt', capabilities: ['content.review', 'content.approve']},
@@ -389,6 +395,7 @@ export default function ReviewWorkspace() {
                   onClick={() => setTab(t.id)}>{t.label}</button>
         ))}
       </nav>
+      <p className="queue-help">{TAB_HELP[tab]}</p>
       {tab === 'cases'
         ? <ReviewCaseQueue/>
         : <QuestionTab key={tab} tab={tab} params={params} setParams={setParams} user={user}/>}

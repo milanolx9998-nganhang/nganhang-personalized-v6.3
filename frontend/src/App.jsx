@@ -1,6 +1,7 @@
 const ReviewWorkspace=lazy(()=>import('./pages/practice/ReviewWorkspace.jsx'));
 const FlaggedReview=lazy(()=>import('./pages/practice/FlaggedReview.jsx'));
 const CurriculumAdmin=lazy(()=>import('./pages/practice/CurriculumAdmin.jsx'));
+const CurriculumPage=lazy(()=>import('./pages/curriculum/CurriculumPage.jsx'));
 import {lazy,Suspense,useEffect} from 'react';
 import { BrowserRouter, Routes, Route, Navigate,useLocation } from 'react-router-dom';
 const PracticeBuilder=lazy(()=>import('./pages/practice/Student.jsx').then(m=>({default:m.PracticeBuilder})));
@@ -72,6 +73,7 @@ export default function App() {
           <Route path="practice/review/:attemptId" element={<AttemptReview/>}/>
           <Route path="practice/reviews" element={<ReviewWorkspace/>}/>
           <Route path="practice/curriculum" element={<CurriculumAdmin/>}/>
+          <Route path="curriculum" element={<CurriculumPage/>}/>
           <Route path="practice/admin" element={<Navigate to="/admin/school" replace/>}/>
           <Route path="admin/:section" element={<AdminHub/>}/>
           <Route path="practice/password" element={<Password/>}/>

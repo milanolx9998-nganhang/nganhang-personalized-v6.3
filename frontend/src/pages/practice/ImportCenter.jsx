@@ -9,6 +9,7 @@ import MachineChecks, {importChecks} from './workspace/MachineChecks.jsx';
 import {FORM_SHORT} from './workspace/labels.js';
 import CommandPalette from './workspace/CommandPalette.jsx';
 import {useHotkeys} from './workspace/useHotkeys.js';
+import CopyPrompt from '../../components/CopyPrompt.jsx';
 
 const DECISIONS = {import: 'Nhập thành câu mới', skip: 'Bỏ qua', version: 'Tạo bản mới cho câu trùng', replace: 'Thay thế câu trùng'};
 const LEVEL_NAMES = ['NB', 'TH', 'VD', 'VDC'];
@@ -22,10 +23,16 @@ const CATEGORIES = {
   ERROR: {label: 'Lỗi', tone: 'danger', icon: '×'},
 };
 const TEMPLATES = {
-  word: ['question-import-khtn.docx', 'Mẫu Word nhập câu'],
   excel: ['question-import.xlsx', 'Mẫu Excel nâng cao'],
-  curriculum: ['TEMPLATE_CHUAN_TOAN_TRUONG_OUTCOME_YCCD_QUESTION_METADATA_V1_1.xlsx', 'Mẫu quản trị Outcome/YCCĐ'],
 };
+// Cả hành trình của một câu, để người nhập biết đang ở đâu và còn gì phía sau (V6.6.7.4): học sinh chỉ nhận câu đã duyệt.
+const JOURNEY = [
+  ['Tải tệp', 'Chọn Môn, Khối, thả tệp Word'],
+  ['Kiểm tra & sửa', 'Hệ thống đọc mã, báo lỗi từng câu'],
+  ['Lưu vào kho', 'Câu ở dạng nháp, chưa giao được'],
+  ['Gửi duyệt', 'Gửi tổ trưởng / người duyệt'],
+  ['Được duyệt', 'Dùng để giao bài, tạo đề'],
+];
 const CONTEXT_KEY = 'nganhang.import.context';
 
 const excerpt = (text, length = 150) => {
@@ -43,7 +50,7 @@ const categoryOf = item => {
 const isBlocked = item => item.validation.status === 'ERROR';
 const issuesOf = item => item.validation.issues
   || [...(item.validation.errors || []).map(message => ({severity: 'blocking', message})), ...(item.validation.warnings || []).map(message => ({severity: 'review', message}))];
-const isCoded = item => /^Câu [LHS]\./u.test(item.draft.display_code || '') || !!item.draft.code_raw;
+const isCoded = item => /^Câu [A-ZĐ]{1,3}\./u.test(item.draft.display_code || '') || !!item.draft.code_raw;
 
 // Ngữ cảnh lần trước (Môn/Khối/Kho) được nhớ trên máy này để lần sau chỉ cần thả tệp.
 function rememberedContext() {
@@ -72,13 +79,49 @@ function exportIssues(job) {
   document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(link.href);
 }
 
-function TemplateButton({kind, primary = false}) {
+function TemplateButton({kind}) {
   const [file, label] = TEMPLATES[kind];
   return (
-    <button type="button" className={primary ? 'btn primary' : 'btn'}
-            onClick={() => downloadFile(`${base}/templates/${file}`, file).catch(e => alert(e.message))}>
-      {primary ? '⬇ Tải mẫu Word' : label}
+    <button type="button" className="btn" onClick={() => downloadFile(`${base}/templates/${file}`, file).catch(e => alert(e.message))}>
+      {label}
     </button>
+  );
+}
+
+// Mẫu Word theo Môn + Khối: chữ đầu mã đúng môn, mã ví dụ lấy từ chương trình đang dùng (V6.6.7.4).
+function WordTemplateButton({context}) {
+  const ready = !!(context.subject_id && context.grade);
+  return (
+    <button type="button" className="btn primary" disabled={!ready} title={ready ? undefined : 'Chọn Môn và Khối trước: mẫu có sẵn mã đúng môn'}
+            onClick={() => downloadFile(`/api/curriculum/template/word?subject_id=${context.subject_id}&grade=${context.grade}`, `Mau_Word_nhap_cau_khoi${context.grade}.docx`).catch(e => alert(e.message))}>
+      ⬇ Tải mẫu Word
+    </button>
+  );
+}
+
+// Mã câu của môn đang chọn + lệnh AI thêm mã cho câu có sẵn. Không đọc được (chưa có quyền xem chương trình môn/khối) thì ẩn.
+function CodeHelp({context}) {
+  const [info, setInfo] = useState(null);
+  useEffect(() => {
+    setInfo(null);
+    if (!context.subject_id || !context.grade) return undefined;
+    let alive = true;
+    api.get(`/api/curriculum/template/prompts?subject_id=${context.subject_id}&grade=${context.grade}`).then(d => { if (alive) setInfo(d); }).catch(() => {});
+    return () => { alive = false; };
+  }, [context.subject_id, context.grade]);
+  if (!info) return null;
+  return (
+    <div className="code-help">
+      <p>Mã câu môn {info.subject.name}: <code className="code-hint">{info.sample_code}</code> — chữ đầu mã {info.subject.letter_hint}, sau đó là Chủ đề · YCCĐ · Mức · Số câu · Dạng.</p>
+      {!info.has_curriculum && (
+        <p className="warn-box">Chưa có chương trình {info.subject.name} khối {info.grade}: mã câu chưa tự nhận được Chủ đề, YCCĐ, Bài. Nhờ tổ trưởng nạp ở trang <Link to="/curriculum">Chương trình môn học</Link>.</p>
+      )}
+      <details>
+        <summary>Câu hỏi có sẵn chưa có mã? Nhờ AI thêm mã đúng mẫu</summary>
+        <CopyPrompt title="Lệnh cho AI (ChatGPT, Gemini…)" text={info.prompts.questions} rows={6}
+                    hint="Dán lệnh, gửi kèm câu hỏi và file Chương trình (tải ở trang Chương trình môn học). Kiểm tra lại mã trước khi nhập."/>
+      </details>
+    </div>
   );
 }
 
@@ -218,7 +261,7 @@ function IssueGroups({items, topics, busy, push, onOpen}) {
     if (!code) return;
     push({items: [{id: item.id, draft: {display_code: code, code_raw: null, outcome_id: null, yccd_id: null, cognitive_level: null, type: null, q_type: null, topic_id: null, lesson_status: null}}]});
   };
-  const uncoded = group => group.entries.filter(({item}) => !/^Câu [LHS]\./u.test(item.draft.display_code || '') && !item.draft.code_raw);
+  const uncoded = group => group.entries.filter(({item}) => !/^Câu [A-ZĐ]{1,3}\./u.test(item.draft.display_code || '') && !item.draft.code_raw);
 
   return (
     <section className="issue-groups" aria-label="Sửa theo nhóm vấn đề">
@@ -464,7 +507,7 @@ export default function ImportCenter() {
     list.push({id: 'select-valid', group: 'Lần nhập', label: 'Chọn tất cả câu hợp lệ', keywords: 'chon', run: () => setSelected(items.filter(i => !isBlocked(i)).map(i => i.id))});
     list.push({id: 'clear-sel', group: 'Lần nhập', label: 'Bỏ chọn', keywords: 'bo chon', run: () => setSelected([])});
     if (counts.ERROR + counts.NEEDS_REVIEW > 0) list.push({id: 'csv', group: 'Lần nhập', label: 'Xuất danh sách lỗi (CSV)', keywords: 'xuat loi csv', run: () => exportIssues(job)});
-    if (confirmable.length) list.push({id: 'confirm', group: 'Lần nhập', label: `Xác nhận nhập ${confirmable.length} câu`, keywords: 'xac nhan nhap', run: confirm});
+    if (confirmable.length) list.push({id: 'confirm', group: 'Lần nhập', label: `Lưu ${confirmable.length} câu vào kho`, keywords: 'xac nhan nhap luu kho', run: confirm});
     list.push({id: 'banks', group: 'Đi tới', label: 'Bàn làm việc (Kho câu hỏi)', keywords: 'kho', run: () => navigate('/practice/banks')});
     const text = query.trim();
     if (text) list.push({id: 'find', group: 'Tìm', label: `Tới câu có mã/nội dung “${text}”`, keywords: text, run: () => {
@@ -476,6 +519,9 @@ export default function ImportCenter() {
   };
 
   const step = result ? 3 : job ? 2 : 1;
+  // Bước đang làm trên hành trình 5 bước: đã lưu vào kho thì việc tiếp theo là gửi duyệt; đã gửi thì chờ duyệt.
+  const journey = result ? (result.submitted == null ? 4 : 5) : job ? 2 : 1;
+  const imported = result ? result.unique_questions ?? result.imported : 0;
   const expectationChips = [
     jobContext.expectations?.branch_code && 'Phân môn ' + BRANCHES[jobContext.expectations.branch_code],
     jobContext.expectations?.chapter && jobContext.expectations.chapter,
@@ -486,10 +532,10 @@ export default function ImportCenter() {
 
   return (
     <WorkspaceShell>
-      <ol className="import-steps" aria-label="Các bước nhập câu">
-        {['Chọn tệp', 'Kiểm tra & sửa', 'Xác nhận'].map((label, i) => (
-          <li key={label} className={step === i + 1 ? 'active' : step > i + 1 ? 'done' : ''} aria-current={step === i + 1 ? 'step' : undefined}>
-            {i + 1}. {label}
+      <ol className="journey" aria-label="Hành trình câu hỏi: từ nhập đến dùng được">
+        {JOURNEY.map(([label, hint], i) => (
+          <li key={label} className={journey === i + 1 ? 'active' : journey > i + 1 ? 'done' : ''} aria-current={journey === i + 1 ? 'step' : undefined}>
+            <b>{journey > i + 1 ? '✓' : i + 1}. {label}</b><span>{hint}</span>
           </li>
         ))}
       </ol>
@@ -497,7 +543,7 @@ export default function ImportCenter() {
 
       {step === 3 && (
         <article className="ok-box" role="status">
-          <h2>Đã nhập {result.unique_questions ?? result.imported} câu</h2>
+          <h2>{result.submitted == null ? `Đã lưu ${imported} câu vào kho (dạng nháp)` : 'Đã gửi đi duyệt'}</h2>
           {result.processed_items != null && result.processed_items !== result.unique_questions && (
             <p>Đã xử lý {result.processed_items} mục nhập · {result.unique_questions} câu trong kho (có mục cập nhật vào cùng một câu).</p>
           )}
@@ -508,17 +554,25 @@ export default function ImportCenter() {
           {result.lessons.assigned !== null && (
             <p>{result.lessons.assigned} câu đã gắn Bài · {result.lessons.unassigned} câu chưa gắn Bài.</p>
           )}
+          {result.submitted == null && (
+            <p className="next-step">
+              <b>Bước tiếp theo:</b> câu nháp chưa dùng được cho học sinh. Bấm <b>Gửi đi duyệt</b> để tổ trưởng / người duyệt kiểm tra;
+              câu được duyệt mới dùng để giao bài, tạo đề.
+              {result.lessons.unassigned > 0 && ` Nên gắn Bài cho ${result.lessons.unassigned} câu chưa có Bài trước khi gửi (báo cáo theo Bài cần thông tin này).`}
+            </p>
+          )}
           {result.submitted != null && (
             <p className="ok-box" role="status">
               {[`Đã gửi thêm ${result.submitted} câu đi duyệt`,
                 result.alreadySubmitted ? `${result.alreadySubmitted} câu đã gửi trước đó` : '',
                 result.alreadyHandled ? `${result.alreadyHandled} câu đã được duyệt` : '',
                 result.notSubmitted ? `${result.notSubmitted} câu chưa gửi được (mở để xem lý do)` : ''].filter(Boolean).join(' · ')}.
+              {' '}Người duyệt thấy các câu này ở màn <b>Duyệt</b> → tab <b>Chờ duyệt</b>; duyệt xong, câu dùng được để giao bài.
             </p>
           )}
           <div className="practice-actions">
             {result.submitted == null
-              ? <button className="btn primary" disabled={busy} onClick={submitImported}>Gửi {result.unique_questions ?? result.imported} câu đi duyệt</button>
+              ? <button className="btn primary" disabled={busy} onClick={submitImported}>Gửi {imported} câu đi duyệt</button>
               : <Link className="btn primary" to={`/practice/reviews?tab=${result.notSubmitted ? 'author' : 'pending'}&import_job_id=${result.job_id}`}>
                   {result.notSubmitted ? `Mở ${result.notSubmitted} câu chưa gửi` : 'Mở màn Duyệt'}
                 </Link>}
@@ -536,9 +590,9 @@ export default function ImportCenter() {
         <article className="practice-card import-context">
           <header className="section-heading">
             <h2>Nhập câu hỏi từ Word</h2>
-            <TemplateButton kind="word" primary/>
+            <WordTemplateButton context={context}/>
           </header>
-          <p>Chỉ cần chọn <strong>Môn</strong>, <strong>Khối</strong> và thả tệp. Mã câu tự cho biết Outcome, YCCĐ, mức, dạng — và Bài nếu dữ liệu nền đã liên kết.</p>
+          <p>Chỉ cần chọn <strong>Môn</strong>, <strong>Khối</strong> và thả tệp. Mã câu tự cho biết Chủ đề (Outcome), YCCĐ, mức, dạng — và Bài nếu chương trình môn đã gắn Bài với YCCĐ.</p>
           <div className="practice-grid">
             <label>Môn
               <select aria-label="Môn" value={context.subject_id || ''} onChange={e => setContext({...context, subject_id: Number(e.target.value) || null})}>
@@ -553,6 +607,7 @@ export default function ImportCenter() {
               </select>
             </label>
           </div>
+          <CodeHelp context={context}/>
           <Dropzone file={file} onFile={setFile}/>
 
           <details className="import-options">
@@ -607,7 +662,7 @@ export default function ImportCenter() {
             </div>
             <div className="practice-actions">
               <TemplateButton kind="excel"/>
-              <TemplateButton kind="curriculum"/>
+              <Link className="btn" to="/curriculum">Chương trình môn học (Chủ đề · YCCĐ · Bài)</Link>
             </div>
           </details>
 
@@ -806,8 +861,9 @@ export default function ImportCenter() {
 
         <div className="practice-actions import-confirm">
           <button className="btn primary" disabled={busy || !confirmable.length} onClick={confirm}>
-            Xác nhận nhập {confirmable.length} câu
+            Lưu {confirmable.length} câu vào kho
           </button>
+          <span className="muted">Câu được lưu ở dạng nháp; bước sau là gửi duyệt.</span>
           {counts.ERROR > 0 && <span className="tone-danger">{counts.ERROR} câu lỗi chưa được nhập cho tới khi sửa</span>}
         </div>
       </>}

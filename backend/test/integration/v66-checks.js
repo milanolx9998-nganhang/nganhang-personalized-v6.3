@@ -60,8 +60,8 @@ export function registerV66(context){
    const page=await browser.newPage({viewport:{width:1440,height:1000}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
    await page.goto('http://127.0.0.1:3103/login');await page.getByPlaceholder('admin').fill('v63_admin');await page.locator('input[type=password]').fill(pw);await page.getByRole('button',{name:'Đăng nhập',exact:true}).click();await page.waitForURL('http://127.0.0.1:3103/');
    await page.goto('http://127.0.0.1:3103/admin/curriculum');
-   // V6.6.7.3: tab mặc định là "Chương trình môn học" (file mẫu); trình sửa phiên bản chuyển sang tab nâng cao.
-   await page.getByRole('heading',{name:'Chương trình môn học',exact:true}).waitFor();await page.getByRole('button',{name:'Outcome & YCCĐ (nâng cao)',exact:true}).click();
+   // V6.6.7.4: file mẫu chuyển sang trang riêng /curriculum; trang quản trị chỉ còn công cụ nâng cao.
+   await page.getByRole('heading',{name:'Chương trình nâng cao',exact:true}).waitFor();await page.getByRole('button',{name:'Outcome & YCCĐ (nâng cao)',exact:true}).click();
    await page.getByLabel('Phiên bản chương trình',{exact:true}).selectOption(String(copied));await page.getByText('TEST-Y-NEW',{exact:true}).waitFor();
    await page.screenshot({path:path.resolve('../artifacts/v66-outcome-yccd-editor.png'),fullPage:true});
    await page.getByRole('button',{name:'Phiên bản & lịch sử',exact:true}).click();await page.getByLabel('So với phiên bản',{exact:true}).selectOption(String(version));await page.getByRole('button',{name:'Xem khác biệt',exact:true}).click();await page.getByText('Sau: Nội dung bản mới',{exact:true}).waitFor();
