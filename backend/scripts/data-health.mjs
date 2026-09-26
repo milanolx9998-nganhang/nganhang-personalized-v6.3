@@ -52,7 +52,7 @@ try {
 
   // Vì sao câu có mã không đạt kiểm tra mã — tách từng nguyên nhân để biết là lỗi dữ liệu câu hay thiếu dữ liệu chương trình.
   const DC = "COALESCE(q.normalized_content->>'display_code','')";
-  const LETTER = `substring(${DC} from '^Câu ([LHS])\\.')`;
+  const LETTER = `substring(${DC} from '^Câu ([A-ZĐ]{1,3})\\.')`;
   const BRANCH = "CASE COALESCE(co.source_branch_code,co.domain_code) WHEN 'VL' THEN 'L' WHEN 'HH' THEN 'H' WHEN 'SH' THEN 'S' ELSE COALESCE(co.source_branch_code,co.domain_code) END";
   const FORM = "CASE q.q_type::text WHEN 'mcq4' THEN 'TN' WHEN 'true_false' THEN 'ĐS' WHEN 'short' THEN 'TLN' WHEN 'matching' THEN 'GN' WHEN 'essay' THEN 'TL' END";
   report.code_check = (await q(`SELECT count(*) FILTER (WHERE ${CHECK_SQL.coded})::int AS coded,

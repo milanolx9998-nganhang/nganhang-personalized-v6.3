@@ -53,7 +53,7 @@ export function splitMetadata(meta={}){
  const e=meta.expectations||{};
  const expectations=Object.fromEntries(Object.entries({
   topic_id:Number(e.topic_id)||null,
-  branch_code:['L','H','S'].includes(e.branch_code)?e.branch_code:null,
+  branch_code:/^[A-ZĐ]{1,3}$/u.test(e.branch_code||'')?e.branch_code:null,
   cognitive_level:[1,2,3,4].includes(Number(e.cognitive_level))?Number(e.cognitive_level):null,
   type:Object.values(FORMS).includes(e.type)?e.type:null,
   // Chương / Chủ đề (topics.chapter): thu hẹp danh sách Bài và đối chiếu Bài theo mã (V6.6.6.1).

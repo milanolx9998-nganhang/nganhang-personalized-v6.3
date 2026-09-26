@@ -13,13 +13,15 @@ export const letterOf = code => LETTER[code] || code || '';
 export const lessonNumber = name => { const m = /^\s*Bài\s*(\d+)/i.exec(String(name ?? '')); return m ? Number(m[1]) : null; };
 export const lessonTitle = name => String(name ?? '').replace(/^\s*Bài\s*\d+\s*[:.\-–]?\s*/i, '').trim();
 export const fullLessonName = (number, name) => `Bài ${number}: ${lessonTitle(name)}`;
-// Nhãn YCCĐ theo nguồn: "L.2.1" (môn có phân môn) hoặc "2.1" (môn không chia phân môn).
+// Nhãn YCCĐ theo nguồn: "L.2.1" (phân môn L của KHTN) hoặc "T.2.1" (chữ viết tắt của môn Toán); "2.1" chỉ còn ở môn chưa có chữ.
 export const yccdLabelOf = (branch, topic, yccd) => (branch ? branch + '.' : '') + topic + '.' + yccd;
+// Môn không chia phân môn: chữ đầu nhãn là chữ viết tắt của môn. Dữ liệu cũ chưa ghi chữ này ở Chủ đề thì lấy từ môn (V6.6.7.4).
+const subjectLetterSql = o => `(SELECT s.code_letter FROM subjects s WHERE s.id=${o}.subject_id AND NOT EXISTS(SELECT 1 FROM branches b WHERE b.subject_id=s.id))`;
 
 // Nhãn → YCCĐ của một phiên bản. YCCĐ chưa có số nguồn (dữ liệu cũ) dùng thứ tự trong Chủ đề.
 export async function versionLabels(c, versionId) {
   const rows = (await c.query(`SELECT y.id, y.source_ordinal AS y_ord, o.id AS outcome_id, o.source_ordinal AS o_ord,
-      COALESCE(NULLIF(o.source_branch_code,''),'') AS branch, o.order_index AS o_order, y.order_index AS y_order
+      COALESCE(NULLIF(o.source_branch_code,''),${subjectLetterSql('o')},'') AS branch, o.order_index AS o_order, y.order_index AS y_order
     FROM curriculum_yccds y JOIN curriculum_outcomes o ON o.id=y.outcome_id
     WHERE y.curriculum_version_id=$1 AND y.status<>'RETIRED' AND o.status<>'RETIRED'
     ORDER BY o.order_index, o.id, y.order_index, y.id`, [versionId])).rows;
@@ -37,9 +39,9 @@ export async function versionLabels(c, versionId) {
 export async function versionContent(c, {versionId, subjectId, grade}) {
   const where = versionId ? 'o.curriculum_version_id=$1' : "o.curriculum_version_id IS NULL AND o.subject_id=$1 AND o.grade=$2 AND o.status='ACTIVE'";
   const params = versionId ? [versionId] : [subjectId, grade];
-  const os = (await c.query(`SELECT o.* FROM curriculum_outcomes o WHERE ${where} AND o.status<>'RETIRED' ORDER BY o.order_index,o.id`, params)).rows;
+  const os = (await c.query(`SELECT o.*, ${subjectLetterSql('o')} AS subject_letter FROM curriculum_outcomes o WHERE ${where} AND o.status<>'RETIRED' ORDER BY o.order_index,o.id`, params)).rows;
   const ys = (await c.query(`SELECT y.* FROM curriculum_yccds y JOIN curriculum_outcomes o ON o.id=y.outcome_id WHERE ${where} AND o.status<>'RETIRED' AND y.status<>'RETIRED' ORDER BY y.order_index,y.id`, params)).rows;
-  const outcomes = os.map((o, i) => ({id: o.id, lineage_id: o.lineage_id, branch: o.source_branch_code || letterOf(o.domain_code) || '', number: o.source_ordinal ?? i + 1, title: o.title, row: o, yccds: []}));
+  const outcomes = os.map((o, i) => ({id: o.id, lineage_id: o.lineage_id, branch: o.source_branch_code || letterOf(o.domain_code) || o.subject_letter || '', number: o.source_ordinal ?? i + 1, title: o.title, row: o, yccds: []}));
   const byId = new Map(outcomes.map(o => [o.id, o]));
   for (const y of ys) {
     const o = byId.get(y.outcome_id);

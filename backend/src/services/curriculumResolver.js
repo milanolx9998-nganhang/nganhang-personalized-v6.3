@@ -24,8 +24,14 @@ export async function effectiveCurriculumVersion(client, subject_id, grade) {
 // Tra Outcome/YCCĐ trong đúng môn + khối + phiên bản hiệu lực. Cùng một mã nghiệp vụ (L.2.1) có thể
 // tồn tại ở khối khác hoặc ở phiên bản chương trình khác, nên không bao giờ tra toàn cục bằng chuỗi mã.
 export async function resolveCurriculumCode(client, {subject_id, grade, branch_code, outcome_number, yccd_number}) {
-  const subject = (await client.query('SELECT id,code,name FROM subjects WHERE id=$1', [subject_id])).rows[0];
+  const subject = (await client.query('SELECT id,code,name,code_letter FROM subjects WHERE id=$1', [subject_id])).rows[0];
   if (!subject) return {ok: false, error: 'SUBJECT_UNKNOWN', message: 'Môn không tồn tại'};
+  // V6.6.7.4: chữ đầu mã phải là phân môn của môn (KHTN: L/H/S) hoặc chữ viết tắt của môn (Toán: T). Bắt lỗi chọn nhầm môn khi nhập.
+  const branchLetters = (await client.query('SELECT code FROM branches WHERE subject_id=$1', [subject_id])).rows.map(r => branchCodeOf(r.code));
+  const allowed = branchLetters.length ? [...new Set(branchLetters)] : subject.code_letter ? [subject.code_letter] : [];
+  if (allowed.length && !allowed.includes(branch_code)) {
+    return {ok: false, error: 'CODE_SUBJECT_MISMATCH', message: `Mã câu dùng chữ "${branch_code}" nhưng môn ${subject.name} dùng ${allowed.join(' / ')}. Kiểm tra lại môn đã chọn hoặc mã câu.`};
+  }
   if (!grade) return {ok: false, error: 'GRADE_CONTEXT_MISSING', message: 'Thiếu khối; khối là ngữ cảnh của phiên nhập'};
 
   const version = await effectiveCurriculumVersion(client, subject_id, grade);

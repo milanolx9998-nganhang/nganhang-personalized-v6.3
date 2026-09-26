@@ -1,9 +1,14 @@
-// File mẫu chương trình môn học (V6.6.7.3) — MỘT file Excel dùng chung cho mọi môn:
-//   sheet "Chương trình": Phân môn · Số Chủ đề · Tên Chủ đề (Outcome) · Số YCCĐ · Nội dung YCCĐ · Trang / nguồn
-//   sheet "Bài học":      Chương / Chủ đề SGK · Số bài · Tên bài · Phân môn · Mã YCCĐ của bài ("L.2.1; L.2.2")
+// File mẫu chương trình môn học (V6.6.7.3; V6.6.7.4: chữ viết tắt môn, sheet Ví dụ + Dùng AI, mẫu Word nhập câu theo môn).
+// MỘT file Excel dùng chung cho mọi môn:
+//   sheet "Chương trình": [Phân môn] · Số Chủ đề · Tên Chủ đề (Outcome) · Số YCCĐ · Nội dung YCCĐ · Trang / nguồn
+//   sheet "Bài học":      Chương / Chủ đề SGK · Số bài · Tên bài · [Phân môn] · Mã YCCĐ của bài ("T.2.1; T.2.2")
+//   sheet "Hướng dẫn", "Ví dụ", "Dùng AI" chỉ để đọc — hệ thống không nạp.
+// Cột Phân môn chỉ có ở môn chia phân môn (KHTN: L/H/S). Môn khác dùng chữ viết tắt của môn (subjects.code_letter,
+// Toán = T) làm chữ đầu nhãn và mã câu: YCCĐ T.2.1 ↔ "Câu T. 2. 1. NB. 1. TN".
 // Tải về luôn kèm dữ liệu hiện tại (bản nháp nếu có, không thì bản đang dùng) để sửa rồi nạp lại. Nạp lên tạo BẢN NHÁP
 // (chương trình đã công bố là bất biến); công bố mới có hiệu lực, lúc đó Bài + liên kết được dựng từ lesson_plan.
 import XLSX from 'xlsx';
+import {Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType} from 'docx';
 import {z} from 'zod';
 import {pool, tx} from '../../db/pool.js';
 import {fail, log} from '../practice/config.js';
@@ -13,7 +18,7 @@ import {effectiveCurriculumVersion} from '../curriculumResolver.js';
 import {parseWorkbook, permitted, getVersion} from './service.js';
 import {letterOf, lessonTitle, yccdLabelOf, versionContent, currentLessons, versionLabels} from './lessonPlan.js';
 
-export const SHEETS = {guide: 'Hướng dẫn', curriculum: 'Chương trình', lessons: 'Bài học'};
+export const SHEETS = {guide: 'Hướng dẫn', curriculum: 'Chương trình', lessons: 'Bài học', example: 'Ví dụ', ai: 'Dùng AI'};
 const CURRICULUM_COLUMNS = ['Phân môn', 'Số Chủ đề', 'Tên Chủ đề (Outcome)', 'Số YCCĐ', 'Nội dung YCCĐ', 'Trang / nguồn'];
 const LESSON_COLUMNS = ['Chương / Chủ đề SGK', 'Số bài', 'Tên bài', 'Phân môn', 'Mã YCCĐ của bài'];
 const LIMITS = {outcomes: 300, yccds: 3000, lessons: 400, codes: 100};
@@ -22,6 +27,26 @@ const norm = s => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').repla
 const clean = s => String(s ?? '').normalize('NFC').replace(/\s+/g, ' ').trim();
 const int = v => { const s = String(v ?? '').trim(); if (!/^\d{1,3}(\.0+)?$/.test(s)) return null; const n = Number(s); return n > 0 ? n : null; };
 const outcomeLabel = (branch, number) => (branch ? branch + '.' : '') + number;
+const asciiOf = code => String(code).normalize('NFD').replace(/[^A-Za-z0-9]/g, '');
+
+// ---------- Chữ đầu mã của môn ----------
+const branched = subject => subject.branches.length > 0;
+// Chữ đầu nhãn / mã câu dùng được: phân môn (KHTN: L, H, S) hoặc chữ viết tắt của môn (Toán: T). Rỗng: môn chưa có chữ.
+export const subjectLetters = subject => branched(subject)
+  ? [...new Set(subject.branches.map(b => letterOf(b.code)))]
+  : subject.code_letter ? [subject.code_letter] : [];
+const letterHint = subject => branched(subject)
+  ? [...new Set(subject.branches.map(b => `${letterOf(b.code)} = ${b.name}`))].join(', ')
+  : subject.code_letter ? `${subject.code_letter} = ${subject.name}` : '';
+// Môn không chia phân môn: file không có cột Phân môn (chữ của môn được điền tự động).
+const columnsOf = subject => branched(subject)
+  ? {curriculum: CURRICULUM_COLUMNS, lessons: LESSON_COLUMNS}
+  : {curriculum: CURRICULUM_COLUMNS.slice(1), lessons: LESSON_COLUMNS.filter(c => c !== 'Phân môn')};
+// Mã mẫu cho hướng dẫn / lệnh AI: YCCĐ đầu tiên của chương trình đang dùng, không có thì 1.1.
+const sampleOf = (subject, outcomes) => {
+  const o = outcomes.find(x => x.yccds.length), letter = subjectLetters(subject)[0] || 'X';
+  return o ? {branch: o.branch || letter, outcome: o.number, yccd: o.yccds[0].number} : {branch: letter, outcome: 1, yccd: 1};
+};
 
 // ---------- Đọc file ----------
 const HEADERS = {
@@ -37,12 +62,18 @@ function findHeader(rows, spec, required) {
   return null;
 }
 
-// Phân môn theo bảng branches của môn: chấp nhận mã (VL), tên (Vật lí) hoặc chữ trong mã câu (L). Môn không chia phân môn: để trống.
-export function branchResolver(branches) {
-  if (!branches.length) return raw => norm(raw) ? {error: 'Môn này không chia phân môn: để trống cột Phân môn'} : {value: ''};
+// Phân môn theo bảng branches của môn: chấp nhận mã (VL), tên (Vật lí) hoặc chữ trong mã câu (L).
+// Môn không chia phân môn: luôn là chữ viết tắt của môn (để trống, ghi chữ đó hoặc tên môn đều được).
+export function branchResolver(subject) {
+  const branches = subject.branches || [];
+  if (!branches.length) {
+    const letter = subject.code_letter || '', accepted = new Set(['', norm(letter), norm(subject.name)]);
+    return raw => accepted.has(norm(raw)) ? {value: letter}
+      : {error: letter ? `Môn này không chia phân môn: để trống cột Phân môn (mã dùng chữ ${letter})` : 'Môn này không chia phân môn: để trống cột Phân môn'};
+  }
   const map = new Map();
   for (const b of branches) for (const alias of [b.code, b.name, letterOf(b.code)]) map.set(norm(alias), letterOf(b.code));
-  const hint = [...new Set(branches.map(b => `${letterOf(b.code)} = ${b.name}`))].join(', ');
+  const hint = letterHint(subject);
   return raw => {
     const k = norm(raw);
     if (!k) return {value: ''};
@@ -51,7 +82,7 @@ export function branchResolver(branches) {
   };
 }
 
-// Mã YCCĐ trong cột "Mã YCCĐ của bài": "L.2.1", "L. 2. 1", "2.1" (thiếu chữ thì lấy phân môn của Bài).
+// Mã YCCĐ trong cột "Mã YCCĐ của bài": "L.2.1", "L. 2. 1", "2.1" (thiếu chữ thì lấy phân môn của Bài / chữ của môn).
 function parseCodes(raw, {resolve, lessonBranch, needsBranch}) {
   const codes = [], errors = [];
   for (const token of String(raw ?? '').split(/[;,\n]+/).map(clean).filter(Boolean)) {
@@ -67,8 +98,8 @@ function parseCodes(raw, {resolve, lessonBranch, needsBranch}) {
 }
 
 // Chuẩn hoá danh sách Bài (từ file mẫu hoặc từ màn sửa trên web). `labels`: tập nhãn YCCĐ hợp lệ.
-export function normalizeLessons(input, {branches, labels}) {
-  const resolve = branchResolver(branches), needsBranch = branches.length > 0, errors = [], warnings = [], lessons = [];
+export function normalizeLessons(input, {subject, labels}) {
+  const resolve = branchResolver(subject), needsBranch = subjectLetters(subject).length > 0, errors = [], warnings = [], lessons = [];
   let chapter = '';
   for (const raw of input) {
     const at = raw.at || `Bài ${raw.number ?? '?'}`, err = message => errors.push({sheet: SHEETS.lessons, row: raw.row, at, message});
@@ -91,14 +122,19 @@ export function normalizeLessons(input, {branches, labels}) {
     if (lessons.some(l => l.number === number)) { err(`Trùng Số bài ${number}`); continue; }
     if (parsed.codes.length > LIMITS.codes) { err(`Tối đa ${LIMITS.codes} mã YCCĐ mỗi Bài`); continue; }
     if (!parsed.codes.length) warnings.push({sheet: SHEETS.lessons, row: raw.row, at, message: 'Bài chưa có mã YCCĐ nào: câu hỏi của Bài này sẽ không tự gắn được Bài'});
-    lessons.push({number, name, chapter, branch: b.value || (codeBranches.length === 1 ? codeBranches[0] : ''), codes: parsed.codes.map(c => c.label)});
+    // Môn không chia phân môn: Bài không mang phân môn (chữ của môn chỉ nằm trong mã).
+    const branch = branched(subject) ? b.value || (codeBranches.length === 1 ? codeBranches[0] : '') : '';
+    lessons.push({number, name, chapter, branch, codes: parsed.codes.map(c => c.label)});
   }
   if (lessons.length > LIMITS.lessons) errors.push({sheet: SHEETS.lessons, message: `Tối đa ${LIMITS.lessons} Bài mỗi khối`});
   return {lessons: lessons.sort((a, b) => a.number - b.number), errors, warnings};
 }
 
-export function parseTemplate(book, {branches}) {
+export function parseTemplate(book, {subject}) {
   const errors = [], warnings = [], sheet = name => book.sheets.find(s => norm(s.name) === norm(name));
+  if (!subjectLetters(subject).length) {
+    return {outcomes: [], lessons: [], warnings, errors: [{message: `Môn ${subject.name} chưa có chữ viết tắt dùng trong mã câu hỏi (ví dụ Toán = T). Quản trị đặt chữ này ở màn Chương trình môn học rồi tải file lên lại.`}]};
+  }
   const cur = sheet(SHEETS.curriculum), les = sheet(SHEETS.lessons);
   if (!cur) errors.push({message: `Không thấy sheet "${SHEETS.curriculum}". Hãy dùng đúng file mẫu tải từ hệ thống.`});
   if (!les) errors.push({message: `Không thấy sheet "${SHEETS.lessons}". Hãy dùng đúng file mẫu tải từ hệ thống.`});
@@ -106,8 +142,8 @@ export function parseTemplate(book, {branches}) {
 
   // Sheet "Chương trình": ô Phân môn / Số Chủ đề / Tên Chủ đề để trống (ô gộp) thì lấy theo dòng trên.
   const h = findHeader(cur.rows, HEADERS.curriculum, ['topic', 'title', 'yccd', 'text']);
-  if (!h) return {outcomes: [], lessons: [], errors: [{sheet: SHEETS.curriculum, message: `Không thấy dòng tiêu đề (${CURRICULUM_COLUMNS.join(' · ')})`}], warnings};
-  const resolve = branchResolver(branches), needsBranch = branches.length > 0, outcomes = new Map();
+  if (!h) return {outcomes: [], lessons: [], errors: [{sheet: SHEETS.curriculum, message: `Không thấy dòng tiêu đề (${columnsOf(subject).curriculum.join(' · ')})`}], warnings};
+  const resolve = branchResolver(subject), outcomes = new Map();
   let prev = null, count = 0;
   for (let i = h.row + 1; i < cur.rows.length; i++) {
     const r = cur.rows[i] || [], cell = k => h.cols[k] == null ? '' : clean(r[h.cols[k]]);
@@ -115,7 +151,7 @@ export function parseTemplate(book, {branches}) {
     const row = i + 1, err = message => errors.push({sheet: SHEETS.curriculum, row, message});
     const b = resolve(cell('branch') || (prev?.branchRaw ?? ''));
     if (b.error) { err(b.error); continue; }
-    if (needsBranch && !b.value) { err('Thiếu Phân môn'); continue; }
+    if (!b.value) { err('Thiếu Phân môn'); continue; }
     const topic = cell('topic') ? int(cell('topic')) : prev?.topic;
     if (!topic) { err('Số Chủ đề phải là số nguyên dương'); continue; }
     const sameTopic = prev && prev.topic === topic && prev.branch === b.value;
@@ -143,7 +179,7 @@ export function parseTemplate(book, {branches}) {
 
   // Sheet "Bài học"
   const lh = findHeader(les.rows, HEADERS.lessons, ['number', 'name', 'codes']);
-  if (!lh) { errors.push({sheet: SHEETS.lessons, message: `Không thấy dòng tiêu đề (${LESSON_COLUMNS.join(' · ')})`}); return {outcomes: list, lessons: [], errors, warnings}; }
+  if (!lh) { errors.push({sheet: SHEETS.lessons, message: `Không thấy dòng tiêu đề (${columnsOf(subject).lessons.join(' · ')})`}); return {outcomes: list, lessons: [], errors, warnings}; }
   const rows = [];
   for (let i = lh.row + 1; i < les.rows.length; i++) {
     const r = les.rows[i] || [], cell = k => lh.cols[k] == null ? '' : clean(r[lh.cols[k]]);
@@ -151,53 +187,244 @@ export function parseTemplate(book, {branches}) {
     rows.push({row: i + 1, number: cell('number'), name: cell('name'), chapter: cell('chapter'), branch: cell('branch'), codes: cell('codes'), inheritChapter: true, at: `Bài ${cell('number') || '?'}`});
   }
   const labels = new Set(list.flatMap(o => o.yccds.map(y => yccdLabelOf(o.branch, o.number, y.number))));
-  const lessons = normalizeLessons(rows, {branches, labels});
+  const lessons = normalizeLessons(rows, {subject, labels});
   return {outcomes: list, lessons: lessons.lessons, errors: [...errors, ...lessons.errors], warnings: [...warnings, ...lessons.warnings]};
+}
+
+// ---------- Ví dụ + lệnh AI ----------
+// Ví dụ chỉ để minh hoạ cách điền (rút gọn), không phải dữ liệu chương trình chính thức. KHTN (có phân môn), Toán,
+// còn lại dùng mẫu chung có chỗ [ ] để thay.
+function examplesFor(subject) {
+  const X = subjectLetters(subject)[0] || 'X', letters = subjectLetters(subject);
+  if (branched(subject) && letters.includes('L') && letters.includes('H')) return {
+    note: 'Ví dụ rút gọn từ KHTN 9 để minh hoạ cách điền (không phải toàn bộ chương trình).',
+    curriculum: [
+      ['L', 1, 'Năng lượng cơ học', 1, 'Viết được biểu thức tính động năng của vật.', 'tr. 58'],
+      ['', '', '', 2, 'Viết được biểu thức tính thế năng của vật ở gần mặt đất.', ''],
+      ['', '', '', 3, 'Nêu được cơ năng là tổng động năng và thế năng của vật.', ''],
+      ['H', 1, 'Kim loại', 1, 'Nêu được tính chất vật lí của kim loại.', 'tr. 64'],
+      ['', '', '', 2, 'Trình bày được tính chất hoá học cơ bản của kim loại.', ''],
+    ],
+    lessons: [
+      ['Chương I. Năng lượng cơ học', 2, 'Động năng. Thế năng', 'L', 'L.1.1; L.1.2'],
+      ['', 3, 'Cơ năng', 'L', 'L.1.3'],
+      ['Chương VI. Kim loại', 18, 'Tính chất chung của kim loại', 'H', 'H.1.1; H.1.2'],
+      ['', 19, 'Ôn tập chương VI', 'H', ''],
+    ],
+  };
+  if (!branched(subject) && subject.code === 'Toan') return {
+    note: 'Ví dụ rút gọn từ Toán 10 để minh hoạ cách điền (không phải toàn bộ chương trình).',
+    curriculum: [
+      [1, 'Mệnh đề toán học. Tập hợp', 1, 'Thiết lập và phát biểu được các mệnh đề toán học: mệnh đề phủ định, mệnh đề đảo, mệnh đề tương đương, mệnh đề có chứa kí hiệu ∀, ∃.', 'tr. 45'],
+      ['', '', 2, 'Nhận biết được các khái niệm cơ bản về tập hợp (tập con, hai tập hợp bằng nhau, tập rỗng) và biết sử dụng các kí hiệu ⊂, ⊃, ∅.', ''],
+      ['', '', 3, 'Thực hiện được phép toán trên các tập hợp (hợp, giao, hiệu, phần bù) và dùng biểu đồ Ven để biểu diễn.', ''],
+      [2, 'Bất phương trình và hệ bất phương trình bậc nhất hai ẩn', 1, 'Nhận biết được bất phương trình và hệ bất phương trình bậc nhất hai ẩn.', 'tr. 46'],
+      ['', '', 2, 'Biểu diễn được miền nghiệm của bất phương trình và hệ bất phương trình bậc nhất hai ẩn trên mặt phẳng toạ độ.', ''],
+    ],
+    lessons: [
+      ['Chương I. Mệnh đề và tập hợp', 1, 'Mệnh đề', `${X}.1.1`],
+      ['', 2, 'Tập hợp và các phép toán trên tập hợp', `${X}.1.2; ${X}.1.3`],
+      ['Chương II. Bất phương trình và hệ bất phương trình bậc nhất hai ẩn', 3, 'Bất phương trình bậc nhất hai ẩn', `${X}.2.1; ${X}.2.2`],
+      ['', 4, 'Hệ bất phương trình bậc nhất hai ẩn', `${X}.2.1; ${X}.2.2`],
+    ],
+  };
+  const b = branched(subject) ? [X] : [], blank = branched(subject) ? [''] : [];
+  return {
+    note: `Ví dụ minh hoạ cách điền: thay phần trong [ ] bằng nội dung thật của môn ${subject.name}.`,
+    curriculum: [
+      [...b, 1, '[Tên Chủ đề thứ nhất trong chương trình]', 1, '[Chép nguyên văn YCCĐ thứ nhất của Chủ đề 1]', 'tr. 12'],
+      [...blank, '', '', 2, '[YCCĐ thứ hai của Chủ đề 1]', ''],
+      [...blank, 2, '[Tên Chủ đề thứ hai]', 1, '[YCCĐ thứ nhất của Chủ đề 2]', 'tr. 15'],
+    ],
+    lessons: [
+      ['[Chương 1 trong SGK]', 1, '[Tên bài 1]', ...b, `${X}.1.1`],
+      ['', 2, '[Tên bài 2]', ...b, `${X}.1.1; ${X}.1.2`],
+      ['[Chương 2 trong SGK]', 3, '[Tên bài 3]', ...b, `${X}.2.1`],
+    ],
+  };
+}
+
+// Lệnh mẫu để nhờ AI (ChatGPT, Gemini…) lập bảng đúng cột của file mẫu và viết câu hỏi đúng mẫu Word nhập câu.
+// Mỗi dòng một ý, không dùng dấu ngoặc kép: sao chép nhiều ô Excel liền nhau vẫn ra đúng văn bản.
+export function buildPrompts(subject, grade, sample = sampleOf(subject, [])) {
+  const cols = columnsOf(subject), b = branched(subject), hint = letterHint(subject), name = subject.name, X = sample.branch;
+  const curriculum = [
+    `Bạn là trợ lý nhập liệu chương trình môn học. Tôi gửi kèm văn bản Chương trình môn ${name} (Chương trình GDPT 2018), phần khối ${grade}.`,
+    `Hãy lập MỘT BẢNG có đúng ${cols.curriculum.length} cột, theo thứ tự: ${cols.curriculum.join(' | ')}.`,
+    'Quy tắc:',
+    '- Mỗi dòng là MỘT yêu cầu cần đạt (YCCĐ). Chép nguyên văn nội dung YCCĐ: không tóm tắt, không thêm ý, không bỏ ý.',
+    ...(b ? [`- Cột Phân môn chỉ ghi một chữ: ${hint}.`] : []),
+    `- Số Chủ đề: 1, 2, 3… theo đúng thứ tự các chủ đề (mạch nội dung) trong văn bản${b ? ', đánh số riêng trong từng phân môn' : ''}.`,
+    '- Số YCCĐ: đánh lại từ 1 trong mỗi Chủ đề.',
+    '- Ghi Tên Chủ đề ở mọi dòng, không để trống.',
+    '- Trang / nguồn: số trang trong văn bản nếu thấy; không thấy thì để trống.',
+    `- Chỉ lấy YCCĐ của khối ${grade}; bỏ phần nội dung dạy học, gợi ý phương pháp, đánh giá.`,
+    '- Trả về dạng bảng (không phải khối code), không giải thích. Chỗ nào không chắc thì liệt kê sau bảng, mở đầu bằng GHI CHÚ:',
+  ];
+  const lessons = [
+    `Tiếp theo, tôi gửi kèm mục lục sách giáo khoa ${name} ${grade} (bộ sách trường đang dùng). Dựa vào bảng Chương trình vừa lập, hãy lập MỘT BẢNG có đúng ${cols.lessons.length} cột, theo thứ tự: ${cols.lessons.join(' | ')}.`,
+    'Quy tắc:',
+    '- Mỗi dòng là MỘT bài trong mục lục, theo đúng thứ tự, giữ nguyên tên bài.',
+    '- Số bài chỉ ghi số (ví dụ 5), không ghi chữ Bài.',
+    '- Chương / Chủ đề SGK: tên chương hoặc chủ đề của sách chứa bài đó.',
+    ...(b ? [`- Phân môn: một chữ (${hint}).`] : []),
+    `- Mã YCCĐ của bài: các YCCĐ mà bài dạy, viết dạng ${b ? '<Phân môn>' : X}.<Số Chủ đề>.<Số YCCĐ>, cách nhau bằng dấu chấm phẩy. Ví dụ: ${X}.2.1; ${X}.2.3`,
+    '- Chỉ dùng mã có trong bảng Chương trình. Bài ôn tập, kiểm tra có thể để trống cột mã.',
+    '- Trả về dạng bảng, không giải thích. Chỗ nào không chắc thì liệt kê sau bảng, mở đầu bằng GHI CHÚ:',
+  ];
+  const questions = [
+    `Tôi dạy ${name} khối ${grade}. Hãy viết lại các câu hỏi tôi gửi theo đúng mẫu nhập câu hỏi dưới đây. Giữ nguyên nội dung câu hỏi, phương án và đáp án; chỉ thêm dòng mã và sắp xếp lại cho đúng mẫu.`,
+    `Mỗi câu bắt đầu bằng MỘT dòng mã: Câu ${b ? '<Phân môn>' : X}. <Số Chủ đề>. <Số YCCĐ>. <Mức>. <Số thứ tự câu>. <Dạng>`,
+    ...(b ? [`- Phân môn: ${hint}.`] : []),
+    '- Mức: NB (nhận biết), TH (thông hiểu), VD (vận dụng), VDC (vận dụng cao).',
+    '- Dạng: TN (trắc nghiệm 4 phương án), ĐS (đúng/sai 4 ý), TLN (trả lời ngắn), GN (ghép nối), TL (tự luận).',
+    '- Số Chủ đề và Số YCCĐ lấy theo bảng chương trình tôi gửi kèm (file Chương trình tải từ hệ thống). Không đoán: chỗ không chắc ghi dấu ? và liệt kê ở cuối.',
+    'Sau dòng mã, viết theo dạng:',
+    '- TN: nội dung câu; 4 dòng A. B. C. D.; dòng Đáp án: B',
+    '- ĐS: nội dung chung; 4 dòng a) b) c) d); dòng Đáp án: a-Đ; b-S; c-Đ; d-S',
+    '- TLN và TL: nội dung câu; dòng Đáp án: …',
+    '- GN: bảng 2 cột (Cột A ghi A. B. …, Cột B ghi 1. 2. …); dòng Đáp án: A-1; B-2',
+    '- Cuối mỗi câu: dòng Lời giải: …',
+    'Ví dụ:',
+    `Câu ${X}. ${sample.outcome}. ${sample.yccd}. NB. 1. TN`,
+    'Nội dung câu hỏi …',
+    'A. …', 'B. …', 'C. …', 'D. …',
+    'Đáp án: A',
+    'Lời giải: …',
+    'Trả về văn bản thuần theo đúng mẫu (không bảng, trừ câu GN), không giải thích, để tôi dán vào file Word.',
+  ];
+  return {curriculum: curriculum.join('\n'), lessons: lessons.join('\n'), questions: questions.join('\n')};
 }
 
 // ---------- Ghi file ----------
 export function buildWorkbook(data, {subject, grade, source}) {
-  const wb = XLSX.utils.book_new(), branchHint = subject.branches.length
-    ? [...new Set(subject.branches.map(b => `${letterOf(b.code)} = ${b.name}`))].join(', ')
-    : 'môn này không chia phân môn: để trống';
+  const wb = XLSX.utils.book_new(), cols = columnsOf(subject), b = branched(subject), hint = letterHint(subject);
+  const sample = sampleOf(subject, data.outcomes), X = sample.branch, code = `${X}.2.1`, prompts = buildPrompts(subject, grade, sample);
   const guide = [
-    ['FILE MẪU CHƯƠNG TRÌNH MÔN HỌC'], ['Môn', subject.name], ['Khối', grade], ['Dữ liệu trong file', source], [],
-    ['Cách dùng'],
-    ['1. Sửa trực tiếp trong 2 sheet "Chương trình" và "Bài học" (không đổi tên sheet, không đổi dòng tiêu đề).'],
-    ['2. Sheet "Chương trình": mỗi dòng là MỘT YCCĐ. Chủ đề (Outcome) đánh số trong từng phân môn; YCCĐ đánh số từ 1 trong từng Chủ đề.'],
-    ['   Ô Phân môn / Số Chủ đề / Tên Chủ đề để trống (hoặc gộp ô) thì lấy theo dòng trên.'],
-    ['3. Sheet "Bài học": mỗi dòng là MỘT Bài. Cột "Mã YCCĐ của bài" ghi các YCCĐ Bài dạy, cách nhau bằng dấu ;'],
-    ['   Ví dụ: L.2.1; L.2.2 (Phân môn . Số Chủ đề . Số YCCĐ). Môn không chia phân môn ghi 2.1; 2.2'],
-    ['4. Mã YCCĐ chính là số giáo viên viết trong mã câu hỏi: "Câu L. 2. 1. NB. 1. TN".'],
-    ['5. Tải file lên ở màn "Chương trình môn học": hệ thống kiểm lỗi từng dòng và cho xem thay đổi trước khi tạo bản nháp.'],
-    ['   Bản nháp chỉ có hiệu lực sau khi BGH / quản trị bấm Công bố. Bài không có trong file được giữ nguyên.'],
-    [], ['Phân môn dùng được', branchHint],
+    ['FILE MẪU CHƯƠNG TRÌNH MÔN HỌC'], ['Môn', subject.name], ['Khối', grade], ['Chữ trong mã câu hỏi', hint], ['Dữ liệu trong file', source], [],
+    ['CÁCH LÀM — 3 BƯỚC'],
+    [`1. Điền sheet "${SHEETS.curriculum}": mỗi dòng là MỘT yêu cầu cần đạt (YCCĐ), chép nguyên văn từ văn bản chương trình.`],
+    [`2. Điền sheet "${SHEETS.lessons}": mỗi dòng là MỘT bài trong SGK, kèm mã các YCCĐ bài đó dạy (ví dụ ${X}.2.1; ${X}.2.2).`],
+    ['3. Lưu file → màn "Chương trình môn học" → Tải file lên → xem kiểm tra → Tạo bản nháp → BGH / quản trị bấm Công bố.'],
+    [`Sheet "${SHEETS.example}" có ví dụ điền sẵn. Sheet "${SHEETS.ai}" có lệnh mẫu để nhờ AI (ChatGPT, Gemini…) điền nhanh.`],
+    [],
+    ['GIẢI THÍCH TỪNG CỘT', 'Ví dụ'],
+    ...(b ? [[`Phân môn — một chữ: ${hint}`, X]] : []),
+    [`Số Chủ đề — số thứ tự Chủ đề (Outcome) trong chương trình${b ? ', đánh riêng trong từng phân môn' : ''}`, '2'],
+    ['Tên Chủ đề (Outcome) — tên chủ đề / mạch nội dung như trong văn bản chương trình', 'Năng lượng cơ học'],
+    ['Số YCCĐ — đánh lại từ 1 trong mỗi Chủ đề', '1'],
+    ['Nội dung YCCĐ — chép nguyên văn, không tóm tắt', 'Viết được biểu thức tính động năng của vật.'],
+    ['Trang / nguồn — số trang hoặc tên văn bản (không bắt buộc)', 'tr. 58'],
+    ['Chương / Chủ đề SGK — tên chương của sách; để trống thì lấy theo dòng trên', 'Chương I. Năng lượng cơ học'],
+    ['Số bài — chỉ ghi số, không ghi chữ "Bài"', '5'],
+    ['Mã YCCĐ của bài — các YCCĐ bài dạy, cách nhau bằng dấu ;', `${X}.2.1; ${X}.2.2`],
+    [],
+    ['MÃ YCCĐ VÀ MÃ CÂU HỎI'],
+    [`Mã YCCĐ ${code} = ${b ? `phân môn ${X}` : `môn ${subject.name} (chữ ${X})`}, Chủ đề số 2, YCCĐ số 1.`],
+    [`Giáo viên viết mã câu hỏi "Câu ${X}. 2. 1. NB. 1. TN" → hệ thống tự gắn Chủ đề ${X}.2, YCCĐ ${code} và Bài có mã ${code}.`],
+    ['Mức: NB nhận biết · TH thông hiểu · VD vận dụng · VDC vận dụng cao. Dạng: TN trắc nghiệm · ĐS đúng/sai · TLN trả lời ngắn · GN ghép nối · TL tự luận.'],
+    ['Vì vậy khi sửa chương trình, KHÔNG đánh số lại Chủ đề / YCCĐ đã dùng: câu hỏi cũ sẽ trỏ sai chỗ.'],
+    [],
+    ['LỖI HAY GẶP'],
+    ['• Đổi tên sheet hoặc dòng tiêu đề → hệ thống không đọc được. Chỉ sửa từ dòng 2 trở xuống.'],
+    ['• Ô Số Chủ đề / Tên Chủ đề để trống (hoặc gộp ô) thì lấy theo dòng trên — không cần ghi lặp lại.'],
+    ['• Số YCCĐ không đánh lại từ 1 khi sang Chủ đề mới, hoặc hai YCCĐ trùng số trong một Chủ đề.'],
+    [`• Mã ở cột "Mã YCCĐ của bài" không có trong sheet "${SHEETS.curriculum}" (sai số hoặc thiếu dòng).`],
+    [`• Viết mã sai dạng (${X} 2 1, ${X}-2-1). Đúng: ${code}; nhiều mã cách nhau bằng dấu ;`],
+    ['• Bài không có trong file vẫn được giữ nguyên trên hệ thống (không bị xoá).'],
   ];
-  const curRows = [CURRICULUM_COLUMNS];
-  for (const o of data.outcomes) for (const y of o.yccds) curRows.push([o.branch, o.number, o.title, y.number, y.text, y.page || '']);
-  const lesRows = [LESSON_COLUMNS, ...data.lessons.map(l => [l.chapter || '', l.number, l.name, l.branch || '', (l.codes || []).join('; ')])];
+  const curRows = [cols.curriculum];
+  for (const o of data.outcomes) for (const y of o.yccds) curRows.push([...(b ? [o.branch] : []), o.number, o.title, y.number, y.text, y.page || '']);
+  const lesRows = [cols.lessons, ...data.lessons.map(l => [l.chapter || '', l.number, l.name, ...(b ? [l.branch || ''] : []), (l.codes || []).join('; ')])];
+  const ex = examplesFor(subject);
+  const exampleRows = [
+    ['VÍ DỤ CÁCH ĐIỀN — sheet này chỉ để xem, hệ thống KHÔNG nạp'], [ex.note], [],
+    [`Sheet "${SHEETS.curriculum}"`], cols.curriculum, ...ex.curriculum,
+    ['Dòng trống ở Phân môn / Số Chủ đề / Tên Chủ đề = giống dòng trên.'], [],
+    [`Sheet "${SHEETS.lessons}"`], cols.lessons, ...ex.lessons,
+    ['Chương để trống = giống dòng trên. Bài ôn tập có thể không có mã YCCĐ.'],
+  ];
+  const lines = text => text.split('\n').map(line => [line]);
+  const aiRows = [
+    ['DÙNG AI ĐỂ ĐIỀN NHANH (ChatGPT, Gemini, Copilot, Claude…)'],
+    [`Bước 1. Chuẩn bị văn bản chương trình môn ${subject.name} (Chương trình GDPT 2018, phần khối ${grade}) và mục lục SGK bộ sách trường dùng.`],
+    ['Bước 2. Mở AI, dán LỆNH 1 bên dưới, gửi kèm văn bản chương trình (đính kèm file PDF / Word hoặc dán chữ).'],
+    [`Bước 3. AI trả về một bảng: bôi đen cả bảng → Copy → bấm ô A2 sheet "${SHEETS.curriculum}" → Paste. Nếu dữ liệu dồn vào một cột: Data → Text to Columns.`],
+    [`Bước 4. Trong cùng cuộc trò chuyện, dán LỆNH 2 kèm mục lục SGK (ảnh chụp hoặc file) → dán bảng vào ô A2 sheet "${SHEETS.lessons}".`],
+    ['Bước 5. KIỂM TRA LẠI: AI có thể chép sai, gộp hoặc tự thêm YCCĐ. Đối chiếu với văn bản gốc, nhất là số Chủ đề và số YCCĐ — đó là số giáo viên viết trong mã câu hỏi.'],
+    ['Bước 6. Lưu file, tải lên ở màn "Chương trình môn học". Hệ thống báo lỗi từng dòng trước khi tạo bản nháp.'],
+    ['Cách copy lệnh: bôi đen các ô từ dòng đầu đến dòng cuối của lệnh → Ctrl+C → dán vào ô chat của AI. Trên web (màn Chương trình môn học) có nút Sao chép lệnh.'],
+    [],
+    ['LỆNH 1 — CHƯƠNG TRÌNH'], ...lines(prompts.curriculum), [],
+    ['LỆNH 2 — BÀI HỌC'], ...lines(prompts.lessons), [],
+    ['LỆNH 3 — CHUYỂN CÂU HỎI SANG MẪU WORD NHẬP CÂU (dùng ở màn Nhập câu hỏi)'], ...lines(prompts.questions),
+  ];
   const sheet = (rows, widths) => { const s = XLSX.utils.aoa_to_sheet(rows); s['!cols'] = widths.map(wch => ({wch})); return s; };
+  const curWidths = b ? [10, 10, 45, 9, 90, 14] : [10, 45, 9, 90, 14], lesWidths = b ? [34, 8, 50, 10, 40] : [34, 8, 50, 40];
   XLSX.utils.book_append_sheet(wb, sheet(guide, [110, 40]), SHEETS.guide);
-  XLSX.utils.book_append_sheet(wb, sheet(curRows, [10, 10, 45, 9, 90, 14]), SHEETS.curriculum);
-  XLSX.utils.book_append_sheet(wb, sheet(lesRows, [34, 8, 50, 10, 40]), SHEETS.lessons);
+  XLSX.utils.book_append_sheet(wb, sheet(curRows, curWidths), SHEETS.curriculum);
+  XLSX.utils.book_append_sheet(wb, sheet(lesRows, lesWidths), SHEETS.lessons);
+  XLSX.utils.book_append_sheet(wb, sheet(exampleRows, curWidths.map((w, i) => Math.max(w, lesWidths[i] || 0))), SHEETS.example);
+  XLSX.utils.book_append_sheet(wb, sheet(aiRows, [160]), SHEETS.ai);
   wb.Props = {Title: `Chương trình ${subject.name} khối ${grade}`};
   return XLSX.write(wb, {type: 'buffer', bookType: 'xlsx'});
+}
+
+// Mẫu Word nhập câu hỏi theo môn: chữ đầu mã đúng môn, mã ví dụ lấy từ chương trình đang dùng. Phần trước câu đầu
+// tiên là hướng dẫn — bộ nhập bỏ qua (không dòng nào bắt đầu bằng "Câu" hay "Bài:/Môn:/Khối:").
+function buildWordTemplate({subject, grade, outcomes, sample}) {
+  const X = sample.branch, b = branched(subject);
+  const run = (text, opts = {}) => new Paragraph({children: [new TextRun({text, ...opts})], spacing: {after: 80}});
+  const code = (level, n, form) => run(`Câu ${X}. ${sample.outcome}. ${sample.yccd}. ${level}. ${n}. ${form}`, {bold: true});
+  const cell = text => new TableCell({children: [new Paragraph(text)]});
+  const intro = [
+    run(`MẪU WORD NHẬP CÂU HỎI — ${subject.name.toUpperCase()} KHỐI ${grade}`, {bold: true, size: 28}),
+    run('Phần hướng dẫn này (trước câu hỏi đầu tiên) hệ thống bỏ qua khi nhập. Thay các câu ví dụ bên dưới bằng câu hỏi thật.', {italics: true}),
+    run(`Mỗi câu bắt đầu bằng MỘT dòng mã: Câu ${b ? '<Phân môn>' : X}. <Số Chủ đề>. <Số YCCĐ>. <Mức>. <Số thứ tự câu>. <Dạng>`, {bold: true}),
+    run(b ? `Phân môn: ${letterHint(subject)}. Khối không ghi trong mã: chọn Môn và Khối khi tải lên.`
+      : `${subject.name} dùng chữ ${X} ở đầu mã. Khối không ghi trong mã: chọn Môn và Khối khi tải lên.`),
+    run('Mức: NB nhận biết · TH thông hiểu · VD vận dụng · VDC vận dụng cao. Dạng: TN trắc nghiệm · ĐS đúng/sai · TLN trả lời ngắn · GN ghép nối · TL tự luận.'),
+    run('Hệ thống đọc mã để tự điền Chủ đề (Outcome), YCCĐ, mức, dạng và tự gắn Bài đã được liên kết YCCĐ ở màn Chương trình môn học.'),
+  ];
+  if (outcomes.length) {
+    intro.push(run(`Các Chủ đề của ${subject.name} khối ${grade} đang dùng (số Chủ đề ghi trong mã):`, {bold: true}));
+    for (const o of outcomes.slice(0, 80)) intro.push(run(`${outcomeLabel(o.branch, o.number)} — ${o.title} (${o.yccds.length} YCCĐ)`));
+    intro.push(run('Nội dung từng YCCĐ: tải file Chương trình ở màn Chương trình môn học (sheet Chương trình).', {italics: true}));
+  } else {
+    intro.push(run(`Chưa có chương trình ${subject.name} khối ${grade} trên hệ thống: nhờ tổ trưởng / BGH nạp file Chương trình trước, nếu không mã câu sẽ báo Không tìm thấy Outcome.`, {bold: true, color: 'B00020'}));
+  }
+  intro.push(run(''));
+  const questions = [
+    code('NB', 1, 'TN'), run('[Nội dung câu hỏi trắc nghiệm]'), run('A. [Phương án A]'), run('B. [Phương án B]'), run('C. [Phương án C]'), run('D. [Phương án D]'),
+    run('Đáp án: A'), run('Lời giải: [Lời giải đã kiểm chứng]'),
+    code('TH', 2, 'ĐS'), run('[Bối cảnh chung cho bốn nhận định]'), run('a) [Nhận định a]'), run('b) [Nhận định b]'), run('c) [Nhận định c]'), run('d) [Nhận định d]'),
+    run('Đáp án: a-Đ; b-S; c-Đ; d-S'), run('Lời giải: [Giải thích từng ý]'),
+    code('VD', 3, 'TLN'), run('[Câu trả lời ngắn. Công thức có thể dùng Equation hoặc $v=\\frac{s}{t}$.]'), run('Đáp án: [Đáp án chấp nhận]'), run('Lời giải: [Lời giải]'),
+    code('NB', 4, 'GN'), run('[Yêu cầu ghép nội dung giữa hai cột]'),
+    new Table({width: {size: 100, type: WidthType.PERCENTAGE}, rows: [['Cột A', 'Cột B'], ['A. [Ý A]', '1. [Ý 1]'], ['B. [Ý B]', '2. [Ý 2]']].map(r => new TableRow({children: r.map(cell)}))}),
+    run('Đáp án: A-1; B-2'), run('Lời giải: [Giải thích cặp ghép]'),
+    code('VDC', 5, 'TL'), run('[Câu hỏi tự luận — tự đối chiếu, không tự chấm điểm]'), run('Đáp án: [Đáp án tham khảo]'), run('Lời giải: [Hướng dẫn và tiêu chí tự đối chiếu]'),
+  ];
+  return new Document({styles: {default: {document: {run: {font: 'Times New Roman', size: 26}}}}, sections: [{children: [...intro, ...questions]}]});
 }
 
 // ---------- Trạng thái + khác biệt ----------
 const scope = z.object({subject_id: z.coerce.number().int().positive(), grade: z.coerce.number().int().min(1).max(12)});
 async function subjectOf(c, id) {
-  const s = (await c.query('SELECT id,code,name FROM subjects WHERE id=$1', [id])).rows[0];
+  const s = (await c.query('SELECT id,code,name,code_letter FROM subjects WHERE id=$1', [id])).rows[0];
   if (!s) fail('Không tìm thấy môn', 404);
   s.branches = (await c.query('SELECT id,code,name FROM branches WHERE subject_id=$1 ORDER BY id', [id])).rows;
   return s;
 }
 const toData = outcomes => outcomes.map(o => ({branch: o.branch, number: o.number, title: o.title, yccds: o.yccds.map(y => ({number: y.number, text: y.text, page: y.page}))}));
+const publishedContent = async (c, subject, grade) => {
+  const effective = await effectiveCurriculumVersion(c, subject.id, grade);
+  return {effective, outcomes: await versionContent(c, {versionId: effective?.id ?? null, subjectId: subject.id, grade})};
+};
 
 async function state(c, subject, grade) {
-  const effective = await effectiveCurriculumVersion(c, subject.id, grade);
+  const {effective, outcomes: published} = await publishedContent(c, subject, grade);
   const draft = (await c.query("SELECT * FROM curriculum_versions WHERE subject_id=$1 AND grade=$2 AND status='DRAFT' ORDER BY id DESC LIMIT 1", [subject.id, grade])).rows[0] || null;
-  const published = await versionContent(c, {versionId: effective?.id ?? null, subjectId: subject.id, grade});
   const lessons = await currentLessons(c, subject.id, grade, published);
   const draftContent = draft ? await versionContent(c, {versionId: draft.id}) : null;
   return {effective, draft, published, lessons, draftContent};
@@ -236,10 +463,11 @@ async function audit(c, actor, v, action, before, after, reason) {
 }
 
 // Một môn + khối chỉ có MỘT bản nháp đang mở: bản nháp cũ được lưu trữ (ARCHIVED, còn trong lịch sử), không xoá.
+// Môn không chia phân môn: chữ của môn chỉ ghi ở source_branch_code (nhãn, canonical_key, bộ tra mã); domain_code để
+// rỗng ('' — cột NOT NULL) vì domain_code có giá trị thì câu hỏi bắt buộc chọn phân môn khớp (validateCurriculum).
 async function createDraft(c, actor, subject, grade, data, {sourceName, reason}) {
   await c.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`curriculum-draft:${subject.id}:${grade}`]);
-  const effective = await effectiveCurriculumVersion(c, subject.id, grade);
-  const prior = await versionContent(c, {versionId: effective?.id ?? null, subjectId: subject.id, grade});
+  const {effective, outcomes: prior} = await publishedContent(c, subject, grade);
   // Giữ lineage theo nhãn nguồn để so phiên bản / xem tác động vẫn nối được Chủ đề/YCCĐ cũ và mới.
   const lineage = new Map();
   for (const o of prior) { lineage.set('o|' + outcomeLabel(o.branch, o.number), o.lineage_id); for (const y of o.yccds) lineage.set('y|' + yccdLabelOf(o.branch, o.number, y.number), y.lineage_id); }
@@ -251,9 +479,10 @@ async function createDraft(c, actor, subject, grade, data, {sourceName, reason})
   let order = 0, yccdCount = 0;
   for (const o of data.outcomes) {
     const key = o.branch ? canonicalKey({subject_code: subject.code, grade, branch_code: o.branch, outcome_number: o.number}) : null;
+    const domain = branched(subject) ? o.branch || null : '';
     const row = (await c.query(`INSERT INTO curriculum_outcomes(subject_id,grade,domain_code,code,title,curriculum_version,source_document,status,curriculum_version_id,order_index,source_branch_code,source_ordinal,canonical_key,source_text,lineage_id)
       VALUES($1,$2,$3,$4,$5,$6,$7,'DRAFT',$8,$9,$10,$11,$12,$5,COALESCE($13::uuid,gen_random_uuid())) RETURNING id`,
-    [subject.id, grade, o.branch || null, outcomeLabel(o.branch, o.number), o.title, v.version_code, sourceName.slice(0, 300), v.id, ++order, o.branch || null, o.number, key, lineage.get('o|' + outcomeLabel(o.branch, o.number)) ?? null])).rows[0];
+    [subject.id, grade, domain, outcomeLabel(o.branch, o.number), o.title, v.version_code, sourceName.slice(0, 300), v.id, ++order, o.branch || null, o.number, key, lineage.get('o|' + outcomeLabel(o.branch, o.number)) ?? null])).rows[0];
     let yOrder = 0;
     for (const y of o.yccds) {
       const label = yccdLabelOf(o.branch, o.number, y.number);
@@ -281,8 +510,7 @@ export async function templateFile(actor, query) {
     ? {outcomes: toData(s.draftContent), lessons: s.draft.lesson_plan?.lessons || []}
     : {outcomes: toData(s.published), lessons: s.lessons};
   const source = fromDraft ? `Bản nháp ${s.draft.version_code}` : s.effective ? `Bản đang dùng ${s.effective.version_code}` : data.outcomes.length ? 'Dữ liệu cũ chưa gắn phiên bản' : 'Chưa có dữ liệu — điền mới';
-  const ascii = String(subject.code).normalize('NFD').replace(/[^A-Za-z0-9]/g, '');
-  return {buffer: buildWorkbook(data, {subject, grade: d.grade, source}), filename: `Mau_chuong_trinh_${ascii}_khoi${d.grade}.xlsx`};
+  return {buffer: buildWorkbook(data, {subject, grade: d.grade, source}), filename: `Mau_chuong_trinh_${asciiOf(subject.code)}_khoi${d.grade}.xlsx`};
 }
 
 export async function templateWorkspace(actor, query) {
@@ -291,7 +519,7 @@ export async function templateWorkspace(actor, query) {
   const s = await state(pool, subject, d.grade), ctx = {subjectId: subject.id, grade: d.grade};
   const count = outcomes => ({outcomes: outcomes.length, yccds: outcomes.reduce((n, o) => n + o.yccds.length, 0)});
   return {
-    subject: {id: subject.id, name: subject.name, branches: [...new Set(subject.branches.map(b => letterOf(b.code)))]}, grade: d.grade,
+    subject: {id: subject.id, name: subject.name, branches: branched(subject) ? subjectLetters(subject) : [], code_letter: subject.code_letter, letters: subjectLetters(subject), letter_hint: letterHint(subject)}, grade: d.grade,
     published: {version: s.effective && {id: s.effective.id, version_code: s.effective.version_code, published_at: s.effective.published_at},
       legacy: !s.effective && s.published.length > 0, ...count(s.published), lessons: s.lessons.length},
     draft: s.draft && {id: s.draft.id, version_code: s.draft.version_code, revision: s.draft.revision, created_at: s.draft.created_at, source_name: s.draft.source_name,
@@ -302,6 +530,7 @@ export async function templateWorkspace(actor, query) {
     can: {
       import: await can(actor, 'curriculum.import', ctx) && await can(actor, 'curriculum.edit_draft', ctx),
       publish: await can(actor, 'curriculum.publish', ctx) && await can(actor, 'curriculum.manage_lessons', ctx),
+      set_letter: actor.role === 'admin' && !branched(subject),
     },
   };
 }
@@ -311,7 +540,7 @@ async function readUpload(actor, raw, file, capabilities) {
   await allow(actor, capabilities, subject, d.grade);
   if (!file) fail('Chọn file mẫu (.xlsx)');
   if (!/\.xlsx$/i.test(file.originalname)) fail('Dùng file mẫu .xlsx tải từ hệ thống');
-  return {d, subject, parsed: parseTemplate(await parseWorkbook(file), {branches: subject.branches})};
+  return {d, subject, parsed: parseTemplate(await parseWorkbook(file), {subject})};
 }
 
 export async function previewTemplate(actor, raw, file) {
@@ -351,12 +580,53 @@ export async function saveLessonPlan(actor, versionId, raw) {
     await permitted(actor, 'curriculum.edit_draft', v, c);
     if (v.status !== 'DRAFT') fail('Chỉ sửa danh sách Bài của bản nháp', 409);
     if (v.revision !== d.revision) fail('Bản nháp đã thay đổi; tải lại trước khi lưu', 409);
-    const branches = (await c.query('SELECT id,code,name FROM branches WHERE subject_id=$1 ORDER BY id', [v.subject_id])).rows;
+    const subject = await subjectOf(c, v.subject_id);
     const labels = new Set((await versionLabels(c, v.id)).keys());
-    const result = normalizeLessons(d.lessons.map((l, i) => ({...l, codes: Array.isArray(l.codes) ? l.codes.join(';') : l.codes, row: i + 1, at: `Bài ${l.number}`})), {branches, labels});
+    const result = normalizeLessons(d.lessons.map((l, i) => ({...l, codes: Array.isArray(l.codes) ? l.codes.join(';') : l.codes, row: i + 1, at: `Bài ${l.number}`})), {subject, labels});
     if (result.errors.length) fail(`Danh sách Bài còn ${result.errors.length} lỗi`, 422, {errors: result.errors});
     await c.query('UPDATE curriculum_versions SET lesson_plan=$2 WHERE id=$1', [v.id, JSON.stringify({lessons: result.lessons})]);
     await audit(c, actor, v, 'LESSON_PLAN_SAVED', {lessons: v.lesson_plan?.lessons?.length ?? 0}, {lessons: result.lessons.length}, d.reason);
     return {ok: true, lessons: result.lessons, warnings: result.warnings};
+  });
+}
+
+// Lệnh AI cho màn Chương trình môn học và màn Nhập câu hỏi (cùng nội dung với sheet "Dùng AI").
+export async function templatePrompts(actor, query) {
+  const d = scope.parse(query), subject = await subjectOf(pool, d.subject_id);
+  await allow(actor, ['curriculum.read'], subject, d.grade);
+  const {outcomes} = await publishedContent(pool, subject, d.grade), sample = sampleOf(subject, outcomes);
+  return {subject: {id: subject.id, name: subject.name, letters: subjectLetters(subject), letter_hint: letterHint(subject)}, grade: d.grade,
+    has_curriculum: outcomes.length > 0, sample_code: `Câu ${sample.branch}. ${sample.outcome}. ${sample.yccd}. NB. 1. TN`, prompts: buildPrompts(subject, d.grade, sample)};
+}
+
+export async function questionWordTemplate(actor, query) {
+  const d = scope.parse(query), subject = await subjectOf(pool, d.subject_id);
+  await allow(actor, ['curriculum.read'], subject, d.grade);
+  if (!subjectLetters(subject).length) fail(`Môn ${subject.name} chưa có chữ viết tắt dùng trong mã câu hỏi; nhờ quản trị đặt ở màn Chương trình môn học`, 409);
+  const {outcomes} = await publishedContent(pool, subject, d.grade);
+  const buffer = await Packer.toBuffer(buildWordTemplate({subject, grade: d.grade, outcomes, sample: sampleOf(subject, outcomes)}));
+  return {buffer, filename: `Mau_Word_nhap_cau_${asciiOf(subject.code)}_khoi${d.grade}.docx`};
+}
+
+// Chữ viết tắt của môn (chữ đầu mã câu). Chỉ quản trị; không đổi khi chương trình đã dùng chữ cũ (mã câu, nhãn cũ sẽ
+// không còn khớp) và không đặt cho môn chia phân môn (chữ lấy theo phân môn).
+export async function setSubjectLetter(actor, subjectId, raw) {
+  if (actor.role !== 'admin') fail('Chỉ quản trị đổi được chữ viết tắt của môn', 403);
+  const d = z.object({
+    code_letter: z.string().trim().transform(s => s.toLocaleUpperCase('vi')).pipe(z.string().regex(/^[A-ZĐ]{1,3}$/u, 'Chữ viết tắt gồm 1–3 chữ cái in hoa (A–Z, Đ)')),
+    reason: z.string().trim().min(3, 'Ghi lý do (ít nhất 3 ký tự)').max(500),
+  }).strict().parse(raw);
+  return tx(async c => {
+    const s = await subjectOf(c, subjectId);
+    if (branched(s)) fail(`Môn ${s.name} chia phân môn: chữ đầu mã lấy theo phân môn (${letterHint(s)})`, 409);
+    if (s.code_letter && s.code_letter !== d.code_letter) {
+      const used = (await c.query('SELECT count(*)::int AS n FROM curriculum_outcomes WHERE subject_id=$1 AND source_branch_code=$2', [s.id, s.code_letter])).rows[0].n;
+      if (used) fail(`Chương trình môn ${s.name} đã dùng chữ ${s.code_letter} (${used} Chủ đề); đổi chữ sẽ làm mã câu và nhãn cũ không còn khớp`, 409);
+    }
+    if (s.code_letter !== d.code_letter) {
+      await c.query('UPDATE subjects SET code_letter=$2 WHERE id=$1', [s.id, d.code_letter]);
+      await log(c, actor, 'SUBJECT_CODE_LETTER_SET', s.id, {before: s.code_letter, after: d.code_letter, reason: d.reason});
+    }
+    return {ok: true, subject: {id: s.id, name: s.name, code_letter: d.code_letter}};
   });
 }

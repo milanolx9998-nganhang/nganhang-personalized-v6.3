@@ -94,7 +94,7 @@ test('V6673 mẫu: tải về có sẵn chương trình + Bài; tải lại nguy
   assert.match(res.headers.get('content-disposition'), /Mau_chuong_trinh_KHTN_khoi9\.xlsx/);
   original = Buffer.from(await res.arrayBuffer());
   const s = sheets(original);
-  assert.deepEqual(Object.keys(s), ['Hướng dẫn', 'Chương trình', 'Bài học']);
+  assert.deepEqual(Object.keys(s), ['Hướng dẫn', 'Chương trình', 'Bài học', 'Ví dụ', 'Dùng AI']);
   assert.deepEqual(s['Chương trình'][0], ['Phân môn', 'Số Chủ đề', 'Tên Chủ đề (Outcome)', 'Số YCCĐ', 'Nội dung YCCĐ', 'Trang / nguồn']);
   assert(s['Chương trình'].some(r => r[0] === 'L' && r[1] === 2 && r[3] === 1), 'Có dòng L.2.1');
   const bai2 = s['Bài học'].find(r => r[1] === 2);

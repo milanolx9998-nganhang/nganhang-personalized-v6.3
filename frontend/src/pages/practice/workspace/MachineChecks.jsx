@@ -39,7 +39,7 @@ export default function MachineChecks({checks, compact = false}) {
 export function importChecks(item) {
   const d = item.draft || {}, issues = item.validation?.issues || [];
   const has = (...codes) => issues.some(i => codes.includes(i.code));
-  const coded = !!(d.display_code && /^Câu [LHS]\./u.test(d.display_code)) || !!d.code_raw;
+  const coded = !!(d.display_code && /^Câu [A-ZĐ]{1,3}\./u.test(d.display_code)) || !!d.code_raw;
   const answer = d.answer || {};
   const hasAnswer = d.type === 'essay' || !!(answer.correct || Object.keys(answer.values || {}).length
     || Object.keys(answer.pairs || {}).length || (answer.aliases || []).length || answer.numeric != null);

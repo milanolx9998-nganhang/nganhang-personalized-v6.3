@@ -21,8 +21,9 @@ function htmlText(s,media=[]){return he.decode(String(s||'')).replace(/<img\b[^>
 // Nhận cả dạng chuẩn "Câu L. 2. 1. NB. 2. ĐS" lẫn dạng viết liền cũ "Câu.L.2.1.NB.2.ĐS"; mã luôn được
 // chuẩn hóa về dạng chính thức. Dòng trông như mã hiện hành nhưng đọc không được thì giữ nguyên
 // văn ở `code_raw` để tầng kiểm tra báo lỗi — không được lặng lẽ coi là câu không có mã.
-const KHTN_CODE=/^Câu[\s.]+([LHS])\s*\.\s*(\d+)\s*\.\s*(\d+)\s*\.\s*(NB|TH|VD|VDC)\s*\.\s*(\d+)\s*\.\s*(TN|ĐS|TLN|GN|TL)/iu;
-const CODE_ATTEMPT=/^Câu[\s.]+[A-Za-zĐđ]\s*\./u;
+// V6.6.7.4: chữ đầu mã là phân môn (KHTN L/H/S) hoặc chữ của môn (Toán T, Lịch sử LS…), 1–3 chữ.
+const KHTN_CODE=/^Câu[\s.]+([A-ZĐ]{1,3})\s*\.\s*(\d+)\s*\.\s*(\d+)\s*\.\s*(NB|TH|VD|VDC)\s*\.\s*(\d+)\s*\.\s*(TN|ĐS|TLN|GN|TL)/iu;
+const CODE_ATTEMPT=/^Câu[\s.]+[A-Za-zĐđ]{1,3}\s*\./u;
 export function parseKhtnCode(line){
  const m=line.match(KHTN_CODE);
  if(!m)return CODE_ATTEMPT.test(line)?{code_raw:line.split(/\s{2,}|:\s/)[0].trim()}:{};
@@ -60,7 +61,7 @@ export function parseDocx(buffer){
  }).join('')).join('');}
  const blocks=[];for(const block of find(doc,'w:body')){if(block['w:p'])blocks.push({type:'paragraph',text:inline(block['w:p'])});if(block['w:tbl']){const rows=arr(block['w:tbl']).filter(n=>n['w:tr']).map(n=>arr(n['w:tr']).filter(c=>c['w:tc']).map(c=>inline(c['w:tc'])));blocks.push({type:'table',rows,text:rows.map(row=>'| '+row.join(' | ')+' |').join('\n')});}}
  const items=[];let q=null,section='stem';const metadata=[];
- for(const block of blocks){const line=block.text.trim();if(/^Câu(?:\s+\d+|[\s.]+[A-Za-zĐđ]\s*\.)/iu.test(line)){
+ for(const block of blocks){const line=block.text.trim();if(/^Câu(?:\s+\d+|[\s.]+[A-Za-zĐđ]{1,3}\s*\.)/iu.test(line)){
    q={...parseKhtnCode(line),stem:'',options:[],statements:[],blocks:[],parser_warnings:[],source_locator:'Câu '+(items.length+1)};items.push(q);section='stem';
    const plain=line.replace(/^Câu\s+\d+\s*[.:)]\s*/i,'');if(q.display_code)q.stem=q.header_tail||'';else if(plain!==line&&!q.code_raw)q.stem=plain;delete q.header_tail;continue;
   }

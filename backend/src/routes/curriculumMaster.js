@@ -35,6 +35,10 @@ r.post('/template/preview',templateUpload.single('file'),wrap(async(req,res)=>re
 r.post('/template/import',templateUpload.single('file'),wrap(async(req,res)=>res.status(201).json(await template.importTemplate(req.user,req.body,req.file))));
 r.post('/template/draft',wrap(async(req,res)=>res.status(201).json(await template.startDraft(req.user,req.body))));
 r.put('/versions/:id/lesson-plan',wrap(async(req,res)=>res.json(await template.saveLessonPlan(req.user,Number(req.params.id),req.body))));
+// V6.6.7.4 — lệnh AI mẫu, mẫu Word nhập câu theo môn, chữ viết tắt của môn trong mã câu.
+r.get('/template/prompts',wrap(async(req,res)=>res.json(await template.templatePrompts(req.user,req.query))));
+r.get('/template/word',wrap(async(req,res)=>{const f=await template.questionWordTemplate(req.user,req.query);res.setHeader('Content-Type','application/vnd.openxmlformats-officedocument.wordprocessingml.document');res.setHeader('Content-Disposition','attachment; filename="'+f.filename+'"');res.send(f.buffer);}));
+r.put('/subjects/:id/code-letter',wrap(async(req,res)=>res.json(await template.setSubjectLetter(req.user,Number(req.params.id),req.body))));
 r.post('/import',upload.single('file'),wrap(async(req,res)=>res.status(201).json(await master.upload(req.user,Number(req.body.version_id),req.file))));
 r.get('/import/:id/preview',wrap(async(req,res)=>res.json(await master.preview(req.user,req.params.id))));
 r.put('/import/:id/map',wrap(async(req,res)=>res.json(await master.mapImport(req.user,req.params.id,req.body))));

@@ -72,14 +72,14 @@ export const QUESTION_FROM='FROM questions q JOIN banks b ON b.id=q.bank_id LEFT
 // Dùng chung cho dải kiểm tra trong hàng đợi và cho bộ lọc ngoại lệ, để "Sạch" ở hai nơi là một.
 const DC="COALESCE(q.normalized_content->>'display_code','')";
 // Trong template literal phải viết \\. để SQL nhận \. (dấu chấm thật); \. sẽ bị JS nuốt thành "." (khớp mọi ký tự).
-const CODED=`(${DC} ~ '^Câu [LHS]\\. [0-9]+\\. [0-9]+\\. (NB|TH|VD|VDC)\\. [0-9]+\\. (TN|ĐS|TLN|GN|TL)$')`;
+const CODED=`(${DC} ~ '^Câu [A-ZĐ]{1,3}\\. [0-9]+\\. [0-9]+\\. (NB|TH|VD|VDC)\\. [0-9]+\\. (TN|ĐS|TLN|GN|TL)$')`;
 const OPEN_CASE=reason=>`EXISTS(SELECT 1 FROM question_review_cases rc WHERE rc.question_id=q.id AND rc.status IN('OPEN','IN_REVIEW') AND rc.reason_code='${reason}')`;
 export const CHECK_SQL={
  coded:CODED,
  code:`(NOT ${CODED} OR (split_part(${DC},'. ',6)=CASE q.q_type::text WHEN 'mcq4' THEN 'TN' WHEN 'true_false' THEN 'ĐS' WHEN 'short' THEN 'TLN' WHEN 'matching' THEN 'GN' WHEN 'essay' THEN 'TL' END
   AND EXISTS(SELECT 1 FROM curriculum_yccds cy JOIN curriculum_outcomes co ON co.id=cy.outcome_id WHERE cy.id=q.yccd_id
    AND COALESCE(CASE COALESCE(co.source_branch_code,co.domain_code) WHEN 'VL' THEN 'L' WHEN 'HH' THEN 'H' WHEN 'SH' THEN 'S' ELSE COALESCE(co.source_branch_code,co.domain_code) END,
-                substring(${DC} from '^Câu ([LHS])\\.'))=substring(${DC} from '^Câu ([LHS])\\.')
+                substring(${DC} from '^Câu ([A-ZĐ]{1,3})\\.'))=substring(${DC} from '^Câu ([A-ZĐ]{1,3})\\.')
    AND COALESCE(co.source_ordinal::text,split_part(${DC},'. ',2))=split_part(${DC},'. ',2) AND COALESCE(cy.source_ordinal::text,split_part(${DC},'. ',3))=split_part(${DC},'. ',3))))`,
  curriculum:"(q.outcome_id IS NOT NULL AND q.yccd_id IS NOT NULL AND COALESCE(q.metadata_status::text,'')<>'NEEDS_REVIEW')",
  lesson:"(q.topic_id IS NOT NULL AND COALESCE(q.lesson_status,'') NOT IN('UNMAPPED','AMBIGUOUS'))",

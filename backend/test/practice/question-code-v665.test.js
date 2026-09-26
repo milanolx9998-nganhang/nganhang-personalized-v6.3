@@ -20,7 +20,8 @@ test('V665 mã câu: đọc đúng ba phân môn, mức và hình thức hợp l
 
 test('V665 mã câu: từ chối phân môn, mức, hình thức và số thứ tự không hợp lệ', () => {
   for (const bad of [
-    'Câu X. 2. 1. NB. 2. ĐS',      // phân môn ngoài L/H/S
+    'Câu XYZW. 2. 1. NB. 2. ĐS',   // chữ đầu mã quá 3 chữ
+    'Câu 2. 1. NB. 2. ĐS',         // thiếu chữ môn / phân môn
     'Câu L. 2. 1. XX. 2. ĐS',      // mức không thuộc NB/TH/VD/VDC
     'Câu L. 2. 1. NB. 2. ZZ',      // hình thức lạ
     'Câu L. 2. 1. NB. ĐS',         // thiếu số câu
@@ -31,6 +32,22 @@ test('V665 mã câu: từ chối phân môn, mức, hình thức và số thứ 
   }
   assert.equal(parseQuestionCode('Câu L. 0. 1. NB. 2. ĐS').error, 'CODE_NUMBERING_INVALID');
   assert.equal(parseQuestionCode('').error, 'MISSING_CODE');
+});
+
+// V6.6.7.4: mọi môn viết mã 6 phần — chữ đầu là phân môn (KHTN L/H/S) hoặc chữ viết tắt của môn (Toán T, Lịch sử LS,
+// Địa lí ĐL). Chữ có đúng môn đang nhập hay không do bộ tra (curriculumResolver) kiểm.
+test('V6674 mã câu: chữ viết tắt của môn 1–3 chữ, kể cả Đ; chữ thường kiểu cũ được viết hoa kèm cảnh báo', () => {
+  for (const [code, branch] of [['Câu T. 2. 1. NB. 1. TN', 'T'], ['Câu LS. 3. 2. TH. 4. TLN', 'LS'], ['Câu ĐL. 1. 1. VD. 2. GN', 'ĐL'], ['Câu TIN. 5. 3. VDC. 1. TL', 'TIN']]) {
+    const result = parseQuestionCode(code);
+    assert.equal(result.ok, true, code + ': ' + result.message);
+    assert.equal(result.value.branch_code, branch);
+    assert.equal(result.value.canonical_code, code);
+    assert.equal(result.warnings.length, 0);
+  }
+  const legacy = parseQuestionCode('Câu.t.2.1.NB.2.ĐS');
+  assert.equal(legacy.ok, true);
+  assert.equal(legacy.value.canonical_code, 'Câu T. 2. 1. NB. 2. ĐS');
+  assert.equal(legacy.warnings[0].code, 'LEGACY_CODE_FORMAT');
 });
 
 test('V665 mã câu: dạng viết liền cũ được chuẩn hóa kèm cảnh báo, không âm thầm', () => {

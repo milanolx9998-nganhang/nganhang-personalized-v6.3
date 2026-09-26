@@ -11,16 +11,18 @@ export const FORM_LABELS = {TN: 'Trắc nghiệm', 'ĐS': 'Đúng / Sai', TLN: '
 export const LEVEL_LABELS = {NB: 'Nhận biết', TH: 'Thông hiểu', VD: 'Vận dụng', VDC: 'Vận dụng cao'};
 export const NUMBERING_MODES = ['CONTENT_UNIT_5_FORMS', 'INDEPENDENT_10', 'CUSTOM'];
 
-const CANONICAL = /^Câu\s+([LHS])\.\s+(\d+)\.\s+(\d+)\.\s+(NB|TH|VD|VDC)\.\s+(\d+)\.\s+(TN|ĐS|TLN|GN|TL)$/u;
+// Chữ đầu mã: phân môn (KHTN: L/H/S) hoặc chữ viết tắt của môn (Toán: T, Lịch sử: LS…) — 1–3 chữ in hoa (V6.6.7.4).
+// Chữ có đúng môn đang nhập hay không do bộ tra (curriculumResolver) kiểm, vì chỉ nó biết môn của phiên nhập.
+const CANONICAL = /^Câu\s+([A-ZĐ]{1,3})\.\s+(\d+)\.\s+(\d+)\.\s+(NB|TH|VD|VDC)\.\s+(\d+)\.\s+(TN|ĐS|TLN|GN|TL)$/u;
 // Dạng gõ liền của dữ liệu cũ: chấp nhận để chuyển đổi, nhưng luôn chuẩn hóa lại khi lưu/hiển thị.
-const LEGACY = /^Câu[.\s]*([LHS])[.\s]*(\d+)[.\s]*(\d+)[.\s]*(NB|TH|VD|VDC)[.\s]*(\d+)[.\s]*(TN|ĐS|TLN|GN|TL)$/u;
+const LEGACY = /^Câu[.\s]*([A-Za-zĐđ]{1,3})[.\s]*(\d+)[.\s]*(\d+)[.\s]*(NB|TH|VD|VDC)[.\s]*(\d+)[.\s]*(TN|ĐS|TLN|GN|TL)$/u;
 
 const clean = value => String(value ?? '').replace(/ /g, ' ').trim().replace(/\s+/g, ' ');
 
-// Người soạn có ý định viết mã theo quy ước hiện hành: "Câu" rồi một chữ cái phân môn và dấu chấm.
+// Người soạn có ý định viết mã theo quy ước hiện hành: "Câu" rồi chữ phân môn / chữ của môn (1–3 chữ) và dấu chấm.
 // Phân biệt với "Câu 1." (đánh số thường) và với mã cũ kiểu "KHTN.M1.12" — hai loại đó không phải
 // mã hiện hành nên đi đường metadata, còn mã hiện hành viết sai thì phải chặn để người soạn sửa.
-export const isCodeAttempt = value => /^Câu[\s.]+[A-Za-zĐđ]\s*\./u.test(clean(value));
+export const isCodeAttempt = value => /^Câu[\s.]+[A-Za-zĐđ]{1,3}\s*\./u.test(clean(value));
 
 export function buildDisplayCode({branch_code, outcome_number, yccd_number, declared_level, content_number, question_form}) {
   return `Câu ${branch_code}. ${outcome_number}. ${yccd_number}. ${declared_level}. ${content_number}. ${question_form}`;
@@ -37,9 +39,10 @@ export function parseQuestionCode(raw) {
     match = LEGACY.exec(text);
     if (match) warnings.push({code: 'LEGACY_CODE_FORMAT', message: 'Mã viết liền kiểu cũ; đã chuẩn hóa lại khoảng trắng'});
   }
-  if (!match) return {ok: false, error: 'CODE_UNPARSEABLE', message: 'Mã câu không đúng cấu trúc "Câu L. 2. 1. NB. 2. ĐS"'};
+  if (!match) return {ok: false, error: 'CODE_UNPARSEABLE', message: 'Mã câu không đúng cấu trúc "Câu L. 2. 1. NB. 2. ĐS" (chữ môn/phân môn . Chủ đề . YCCĐ . Mức . Số . Dạng)'};
 
-  const [, branch_code, outcome, yccd, declared_level, content, question_form] = match;
+  const [, rawBranch, outcome, yccd, declared_level, content, question_form] = match;
+  const branch_code = rawBranch.toLocaleUpperCase('vi');
   const outcome_number = Number(outcome), yccd_number = Number(yccd), content_number = Number(content);
   if (outcome_number < 1 || yccd_number < 1 || content_number < 1) {
     return {ok: false, error: 'CODE_NUMBERING_INVALID', message: 'Số Outcome, YCCĐ và số câu phải bắt đầu từ 1'};
