@@ -771,3 +771,5 @@ Kết quả chạy toàn bộ: xem mục kế tiếp.
   - mở bản nháp trên web mang theo Bài + liên kết, gọi lại vẫn dùng đúng bản nháp đó.
 - Toàn bộ: unit 128/128, security 27/27, integration 160/160 (sau khi sửa `v66-checks`: tab mặc định nay là "Chương trình môn học", test bấm sang tab nâng cao), build đạt.
 - File mẫu thử (không commit): `artifacts/Mau_chuong_trinh_KHTN_khoi7.xlsx`, `Mau_chuong_trinh_Toan_khoi6.xlsx`.
+
+**Deploy `9701b3e`** (anh Hiếu chọn "Up main ngay", thứ Bảy): CI run 36208335731 SUCCESS; Verify 44 giây, Deploy 35 giây. main = 15 commit mới (UX 1–2, file mẫu chương trình, lọc môn, migration v6673). Chưa kiểm trên giao diện web thật (cần đăng nhập).
