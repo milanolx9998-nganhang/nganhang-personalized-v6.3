@@ -797,4 +797,6 @@ Kết quả chạy toàn bộ: xem mục kế tiếp.
 - localhost (tài khoản seed admin, không tạo / công bố gì trên DB local): `/curriculum` Toán 10 hiện `T = Toán`, mã mẫu, nút mẫu Word, lệnh AI; màn Nhập hiện thanh 5 bước, mã mẫu Toán / KHTN, cảnh báo chưa có chương trình đúng dữ liệu local.
 - Bộ test: unit 133/133, security 27/27, build đạt, integration 162/163 — lỗi duy nhất là test tải `V6661` (`exception_counts` 2170 ms > ngân sách 1500 ms). Chạy A/B riêng lẻ: bản `questions.js` cũ (regex `[LHS]`) 1524 ms, bản mới 1512 ms — cả hai trượt nhẹ; đo riêng regex trong PostgreSQL trên 200.000 dòng: cũ 1,8 s, mới 1,7 s → không phải do regex mới, do máy local quá tải (còn 238 DB tạm chưa dọn, server dev đang chạy). Chạy lại khi máy rảnh.
 
-**Việc tiếp:** chờ anh Hiếu "up main" (migration v6674 chạy trong deploy). Sau deploy: tổ trưởng các môn tải file mẫu mới; admin kiểm chữ viết tắt từng môn ở trang Chương trình môn học.
+**Deploy `0e9a809`** (anh Hiếu "up", thứ Bảy 13:43): fast-forward từ `9701b3e` (4 commit), CI run 36224598323 SUCCESS — Verify 54 giây, Deploy 35 giây (script deploy tự backup + migrate v6674 + health). `gh` trên máy này chưa đăng nhập: đọc trạng thái CI qua API công khai của repo (không dùng token).
+
+**Việc tiếp:** admin kiểm chữ viết tắt từng môn ở trang Chương trình môn học (đổi được khi môn chưa nạp chương trình); tổ trưởng các môn tải file mẫu mới; chạy lại test tải V6661 khi máy rảnh (sau khi dọn DB tạm).
