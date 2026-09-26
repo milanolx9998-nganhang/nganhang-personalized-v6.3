@@ -773,3 +773,28 @@ Kết quả chạy toàn bộ: xem mục kế tiếp.
 - File mẫu thử (không commit): `artifacts/Mau_chuong_trinh_KHTN_khoi7.xlsx`, `Mau_chuong_trinh_Toan_khoi6.xlsx`.
 
 **Deploy `9701b3e`** (anh Hiếu chọn "Up main ngay", thứ Bảy): CI run 36208335731 SUCCESS; Verify 44 giây, Deploy 35 giây. main = 15 commit mới (UX 1–2, file mẫu chương trình, lọc môn, migration v6673). Chưa kiểm trên giao diện web thật (cần đăng nhập).
+
+## 2026-09-26 — V6.6.7.4: mã câu mọi môn, file mẫu có ví dụ + lệnh AI, gom lối vào chương trình, làm rõ nhập → duyệt
+
+**Yêu cầu (anh Hiếu):** file mẫu chưa có ví dụ và hướng dẫn dùng AI; hỏi mẫu Word → tự nhận Outcome / Bài đã thống nhất chưa; chỗ nạp Outcome / YCCĐ / Bài của môn khác khó hiểu; các bước nhập → duyệt khó hiểu. Chọn phương án "Thêm chữ viết tắt môn": mọi môn viết mã 6 phần như KHTN (Toán `Câu T. 2. 1. NB. 1. TN`, file mẫu `T.2.1; T.2.2`).
+
+**Điều tra:**
+- Trước vòng này bộ đọc mã chỉ nhận `L/H/S` → chỉ KHTN tự nhận Outcome / YCCĐ / Bài từ mẫu Word; môn khác không có mã.
+- `curriculum_outcomes.domain_code` NOT NULL; `validateCurriculum` bắt câu hỏi chọn phân môn khi `domain_code` có giá trị → môn không chia phân môn phải để `domain_code = ''`, chữ môn chỉ ở `source_branch_code` / canonical_key.
+- Học sinh chỉ nhận câu `review_status='APPROVED'` (attempts.js) → giao diện ghi rõ câu nháp chưa dùng được.
+- Lối vào chương trình có 3 chỗ tên khác nhau (`/practice/curriculum`, `/taxonomy`, `/admin/curriculum` gồm cả tab Import cũ) + nút "Mẫu quản trị Outcome/YCCĐ" (file mẫu toàn trường cũ) ở màn Nhập.
+
+**Thay đổi:**
+- Migration `migration-v6674-subject-code-letter.sql` (additive): `subjects.code_letter` + CHECK `^[A-ZĐ]{1,3}$`, điền chữ cho các môn chưa chia phân môn (Toan T, NguVan V, TiengAnh A, VatLi L, HoaHoc H, SinhHoc S, LichSu LS, DiaLi ĐL, GDCD GD, GDKTPL KT, TinHoc TIN, CongNghe CN, IELTS IE).
+- Bộ đọc mã (`questionCode.js`, `importAdapters.js`, `imports.js`, SQL kiểm tra trong `questions.js`, `scripts/data-health.mjs`): chữ đầu mã 1–3 chữ; chữ thường kiểu cũ được viết hoa kèm cảnh báo.
+- `curriculumResolver.js`: chữ phải thuộc môn (phân môn hoặc chữ môn), sai → `CODE_SUBJECT_MISMATCH` (bắt chọn nhầm môn khi nhập). Môn chưa có chữ giữ hành vi cũ.
+- `lessonPlan.js`: nhãn YCCĐ của môn không chia phân môn lấy chữ môn cho dữ liệu cũ chưa ghi chữ.
+- `template.js` (viết lại, giữ luồng V6.6.7.3): cột Phân môn chỉ ở môn chia phân môn; sheet "Ví dụ" (KHTN / Toán / mẫu chung có [ ]), sheet "Dùng AI" (6 bước + 3 lệnh); hướng dẫn 3 bước, giải thích cột, mã YCCĐ ↔ mã câu, lỗi hay gặp; `buildPrompts`, `templatePrompts`, mẫu Word nhập câu theo môn (`questionWordTemplate`, thư viện `docx`), `setSubjectLetter` (chỉ admin). Routes `/template/prompts`, `/template/word`, `PUT /subjects/:id/code-letter`.
+- Frontend: trang `/curriculum` (`CurriculumPage.jsx`) = 4 bước ai-làm-gì, mã mẫu của môn, tải Excel / Word, lệnh AI có nút "Sao chép lệnh" (`components/CopyPrompt.jsx`), đặt chữ viết tắt (admin). Menu: "Chương trình môn học" thay "Chuẩn đầu ra · Bài–YCCĐ"; `/admin/curriculum` → "Chương trình nâng cao · Năng lực" (bỏ tab file mẫu, chỉ `curriculum.publish` / `competency.manage_framework`); `/taxonomy` chỉ admin. Màn Nhập: thanh 5 bước, mẫu Word theo môn, mã mẫu + cảnh báo chưa có chương trình, lệnh AI thêm mã, nút "Lưu N câu vào kho", kết quả ghi bước tiếp theo. Màn Duyệt: một dòng giải thích mỗi tab. Regex frontend `[A-ZĐ]{1,3}`.
+- Test: `question-code-v665` (từ chối `Câu XYZW`, thiếu chữ; nhận `T`, `LS`, `ĐL`, `TIN`), mới `curriculum-template-v6674` (4), mới integration `v6674-subject-letter` (3, cổng 3125), cập nhật `v6673-template` (5 sheet), `v66-checks` (tiêu đề trang nâng cao).
+
+**Kiểm:**
+- localhost (tài khoản seed admin, không tạo / công bố gì trên DB local): `/curriculum` Toán 10 hiện `T = Toán`, mã mẫu, nút mẫu Word, lệnh AI; màn Nhập hiện thanh 5 bước, mã mẫu Toán / KHTN, cảnh báo chưa có chương trình đúng dữ liệu local.
+- Bộ test: unit 133/133, security 27/27, build đạt, integration 162/163 — lỗi duy nhất là test tải `V6661` (`exception_counts` 2170 ms > ngân sách 1500 ms). Chạy A/B riêng lẻ: bản `questions.js` cũ (regex `[LHS]`) 1524 ms, bản mới 1512 ms — cả hai trượt nhẹ; đo riêng regex trong PostgreSQL trên 200.000 dòng: cũ 1,8 s, mới 1,7 s → không phải do regex mới, do máy local quá tải (còn 238 DB tạm chưa dọn, server dev đang chạy). Chạy lại khi máy rảnh.
+
+**Việc tiếp:** chờ anh Hiếu "up main" (migration v6674 chạy trong deploy). Sau deploy: tổ trưởng các môn tải file mẫu mới; admin kiểm chữ viết tắt từng môn ở trang Chương trình môn học.

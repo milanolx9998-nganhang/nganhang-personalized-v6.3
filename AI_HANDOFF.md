@@ -1,6 +1,6 @@
 # AI HANDOFF
 
-Cập nhật: 2026-09-24 · Phiên bản mã: **6.6.7**
+Cập nhật: 2026-09-26 · Phiên bản mã: **6.6.7**
 
 **Trạng thái nhánh (pre-merge final hardening):**
 - `main` an toàn: `423be0c20c65a86be82a588150dc913ac9e5f3cf` (CI run `35908645526` SUCCESS · `/api/health` local đã kiểm tra). `main` chưa nhận phần follow-up.
@@ -31,6 +31,14 @@ Còn mở:
 - **V6.7 giai đoạn 1 + 2 đã làm trên nhánh (2026-09-26, 9 commit `9d4ecc1`..`843b7ae`), CHƯA lên main** — chờ anh Hiếu "up main". Kèm sửa sau khi chạy thử thật trên localhost: form giao bài tự kiểm số câu (module chung `pages/practice/availability.jsx`). Còn: ô Môn liệt kê cả môn không có quyền; tài khoản mẫu `gv_ly_01` gắn môn Vật Lí thay vì KHTN. Test: unit 128, security 27, integration 155/156 (test tải V6661 lỗi thời gian do máy 100% CPU, truy vấn không đổi — chạy lại khi máy rảnh).
 - **2026-09-26 09:24 `main` = `9701b3e`** (CI run 36208335731 SUCCESS: Verify 44 giây, Deploy 35 giây; migration v6673 chạy trong deploy): đã lên web UX giai đoạn 1–2 + file mẫu chương trình + lọc môn theo quyền.
 - **File mẫu chương trình môn học (2026-09-26):** tab "Chương trình môn học" ở /admin/curriculum; tải file mẫu 3 sheet (kèm dữ liệu) → tải lên + kiểm tra → bản nháp (lesson_plan) → sửa trên web → công bố dựng lại Bài + liên kết. **Migration mới migration-v6673-curriculum-template.sql** (additive). Quyền: Tổ trưởng import/edit_draft; BGH chuyên môn thêm publish. Tài khoản demo `bgh` (role board) có thể chưa có vị trí BGH chuyên môn → gán trong Nhân sự & phân công nếu cần.
+- **V6.6.7.4 — mã câu cho mọi môn + file mẫu có ví dụ / lệnh AI + gom lối vào (2026-09-26, trên nhánh, CHƯA lên main):**
+  - Mã câu mọi môn 6 phần như KHTN: chữ đầu là phân môn (KHTN `L/H/S`) hoặc chữ viết tắt của môn (`subjects.code_letter`: Toán `T`, Văn `V`, Anh `A`, Lịch sử `LS`, Địa `ĐL`…). **Migration mới `migration-v6674-subject-code-letter.sql`** (additive: cột + CHECK + điền chữ cho môn chưa chia phân môn). Bộ tra mã báo `CODE_SUBJECT_MISMATCH` khi chữ không thuộc môn đang nhập.
+  - Môn không chia phân môn: Chủ đề lưu `source_branch_code` = chữ môn, `domain_code` = '' (cột NOT NULL; có giá trị thì câu hỏi bị bắt chọn phân môn), nhãn `T.2.1`, canonical_key `Toan:G10:T:2`.
+  - File mẫu Excel: bỏ cột Phân môn ở môn không chia phân môn; thêm sheet "Ví dụ" (KHTN / Toán / mẫu chung) và "Dùng AI" (3 lệnh: Chương trình, Bài học, chuyển câu hỏi sang mẫu Word). API mới `GET /api/curriculum/template/prompts`, `GET /template/word` (mẫu Word nhập câu theo môn, mã ví dụ lấy từ chương trình đang dùng), `PUT /subjects/:id/code-letter` (chỉ admin; 409 khi chương trình đã dùng chữ cũ hoặc môn chia phân môn).
+  - Lối vào: trang riêng `/curriculum` "Chương trình môn học" (menu Ngân hàng & Nội dung). `/admin/curriculum` đổi thành "Chương trình nâng cao · Năng lực" (chỉ `curriculum.publish` / `competency.manage_framework`), bỏ tab file mẫu; `/taxonomy` chỉ admin; `/practice/curriculum` bỏ khỏi menu (vẫn vào được từ trang nâng cao). Màn Nhập: nút mẫu Word theo môn, dòng mã mẫu + cảnh báo khi chưa có chương trình, lệnh AI; thay "Mẫu quản trị Outcome/YCCĐ" bằng link trang Chương trình.
+  - Nhập → duyệt: thanh 5 bước (Tải tệp → Kiểm tra & sửa → Lưu vào kho → Gửi duyệt → Được duyệt), nút "Lưu N câu vào kho", kết quả ghi rõ câu nháp chưa dùng được cho học sinh + bước tiếp; màn Duyệt có một dòng giải thích mỗi tab.
+  - Test: unit + test mới `curriculum-template-v6674` (4), integration `v6674-subject-letter` (3: Toán nạp → công bố → mã `Câu T…` tự ra Outcome/YCCĐ/Bài; mẫu Word tải về nhập được ngay, AUTO_RESOLVED; quyền đổi chữ). Kết quả toàn bộ: xem AI_WORK_LOG.
+  - Mẫu Word tĩnh `templates/question-import-khtn.docx` giữ nguyên (KHTN, dùng cho test); giao diện dùng mẫu sinh theo môn.
 - **Phương án V6.7 (chốt 2026-09-25, xem AI_WORK_LOG):** giai đoạn 0 an toàn → 1 giảm ma sát → 2 đánh bóng → 3 thử với người thật. Chưa làm wizard giao bài / ma trận.
 - smoke UI đăng nhập chưa làm.
 
