@@ -1,7 +1,7 @@
 import {saveBankAccess} from '../services/access/banks.js';
 import {setLegacyTeaching} from '../services/access/compatibility.js';
 import {classesFor,getEffectiveAccess,bankDecision,invalidateAccess,can} from '../services/accessResolver.js';
-import {contentCapability} from '../services/capabilities.js';
+import {contentCapability,contentSubjects} from '../services/capabilities.js';
 import questionReviewRoutes from './questionReview.js';
 import questionSources from './questionSources.js';
 import {staffQuestionDto} from '../services/access/visibility.js';
@@ -58,6 +58,8 @@ r.get('/settings',wrap(async(req,res)=>res.json(await settings())));
 r.put('/settings',wrap(async(req,res)=>{if(!await can(req.user,'system.config',{}))fail('Không có quyền cấu hình hệ thống',403);await tx(async c=>{validateSettings(await settings(c),req.body);for(const [key,value] of Object.entries(req.body)){if(!(key in defaults))fail('Cấu hình không hợp lệ: '+key);if(['personalized_recommendations','auto_personalized_practice','essay_ai_grading','leaderboard','canvas_lti'].includes(key)&&value!==false)fail('Tính năng ngoài V1 chưa được bật');if(typeof defaults[key]==='number'&&(!Number.isFinite(value)||value<0))fail('Giá trị cấu hình không hợp lệ');if(key==='mastery_decay_rate'&&(value<=0||value>1))fail('Hệ số Mastery phải trong (0,1]');await c.query('INSERT INTO system_settings(key,value,updated_by) VALUES($1,$2,$3) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value,updated_by=EXCLUDED.updated_by,updated_at=now()',[key,JSON.stringify(value),req.user.id]);}await log(c,req.user,'SETTINGS_UPDATE','settings',{keys:Object.keys(req.body)});});res.json({ok:true});}));
 // PERF V6.6.7: catalog giống nhau với mọi người (~400 KB) → cache chung 10 phút theo thế hệ nội dung, giữ sẵn
 // dạng chuỗi JSON để gửi thẳng, không parse / tuần tự hóa lại mỗi request.
+// Môn người dùng được đọc nội dung — để ô "Môn" chỉ liệt kê môn dùng được. Học sinh / quản trị: null (mọi môn).
+r.get('/catalog/my-subjects',wrap(async(req,res)=>res.json({subject_ids:req.user.role==='student'?null:await contentSubjects(req.user)})));
 r.get('/catalog',wrap(async(req,res)=>res.type('application/json').send(await cachedShared(['catalog','v2'],600,async()=>{const subjects=(await pool.query('SELECT s.*,p.config AS profile FROM subjects s LEFT JOIN subject_profiles p ON p.subject_id=s.id ORDER BY s.name')).rows;const topics=(await pool.query("SELECT * FROM topics WHERE status='ACTIVE' ORDER BY subject_id,grade,order_index")).rows;const taxonomy_nodes=(await pool.query('SELECT n.*,v.subject_id,v.name AS version_name FROM taxonomy_nodes n JOIN taxonomy_versions v ON v.id=n.version_id ORDER BY v.id,n.id')).rows;return JSON.stringify({subjects,topics,taxonomy_nodes});},{raw:true}))));
 // Curriculum/YCCĐ/Bài mapping dùng chung theo từng người dùng và môn/khối; không chứa đáp án.
 r.get('/content-options',wrap(async(req,res)=>{

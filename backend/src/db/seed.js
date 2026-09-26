@@ -78,9 +78,10 @@ async function seed() {
     ['to_khtn', teacherHash, 'Tổ trưởng KHTN', 'dept_leader', khtnDept, khtnSub?.id || null],
     ['to_toan', teacherHash, 'Tổ trưởng Toán', 'dept_leader', toanDept, subs.find(s=>s.code==='Toan')?.id || null],
     ['nhom_khtn9', teacherHash, 'Nhóm trưởng KHTN 9', 'grade_leader', khtnDept, khtnSub?.id || null],
-    ['gv_ly_01', teacherHash, 'Nguyễn Văn An (GV Vật lí)', 'teacher', khtnDept, subs.find(s=>s.code==='VatLi')?.id || null],
-    ['gv_hoa_01', teacherHash, 'Trần Thị Bình (GV Hóa)', 'teacher', khtnDept, subs.find(s=>s.code==='HoaHoc')?.id || null],
-    ['gv_sinh_01', teacherHash, 'Lê Văn Cường (GV Sinh)', 'teacher', khtnDept, subs.find(s=>s.code==='SinhHoc')?.id || null],
+    // THCS: Lí / Hoá / Sinh là phân môn của KHTN (khối 6–9) — gắn môn KHTN, nếu không GV không mở được Bài/câu KHTN.
+    ['gv_ly_01', teacherHash, 'Nguyễn Văn An (GV Vật lí)', 'teacher', khtnDept, khtnSub?.id || null],
+    ['gv_hoa_01', teacherHash, 'Trần Thị Bình (GV Hóa)', 'teacher', khtnDept, khtnSub?.id || null],
+    ['gv_sinh_01', teacherHash, 'Lê Văn Cường (GV Sinh)', 'teacher', khtnDept, khtnSub?.id || null],
     ['gv_toan_01', teacherHash, 'Phạm Thị Dung (GV Toán)', 'teacher', toanDept, subs.find(s=>s.code==='Toan')?.id || null],
   ];
 

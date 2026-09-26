@@ -1,9 +1,14 @@
+import {useEffect,useState} from 'react';
 import ContentPicker from './ContentPicker.jsx';
-import {types} from './shared.jsx';
+import {api} from '../../api/client.js';
+import {types,base} from './shared.jsx';
+// Môn người dùng được đọc nội dung (cùng quy tắc content.read máy chủ dùng để báo "Không có quyền với môn này"); null = mọi môn.
+function useMySubjects(){const [ids,setIds]=useState(null);useEffect(()=>{let live=true;api.get(base+'/catalog/my-subjects').then(r=>{if(live)setIds(r.subject_ids);}).catch(()=>{});return()=>{live=false;};},[]);return ids;}
 export function ConfigFields({value,onChange,catalog,settings,simple=false}){
+ const allowed=useMySubjects();
  const update=(key,val)=>onChange({...value,[key]:val});const options=catalog?.topics.filter(t=>t.subject_id===Number(value.subject_id)&&t.grade===Number(value.grade))||[];
  return <div className="practice-grid">
-  <label>Môn học<select aria-label="Môn học" value={value.subject_id||''} onChange={e=>onChange({...value,subject_id:Number(e.target.value),topic_ids:[],yccd_keys:[],content_scope_v2:null})}><option value="">Chọn môn</option>{catalog?.subjects.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
+  <label>Môn học<select aria-label="Môn học" value={value.subject_id||''} onChange={e=>onChange({...value,subject_id:Number(e.target.value),topic_ids:[],yccd_keys:[],content_scope_v2:null})}><option value="">Chọn môn</option>{catalog?.subjects.filter(s=>!allowed||allowed.includes(s.id)||s.id===Number(value.subject_id)).map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
   <label>Khối<select aria-label="Khối" value={value.grade} onChange={e=>onChange({...value,grade:Number(e.target.value),topic_ids:[],yccd_keys:[],content_scope_v2:null})}>{[6,7,8,9,10,11,12].map(g=><option key={g}>{g}</option>)}</select></label>
   <ContentPicker key={value.subject_id+':'+value.grade} value={value} onChange={onChange} topics={options}/>
   <label>Số câu<select aria-label="Số câu" value={value.count} onChange={e=>update('count',Number(e.target.value))}>{[10,15,20,30,40].map(n=><option key={n}>{n}</option>)}</select></label>
