@@ -1,0 +1,124 @@
+name: CI
+
+# Kiểm tra trên máy của GitHub (không dùng máy Home): mọi nhánh trừ main, và mọi pull request.
+# main vẫn do "Verify & Deploy" (deploy.yml) kiểm rồi mới deploy. Workflow này không có quyền ghi và không dùng secret nào.
+on:
+  push:
+    branches-ignore:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Build + unit + security
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci --no-audit --fund=false
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci --no-audit --fund=false
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Unit tests
+        working-directory: backend
+        run: npm test
+
+      - name: Security tests
+        working-directory: backend
+        run: npm run test:security
+
+      # Migration mới so với main phải qua cổng an toàn (chỉ thêm, không xoá / đổi phá huỷ).
+      - name: Migration safety gate
+        run: |
+          git fetch --no-tags origin main
+          BASE=$(git merge-base origin/main HEAD)
+          CHANGED=$(git diff --name-only "$BASE" HEAD -- 'backend/src/db/*.sql')
+          if [ -n "$CHANGED" ]; then
+            echo "Migration thay đổi so với main: $CHANGED"
+            node scripts/migration-safety.mjs $CHANGED
+          else
+            echo "Không có migration mới."
+          fi
+
+  smoke:
+    name: 5 hành trình trên database trắng
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci-only-not-a-secret
+          POSTGRES_DB: nganhang_personalized_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d nganhang_personalized_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    # Giá trị chỉ dùng cho Postgres tạm của lần chạy này; không phải thông tin của máy chủ thật.
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_NAME: nganhang_personalized_ci
+      DB_USER: ci
+      DB_PASSWORD: ci-only-not-a-secret
+      JWT_SECRET: ci-only-jwt-secret-for-ephemeral-smoke-run
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci --no-audit --fund=false
+
+      # Dựng schema từ số 0 bằng đúng chuỗi migration mà máy chủ thật dùng, rồi nạp dữ liệu mẫu.
+      - name: Migrate database trắng
+        working-directory: backend
+        run: npm run migrate
+
+      - name: Seed
+        working-directory: backend
+        run: npm run seed
+
+      - name: Smoke 5 hành trình
+        working-directory: backend
+        run: npm run test:smoke

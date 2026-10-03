@@ -19,6 +19,7 @@
     "test": "node test/matrixBalancer.test.js && node --test test/practice/*.test.js",
     "test:integration": "node --test --test-concurrency=3 test/integration/*.test.js",
     "test:security": "node --test test/security/*.test.js",
+    "test:smoke": "node --test test/smoke/*.test.js",
     "mastery:recalculate": "node src/services/practice/recalculate.js"
   },
   "dependencies": {
