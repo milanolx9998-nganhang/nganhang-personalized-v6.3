@@ -48,6 +48,11 @@ jobs:
         working-directory: frontend
         run: npm run build
 
+      # Test xuất phiếu Word/PDF dựng công thức bằng Chromium của Playwright (máy Home đã cài sẵn; máy GitHub phải cài).
+      - name: Install Chromium for Playwright
+        working-directory: backend
+        run: npx playwright install --with-deps chromium
+
       - name: Unit tests
         working-directory: backend
         run: npm test
