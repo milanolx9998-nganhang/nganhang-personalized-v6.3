@@ -852,4 +852,6 @@ Kết quả chạy toàn bộ: xem mục kế tiếp.
 - smoke 5/5 trên database trắng tạo tại local (PostgreSQL 16.13, migrate từ số 0), đã xoá database tạm đó;
 - toàn bộ: unit 137/137, security 27/27, integration 168/168 (test tải V6661 lần này qua), build frontend đạt.
 
-**Việc tiếp:** chờ anh Hiếu "up main". Sau khi đẩy nhánh: xem job CI đầu tiên trên GitHub có xanh không. Bảo vệ `main` bằng "bắt buộc CI xanh" chỉ dùng được khi đổi sang luồng pull request (đẩy thẳng main thì CI này không chạy trên commit đó).
+- CI trên GitHub: lần đầu (`79147f6`) job smoke xanh, job verify đỏ vì test xuất phiếu Word/PDF cần Chromium của Playwright (máy Home cài sẵn, máy GitHub chưa) → thêm bước `npx playwright install --with-deps chromium`; lần hai (`596bc42`, run 37133809197) cả hai job xanh: verify 46 giây, smoke 27 giây. Log job đọc bằng thông tin đăng nhập git của repo (API log không công khai), không in ra.
+
+**Việc tiếp:** chờ anh Hiếu "up main". Bảo vệ `main` bằng "bắt buộc CI xanh" chỉ dùng được khi đổi sang luồng pull request (đẩy thẳng main thì CI này không chạy trên commit đó).
