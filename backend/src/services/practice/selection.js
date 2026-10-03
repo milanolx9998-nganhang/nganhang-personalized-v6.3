@@ -6,6 +6,19 @@ export function allocate(count,percent){
  const missing=count-out.reduce((a,b)=>a+b,0);for(let j=0;j<missing;j++)out[ranked[j].i]++;
  return out;
 }
+// Giữ số câu, chia lại mức theo số câu đang có: mức thiếu lấy tối đa số đang có, phần hụt dồn sang mức gần nhất còn dư.
+// Trả về tỉ lệ để allocate() cho ra đúng phân bổ đó (ưu tiên số nguyên), hoặc null khi tổng số câu không đủ.
+export function fitPercent(count,percent,avail){
+ if(avail.reduce((a,b)=>a+b,0)<count)return null;
+ const want=allocate(count,percent),got=want.map((n,i)=>Math.min(n,avail[i]));let left=count-got.reduce((a,b)=>a+b,0);
+ const short=want.map((n,i)=>n>avail[i]?i:-1).filter(i=>i>=0);
+ for(const s of short.length?short:[0])for(const i of [0,1,2,3].sort((a,b)=>Math.abs(a-s)-Math.abs(b-s)||a-b)){const add=Math.min(left,avail[i]-got[i]);got[i]+=add;left-=add;}
+ if(left>0)return null;
+ const same=p=>allocate(count,p).every((n,i)=>n===got[i]);
+ const raw=got.map(n=>n*100/count),whole=raw.map(Math.floor),order=raw.map((v,i)=>({i,f:v-whole[i]})).sort((a,b)=>b.f-a.f||a.i-b.i);
+ const missing=100-whole.reduce((a,b)=>a+b,0);for(let j=0;j<missing;j++)whole[order[j].i]++;
+ return same(whole)?whole:same(raw)?raw:null;
+}
 export function seeded(seed){let h=2166136261;for(const c of String(seed))h=Math.imul(h^c.charCodeAt(0),16777619);return()=>{h+=0x6D2B79F5;let t=Math.imul(h^h>>>15,1|h);t^=t+Math.imul(t^t>>>7,61|t);return ((t^t>>>14)>>>0)/4294967296;};}
 export function selectQuestions(candidates,config,seed){
  const counts=allocate(config.count,config.percent),random=seeded(seed),seen=new Set();

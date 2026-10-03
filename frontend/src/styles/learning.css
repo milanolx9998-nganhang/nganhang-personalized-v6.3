@@ -38,6 +38,17 @@
 .player-page .feedback.correct{background:#eaf8ef;border-color:#198359;color:#21523e}
 .player-page .feedback.review{background:#fff7e5;border-color:#b88318;color:#695224}
 .result-summary{background:linear-gradient(115deg,#e5f4ed,#f4faf7);border-color:#bbdccc}.result-summary h2{font-size:32px;color:#1E5A7A}
+/* V6.8 — bản đồ bài học */
+.lesson-map{margin:18px 0}.lesson-map .section-heading h2{margin:0}.lesson-map-summary{display:flex;flex-wrap:wrap;align-items:center;gap:10px;color:#5E5B52;margin:8px 0 14px}
+.map-chip{background:#fff;border:1px solid #E2DFD6;border-radius:999px;padding:4px 12px;color:#1C1B17}.lesson-stars{color:#C98A00;letter-spacing:1px}.lesson-stars .off{color:#D8D4C8}
+.lesson-list{list-style:none;margin:8px 0 0;padding:0}.lesson-row{display:flex;align-items:center;gap:12px;padding:9px 4px;border-top:1px solid #EEEBE3}.lesson-row:first-child{border-top:0}
+.lesson-row .lesson-name{flex:1;min-width:0}.lesson-row .lesson-name small{color:#5E5B52}.lesson-row .lesson-state{color:#5E5B52;font-size:13.5px;white-space:nowrap}
+.lesson-row.current .lesson-name{font-weight:600}.lesson-row.locked{opacity:.6}.lesson-row.done .lesson-state{color:#256D43}.lesson-row .btn{min-width:108px}
+.lesson-chapter summary{cursor:pointer}.lesson-chapter summary .btn.link{margin-left:10px}.lesson-current h3,.lesson-focus h3{margin:4px 0}
+.badge-grid{list-style:none;margin:10px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
+.badge-grid li{display:flex;flex-direction:column;gap:2px;border:1px dashed #CFCABD;border-radius:10px;padding:8px 10px;color:#5E5B52;font-size:13px}.badge-grid li strong{color:#1C1B17;font-size:14px}
+.badge-grid li.earned{border:1px solid #C98A00;background:#FFF8E6}.badge-grid li.earned strong{color:#8A4B00}
+@media(max-width:680px){.lesson-row{flex-wrap:wrap;gap:6px}.lesson-row .lesson-name{flex-basis:100%}.lesson-row .lesson-state{white-space:normal}}
 .student-home .practice-stats article{background:#fff;border-color:#E2DFD6}.student-home .practice-stats strong{color:#1E5A7A}
 .student-toolbar{display:grid;grid-template-columns:2fr 1.2fr 1fr;gap:18px;padding:14px 20px;background:white;border:1px solid #E2DFD6;border-radius:14px}
 .section-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:16px 0}.section-heading h2{margin:0}

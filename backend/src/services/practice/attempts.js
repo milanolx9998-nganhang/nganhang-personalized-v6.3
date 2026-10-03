@@ -13,6 +13,13 @@ import {normalizeQuestion,gradeQuestion,validateQuestion} from './grading.js';
 import {recalculate,aggregate} from './mastery.js';
 import {assignmentAccess,subjectAccess} from './authorization.js';
 export const configSchema=z.object({content_scope_v2:z.unknown().optional(),subject_id:z.coerce.number().int().positive(),grade:z.coerce.number().int().min(1).max(12),topic_ids:z.array(z.coerce.number().int().positive()).max(100).default([]),selection_mode:z.enum(['topic','yccd']).default('topic'),yccd_keys:z.array(z.string().min(1).max(1500)).max(100).default([]),count:z.coerce.number().int().min(1).max(40),percent:z.array(z.number().min(0).max(100)).length(4),types:z.array(z.enum(['multiple_choice','true_false','short_answer','matching','essay'])).min(1).max(5),mode:z.enum(['practice','challenge']).default('practice')}).superRefine((c,ctx)=>{if(c.content_scope_v2){try{normalizeContentScope({...c.content_scope_v2,subject_id:c.subject_id,grade:c.grade});}catch(e){ctx.addIssue({code:'custom',message:e.message});}return;}if(c.selection_mode==='yccd'?!c.yccd_keys.length:!c.topic_ids.length)ctx.addIssue({code:'custom',message:c.selection_mode==='yccd'?'Tick ít nhất một YCCĐ':'Tick ít nhất một bài / chuyên đề'});}).transform(c=>({...c,content_scope_v2:normalizeContentScope(c.content_scope_v2?{...c.content_scope_v2,subject_id:c.subject_id,grade:c.grade}:c)}));
+// Câu học sinh dùng được: bản đang hoạt động đã duyệt, không lưu trữ / cách ly / đang bị báo lệch chương trình; Bài còn hoạt động và
+// liên kết Bài–YCCĐ còn hiệu lực. Dùng chung cho bốc câu (candidates) và bản đồ bài học (lessonMap.js) để hai nơi đếm như nhau.
+export const USABLE_FROM='FROM question_versions v JOIN question_selection_metadata q ON q.active_version_id=v.id JOIN banks b ON b.id=q.bank_id';
+export const USABLE_WHERE="q.lifecycle<>'archived' AND NOT q.quarantined AND NOT EXISTS(SELECT 1 FROM question_review_cases rc WHERE rc.question_id=q.id AND rc.status IN('OPEN','IN_REVIEW') AND rc.reason_code IN('CURRICULUM_MISMATCH','YCCD_RETIRED','OUTCOME_RETIRED')) AND v.review_status='APPROVED'";
+export const USABLE_LESSON="(t.status='ACTIVE') AND (q.yccd_id IS NULL OR EXISTS(SELECT 1 FROM curriculum_yccds cy JOIN curriculum_outcomes co ON co.id=cy.outcome_id WHERE cy.id=q.yccd_id AND cy.status='ACTIVE' AND co.status='ACTIVE' AND EXISTS(SELECT 1 FROM topic_yccd_map tm WHERE tm.topic_id=q.topic_id AND tm.yccd_id=q.yccd_id AND tm.status='ACTIVE' AND (tm.valid_from IS NULL OR tm.valid_from<=CURRENT_DATE) AND (tm.valid_to IS NULL OR tm.valid_to>=CURRENT_DATE))))";
+// Kho học sinh tự luyện được: kho trường, kho tổ của mình, kho mình sở hữu hoặc là thành viên. dept / uid: vị trí tham số SQL.
+export const studentBanks=(dept,uid)=>`b.kind='school' OR b.kind='department' AND b.department_id=$${dept} OR b.owner_id=$${uid} OR EXISTS(SELECT 1 FROM bank_memberships bm WHERE bm.bank_id=b.id AND bm.user_id=$${uid})`;
 export async function candidates(client,user,config,{reader=user}={}){
  await subjectAccess(reader,config.subject_id,config.grade);
  const access=reader.role==='student'?null:await getEffectiveAccess(reader,client);
@@ -20,18 +27,19 @@ export async function candidates(client,user,config,{reader=user}={}){
  const scopeSQL=resolved?compileQuestionScopeSQL(resolved,'q',7):null;
  const result=await client.query(`SELECT v.*,q.active_metadata AS curriculum_snapshot,q.topic_id,q.yccd_id,q.outcome_id,q.branch_id,q.subject_id,q.grade,right(q.cognitive_level::text,1)::int AS cognitive_level,q.bank_id,b.kind,b.owner_id,n.node_type,n.name AS node_name,tv.name AS version_name,t.name AS topic_name,
  (SELECT max(a.completed_at) FROM attempt_items i JOIN attempts a ON a.id=i.attempt_id WHERE i.question_id=q.id AND a.student_id=$1 AND a.status='completed') AS last_seen
- FROM question_versions v JOIN question_selection_metadata q ON q.active_version_id=v.id JOIN banks b ON b.id=q.bank_id
+ ${USABLE_FROM}
  LEFT JOIN taxonomy_nodes n ON n.id=v.taxonomy_node_id LEFT JOIN taxonomy_versions tv ON tv.id=n.version_id LEFT JOIN topics t ON t.id=q.topic_id
- WHERE q.lifecycle<>'archived' AND NOT q.quarantined AND NOT EXISTS(SELECT 1 FROM question_review_cases rc WHERE rc.question_id=q.id AND rc.status IN('OPEN','IN_REVIEW') AND rc.reason_code IN('CURRICULUM_MISMATCH','YCCD_RETIRED','OUTCOME_RETIRED')) AND v.review_status='APPROVED' AND q.subject_id=$2 AND q.grade=$3 AND ($4::int[] IS NULL OR q.topic_id=ANY($4::int[]))
- AND (t.status='ACTIVE') AND (q.yccd_id IS NULL OR EXISTS(SELECT 1 FROM curriculum_yccds cy JOIN curriculum_outcomes co ON co.id=cy.outcome_id WHERE cy.id=q.yccd_id AND cy.status='ACTIVE' AND co.status='ACTIVE' AND EXISTS(SELECT 1 FROM topic_yccd_map tm WHERE tm.topic_id=q.topic_id AND tm.yccd_id=q.yccd_id AND tm.status='ACTIVE' AND (tm.valid_from IS NULL OR tm.valid_from<=CURRENT_DATE) AND (tm.valid_to IS NULL OR tm.valid_to>=CURRENT_DATE))))
+ WHERE ${USABLE_WHERE} AND q.subject_id=$2 AND q.grade=$3 AND ($4::int[] IS NULL OR q.topic_id=ANY($4::int[]))
+ AND ${USABLE_LESSON}
  ${scopeSQL?'AND '+scopeSQL.sql:''}
- AND (${reader.role!=='student'?'TRUE OR ':''}b.kind='school' OR b.kind='department' AND b.department_id=$5 OR b.owner_id=$6 OR EXISTS(SELECT 1 FROM bank_memberships bm WHERE bm.bank_id=b.id AND bm.user_id=$6))`,[user.id,config.subject_id,config.grade,resolved||config.selection_mode==='yccd'?null:config.topic_ids,reader.department_id||null,reader.id,...(scopeSQL?.params||[])]);
+ AND (${reader.role!=='student'?'TRUE OR ':''}${studentBanks(5,6)})`,[user.id,config.subject_id,config.grade,resolved||config.selection_mode==='yccd'?null:config.topic_ids,reader.department_id||null,reader.id,...(scopeSQL?.params||[])]);
  return result.rows.filter(v=>!access||decide(access,'content.read',{subjectId:v.subject_id,grade:v.grade,bankId:v.bank_id}).allowed&&bankDecision(access,'read',access.org.banks.find(b=>b.id===v.bank_id)).allowed).filter(v=>!validateQuestion(v).errors.length).filter(v=>resolved||config.selection_mode!=='yccd'||!config.yccd_keys?.length||(config.yccd_keys.includes(yccdScope(v)?.key)||(v.yccd_id&&config.yccd_keys.includes(JSON.stringify(['master',v.yccd_id])))));
 }
 export async function contentOptions(user,raw){const d=z.object({subject_id:z.coerce.number().int().positive(),grade:z.coerce.number().int().min(1).max(12)}).parse(raw);return {yccd:yccdOptions(await candidates(pool,user,{...d,selection_mode:'yccd'}))};}
 export async function availability(user,raw){const config=configSchema.parse(raw);return selectQuestions(await candidates(pool,user,config),config,'preview');}
 async function lockedAttempt(client,user,id){const a=(await client.query('SELECT * FROM attempts WHERE id=$1 FOR UPDATE',[id])).rows[0];if(!a)fail('Không tìm thấy lượt luyện',404);if(a.student_id!==user.id)fail('Không có quyền với lượt luyện này',403);return a;}
-export async function createAttempt(user,raw,{assignmentId=null,retryId=null}={}){
+// minQuestions: sàn số câu riêng cho lượt luyện nhanh theo Bài (lessonMap.js); mặc định dùng practice_min_questions.
+export async function createAttempt(user,raw,{assignmentId=null,retryId=null,minQuestions=null}={}){
  if(user.role!=='student')fail('Chỉ học sinh tạo lượt luyện',403);
  return tx(async client=>{
   await client.query('SELECT id FROM users WHERE id=$1 FOR UPDATE',[user.id]);
@@ -53,7 +61,7 @@ export async function createAttempt(user,raw,{assignmentId=null,retryId=null}={}
    if(assignment.max_attempts&&used>=assignment.max_attempts)fail('Đã hết số lượt được phép');
    if(!retryId){config=configSchema.parse(assignment.config);fixed=assignment.kind==='fixed'?assignment.fixed_versions:null;frozenCurriculum=assignment.curriculum_snapshot;source='teacher_assigned';}
   }
-  if(!config){config=configSchema.parse(raw);if(config.count<cfg.practice_min_questions||config.count>cfg.practice_max_questions)fail(`Chọn ${cfg.practice_min_questions}–${cfg.practice_max_questions} câu`);}
+  if(!config){config=configSchema.parse(raw);const least=minQuestions??cfg.practice_min_questions;if(config.count<least||config.count>cfg.practice_max_questions)fail(`Chọn ${least}–${cfg.practice_max_questions} câu`);}
   const seed=crypto.randomUUID();let items;
   if(fixed){items=(await client.query('SELECT * FROM question_versions WHERE id=ANY($1::uuid[])',[fixed])).rows.sort((a,b)=>fixed.indexOf(a.id)-fixed.indexOf(b.id)).map(q=>({...q,selection_reason:source==='retry'?'repeat':'assigned'}));if(items.length!==fixed.length)fail('Bản câu hỏi đã khóa không đầy đủ');}
   else {const reader=assignment?(await client.query('SELECT id,role,subject_id,department_id FROM users WHERE id=$1',[assignment.created_by])).rows[0]:user;const result=selectQuestions(await candidates(client,user,config,{reader}),config,seed);if(result.shortages.length)fail('Kho chưa đủ câu theo cấu hình. Hãy giảm số câu hoặc sửa tỉ lệ.',409,result.shortages);items=result.items;}

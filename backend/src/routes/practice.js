@@ -37,6 +37,7 @@ import {importRoster,previewRoster,confirmRoster} from '../services/practice/ros
 import {buildWorksheet} from '../services/practice/worksheetExport.js';
 import {candidates} from '../services/practice/attempts.js';
 import {selectQuestions} from '../services/practice/selection.js';
+import {lessonCoverage,lessonMap,startLessons} from '../services/practice/lessonMap.js';
 const r=Router();r.use(auth);
 r.use(questionReviewRoutes);
 r.use(questionSources);
@@ -76,6 +77,10 @@ r.post('/attempts/:id/retry',wrap(async(req,res)=>res.status(201).json(await fre
 // Dashboard học sinh: cache 15 giây; tạo / nộp bài xóa ngay khóa của học sinh đó.
 const dashboardKey=id=>cacheKey('dashboard','student',id);
 const freshDashboard=async(req,value)=>{await invalidate(dashboardKey(req.user.id));return value;};
+// V6.8 — bản đồ bài học: độ phủ câu hỏi theo Bài (giáo viên); bản đồ + "Luyện ngay" một chạm (học sinh).
+r.get('/lesson-coverage',wrap(async(req,res)=>res.json(await lessonCoverage(req.user,req.query))));
+r.get('/lesson-map',wrap(async(req,res)=>res.json(await lessonMap(req.user,req.query))));
+r.post('/lessons/start',wrap(async(req,res)=>res.status(201).json(await freshDashboard(req,await startLessons(req.user,req.body)))));
 r.get('/dashboard',wrap(async(req,res)=>{if(req.user.role!=='student')fail('Trang dành cho học sinh',403);res.json(await cached(dashboardKey(req.user.id),15,()=>dashboard(req.user.id)));}));
 // Danh sách bài giao của học sinh: cache 20 giây theo thế hệ nội dung (giáo viên giao / sửa bài → thế hệ mới).
 r.get('/assignments',wrap(async(req,res)=>res.json(req.user.role==='student'?await cachedShared(['assignments','student',req.user.id],20,()=>listAssignments(req.user)):await listAssignments(req.user))));

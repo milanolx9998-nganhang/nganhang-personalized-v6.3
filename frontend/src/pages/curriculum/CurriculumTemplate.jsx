@@ -5,6 +5,7 @@ import {useEffect,useState} from 'react';
 import {Link} from 'react-router-dom';
 import {api,uploadFile,downloadFile} from '../../api/client.js';
 import CopyPrompt from '../../components/CopyPrompt.jsx';
+import LessonCoverage from './LessonCoverage.jsx';
 
 const base='/api/curriculum';
 const COUNT_LABELS={outcomes_added:'Chủ đề thêm',outcomes_renamed:'Chủ đề đổi tên',outcomes_removed:'Chủ đề bỏ',yccds_added:'YCCĐ thêm',yccds_changed:'YCCĐ sửa nội dung',yccds_removed:'YCCĐ bỏ',lessons_added:'Bài thêm',lessons_changed:'Bài đổi tên / đổi YCCĐ',lessons_kept_not_in_file:'Bài không có trong file (giữ nguyên)'};
@@ -88,6 +89,8 @@ export default function CurriculumTemplate({catalog}){
      <button className="btn" disabled={busy||!letter.code_letter||letter.reason.trim().length<3} onClick={()=>run(()=>api.put(`${base}/subjects/${subject}/code-letter`,letter),r=>`Đã đặt chữ ${r.subject.code_letter} cho môn ${r.subject.name}.`).then(r=>{if(r)setLetter({code_letter:'',reason:''});})}>Lưu chữ viết tắt</button>
     </details>}
    </article>
+
+   <LessonCoverage subject={subject} grade={grade}/>
 
    {ai&&ws.subject.letters.length>0&&<details className="practice-card">
     <summary>Dùng AI để điền file mẫu nhanh (ChatGPT, Gemini…)</summary>
