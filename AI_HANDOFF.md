@@ -39,6 +39,8 @@ Còn mở:
   - Nhập → duyệt: thanh 5 bước (Tải tệp → Kiểm tra & sửa → Lưu vào kho → Gửi duyệt → Được duyệt), nút "Lưu N câu vào kho", kết quả ghi rõ câu nháp chưa dùng được cho học sinh + bước tiếp; màn Duyệt có một dòng giải thích mỗi tab.
   - Test: unit + test mới `curriculum-template-v6674` (4), integration `v6674-subject-letter` (3: Toán nạp → công bố → mã `Câu T…` tự ra Outcome/YCCĐ/Bài; mẫu Word tải về nhập được ngay, AUTO_RESOLVED; quyền đổi chữ). Kết quả toàn bộ: xem AI_WORK_LOG.
   - Mẫu Word tĩnh `templates/question-import-khtn.docx` giữ nguyên (KHTN, dùng cho test); giao diện dùng mẫu sinh theo môn.
+- **2026-10-03 — V6.8 trên nhánh, CHƯA lên main:** bản đồ bài học cho học sinh (trang chủ: Chương → Bài, sao, "Em đang ở đây", "Em đang vướng gì", tự tạo đề từ nhiều Bài, chuỗi ngày, 8 huy hiệu; "Luyện ngay" một chạm, sàn riêng 5 câu mỗi Bài) + bảng độ phủ câu hỏi theo Bài cho giáo viên ở trang Chương trình môn học. Không có migration. Phụ huynh chưa làm. CI mới `.github/workflows/ci.yml` chạy trên máy GitHub cho mọi nhánh trừ main (build + unit + security + smoke 5 hành trình trên Postgres riêng); `deploy.yml` giữ nguyên. Giai đoạn 0 còn 3 việc anh Hiếu bảo bỏ qua lúc này: khoá Supabase + đổi khoá, thu hồi PAT, bảo vệ `main`.
+- **Giai đoạn 3 (thử với người thật):** bộ kịch bản + bảng bấm giờ ở `docs/thu-nghiem/Kich_ban_thu_giai_doan_3.xlsx`, chờ anh tổ chức thử và gửi lại file đã điền.
 - **Phương án V6.7 (chốt 2026-09-25, xem AI_WORK_LOG):** giai đoạn 0 an toàn → 1 giảm ma sát → 2 đánh bóng → 3 thử với người thật. Chưa làm wizard giao bài / ma trận.
 - smoke UI đăng nhập chưa làm.
 

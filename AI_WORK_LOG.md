@@ -800,3 +800,56 @@ Kết quả chạy toàn bộ: xem mục kế tiếp.
 **Deploy `0e9a809`** (anh Hiếu "up", thứ Bảy 13:43): fast-forward từ `9701b3e` (4 commit), CI run 36224598323 SUCCESS — Verify 54 giây, Deploy 35 giây (script deploy tự backup + migrate v6674 + health). `gh` trên máy này chưa đăng nhập: đọc trạng thái CI qua API công khai của repo (không dùng token).
 
 **Việc tiếp:** admin kiểm chữ viết tắt từng môn ở trang Chương trình môn học (đổi được khi môn chưa nạp chương trình); tổ trưởng các môn tải file mẫu mới; chạy lại test tải V6661 khi máy rảnh (sau khi dọn DB tạm).
+
+## 2026-10-03 — Đề xuất (CHƯA chốt): giao diện học sinh kiểu "bản đồ bài học"
+
+**Yêu cầu:** anh Hiếu gửi 5 ảnh một app "Ôn tập Toán tiểu học" (bản đồ học tập, đấu trường rèn luyện, tạo đề kiểm tra, bảng vàng, góc phụ huynh), hỏi đánh giá + kế hoạch. Chỉ đánh giá, không sửa code.
+
+**Hiện có ở phía học sinh (đã xem code):** `StudentHome.jsx` (ưu tiên tiếp theo, bài được giao, tối đa 2 nội dung nên củng cố); hồ sơ `portfolio/*` (thành thạo theo nội dung kèm độ tin cậy, bản đồ Outcome/YCCĐ, thói quen 30 ngày, gợi ý củng cố, lịch sử + xem lại bài làm); `learningSignals` chỉ nêu điểm yếu khi độ tin cậy từ trung bình. Thiếu: màn bản đồ theo Chương → Bài làm trang chủ, nút luyện 1 chạm theo Bài, tiến độ nhìn thấy được, lớp động lực, bản xem cho phụ huynh.
+
+**Nhận định:** lấy khung (bản đồ theo Bài, một hành động kế tiếp, tối đa 3 điểm vướng kèm tiêu chí thoát, tách nền tảng / thử thách, nói thật "chưa đủ dữ liệu"); không lấy vỏ (rương, đổi sao lấy đồ chơi, linh vật — app mẫu cho lớp 2, trường mình khối 6–12). App mẫu có số liệu tự mâu thuẫn trên cùng màn (35% và 42% cùng nhãn, chuỗi 4 và 5 ngày, radar vẽ khi mọi năng lực "chưa đủ dữ liệu") → không chép phần chỉ số.
+
+**Kế hoạch đề xuất:** P0 báo cáo độ phủ câu đã duyệt theo Bài (điều kiện để bản đồ không rỗng) → P1 trang chủ HS = bản đồ Chương → Bài + "Luyện ngay" → P2 "Em đang vướng gì" (tối đa 3, có nút luyện + tiêu chí thoát) → P3 tự tạo đề theo Bài (tick bài, preset, Giữa kỳ / Cuối kỳ) → P4 động lực nhẹ (chuỗi ngày, sao theo Bài) → P5 báo cáo phụ huynh / GVCN (cần quyết mô hình tài khoản). Chờ anh Hiếu chọn phạm vi (khối / môn thí điểm, mức trò chơi hoá, phụ huynh).
+
+**Chốt (anh Hiếu, 2026-10-03):** thí điểm KHTN 9; trò chơi hoá gồm chuỗi ngày + sao theo Bài + thêm huy hiệu ("cho vui"); phụ huynh tạm để đó, chưa làm. Kế hoạch V6.7 cũ: giai đoạn 1–2 đã lên web, giai đoạn 0 còn 4 việc (khoá Supabase + đổi khoá, thu hồi PAT, bảo vệ `main`, CI trên máy GitHub), giai đoạn 3 chưa bắt đầu.
+
+**Thứ tự anh Hiếu chốt ngay sau đó:** (1) giai đoạn 3 trước — AI soạn kịch bản thử + bảng bấm giờ, anh tổ chức người thử; (2) bản đồ bài học làm SAU, để kết quả thử quyết định làm gì trước. Bản đồ bài học: mới đọc code và thiết kế, CHƯA viết code. Giai đoạn 0 anh chưa nhắc tới.
+
+**Thiết kế bản đồ đã có (để dùng lại khi làm):** câu học sinh luyện được = điều kiện trong `candidates()` (`attempts.js`: bản đã duyệt, không lưu trữ / cách ly, Bài ACTIVE, liên kết Bài–YCCĐ còn hiệu lực, kho trường hoặc kho HS là thành viên); câu chưa gắn Bài không bao giờ được bốc. "Luyện ngay" cần endpoint riêng tự chọn số câu + tỉ lệ mức theo số câu đang có (máy chủ từ chối khi thiếu một mức), sàn là `practice_min_questions` (mặc định 10 — Bài dưới 10 câu chưa luyện riêng được). Thành thạo lưu theo (Bài, mức) ở `mastery_states`, thang 0–100; độ tin cậy MEDIUM cần 20 câu hiệu lực mỗi mức nên kho mỏng sẽ luôn "ít dữ liệu". Local KHTN 9: 84 câu đã duyệt trên 11/51 Bài.
+
+**Lỗi nhỏ thấy khi đọc, CHƯA sửa:** `toPercent()` trong `frontend/src/pages/practice/availability.jsx` tính lại số còn thiếu ở mỗi vòng lặp nên khi thiếu từ 2% trở lên, tỉ lệ số nguyên chỉ cộng tới 99 (hoặc 98) → gợi ý "giữ số câu, chia lại mức" cho ra cấu hình không hợp lệ (ví dụ 7 câu chia 1/2/2/2). Sửa: tính số thiếu một lần trước vòng lặp.
+
+## 2026-10-03 — Giai đoạn 3: kịch bản thử với người thật + bảng bấm giờ
+
+**Giao:** `docs/thu-nghiem/Kich_ban_thu_giai_doan_3.xlsx` (chưa commit). 7 sheet: Hướng dẫn · Chuẩn bị (11 việc) · KB Học sinh (HS1–HS4) · KB Giáo viên (GV1–GV4) · KB Tổ trưởng (TT1–TT3) · Bảng bấm giờ (100 dòng, ô vàng để điền, có dòng ví dụ) · Tổng hợp (tự tính).
+- Ba chỉ tiêu chốt 25/09: HS1 tự luyện ≤ 30 giây, GV1 giao bài ≤ 120 giây, TT1 duyệt ≤ 15 giây mỗi câu (đo 10 câu).
+- ĐẠT = trung vị không vượt chỉ tiêu VÀ tỉ lệ tự làm được ≥ 80% (ngưỡng là giả định của người soạn, sửa ở ô D3 sheet Tổng hợp). Nhiệm vụ không có chỉ tiêu: Ổn / Cần sửa theo tỉ lệ tự làm được.
+- Sheet Tổng hợp nối kết luận với việc làm trước (HS1 chưa đạt → bản đồ bài học + Luyện ngay; GV1 → giao bài từng bước; TT1 → cải tiến màn duyệt…).
+- Nhãn nút trong kịch bản đã đối chiếu với giao diện hiện tại; lời đọc không nêu tên nút. Không ghi tên thật học sinh (mã HS01…), không ghi mật khẩu.
+
+**Kiểm:** dựng bằng openpyxl; Excel 16 trên máy tính lại toàn bộ — 554 công thức, 0 lỗi; bản thử với 12 dòng dữ liệu giả cho đúng số tính tay (HS1: 5 lượt, 60% tự làm, trung vị 26,5 → CHƯA ĐẠT vì tỉ lệ; TT1: 14,5 giây/câu → ĐẠT); trang in: mỗi kịch bản 1 trang A4 ngang, bảng ghi 3 trang, tổng hợp 2 trang.
+
+**Việc tiếp:** anh Hiếu chuẩn bị theo sheet "Chuẩn bị" và tổ chức thử; gửi lại file đã điền → AI đọc sheet Tổng hợp + cột "Chỗ vướng" để chốt việc làm trước.
+
+## 2026-10-03 — V6.8: bản đồ bài học (đầy đủ, trừ phụ huynh) + CI trên máy GitHub
+
+**Yêu cầu:** anh Hiếu đổi ý, "làm full": làm luôn bản đồ bài học (không chờ buổi thử) và CI trên máy GitHub; bỏ qua 3 việc còn lại của giai đoạn 0 (khoá Supabase, thu hồi PAT, bảo vệ `main`). Làm trên nhánh, chưa đẩy main.
+
+**Bản đồ bài học:**
+- `services/practice/lessonMap.js` (mới): `lessonCoverage` (giáo viên), `lessonMap` + `startLessons` (học sinh); hàm thuần `lessonProgress`, `streakOf`, `badgesOf`. Routes `GET /api/practice/lesson-coverage`, `GET /lesson-map`, `POST /lessons/start`.
+- `attempts.js`: tách điều kiện "câu học sinh dùng được" thành `USABLE_FROM / USABLE_WHERE / USABLE_LESSON / studentBanks` (SQL của `candidates()` không đổi) để bản đồ đếm đúng như lúc bốc câu; `createAttempt` nhận `minQuestions`.
+- `selection.js`: `fitPercent` — giữ số câu, dồn mức thiếu sang mức gần nhất, tỉ lệ luôn cộng đủ 100.
+- Quy tắc: lượt luyện nhanh theo Bài có sàn riêng 5 câu (tự chọn bài luyện vẫn giữ `practice_min_questions` = 10), mỗi lượt tối đa 10 câu hoặc hết số câu của Bài; không lấy tự luận. Sao: 1 đã luyện · 2 điểm thành thạo từ 70 · 3 từ ngưỡng thành thạo qua ít nhất 2 lượt. "Đang vướng": từ 2 lượt mà điểm nền tảng (NB + TH) dưới 70, tối đa 3 Bài, có nút "Luyện phần nền tảng". Chuỗi ngày theo giờ Việt Nam. 8 huy hiệu, tính lại mỗi lần đọc (không có bảng mới, không migration).
+- Giao diện: `pages/practice/LessonMap.jsx` trong trang chủ học sinh (sau bài đang dở và bài được giao): chuỗi ngày, sao, "Em đang ở đây", "Em đang vướng gì", Chương → Bài với nút Luyện ngay / Luyện tiếp, "Tự tạo đề từ nhiều bài" (tick Bài, chọn cả chương, chọn các bài đã luyện, 10/15/20 câu), huy hiệu. Mục "Nội dung nên củng cố" cũ chỉ còn hiện khi chưa có bản đồ.
+- Giáo viên: `pages/curriculum/LessonCoverage.jsx` ở trang Chương trình môn học — bảng câu đã duyệt theo Bài × mức, Bài còn thiếu bao nhiêu câu, câu ở kho khác / chờ duyệt / chưa gắn Bài.
+- Không làm nút "Giữa kỳ / Cuối kỳ": hệ thống chưa có mốc học kỳ của Bài; thay bằng chọn theo chương và "Chọn các bài đã luyện".
+- Dữ liệu local KHTN 9: 72 câu tự chấm đã duyệt trên 11/51 Bài; với sàn 10 chỉ 1 Bài luyện được — lý do hạ sàn riêng xuống 5.
+
+**CI trên máy GitHub:** `.github/workflows/ci.yml` (mọi nhánh trừ main + pull request; `permissions: contents: read`, không dùng secret): job `verify` (build + unit + security + cổng migration so với main) và job `smoke` (Postgres 16 dịch vụ riêng → `npm run migrate` từ database trắng → `npm run seed` → `npm run test:smoke`). `backend/test/smoke/journeys.test.js`: 5 hành trình (khởi động; soạn → duyệt; chương trình / mẫu Word / lệnh AI; giao bài → làm → hồ sơ; bản đồ bài học). Chỉ chạy khi tên database kết thúc `_ci` / `_smoke`. `deploy.yml` giữ nguyên.
+
+**Kiểm:**
+- unit `lesson-map-v68` 4/4; integration `v68-lesson-map` 5/5 (gồm trình duyệt: trang chủ học sinh, không tràn ngang ở 390 px, bấm "Luyện tiếp" vào thẳng bài làm; giáo viên mở bảng độ phủ);
+- smoke 5/5 trên database trắng tạo tại local (PostgreSQL 16.13, migrate từ số 0), đã xoá database tạm đó;
+- toàn bộ: unit 137/137, security 27/27, integration 168/168 (test tải V6661 lần này qua), build frontend đạt.
+
+**Việc tiếp:** chờ anh Hiếu "up main". Sau khi đẩy nhánh: xem job CI đầu tiên trên GitHub có xanh không. Bảo vệ `main` bằng "bắt buộc CI xanh" chỉ dùng được khi đổi sang luồng pull request (đẩy thẳng main thì CI này không chạy trên commit đó).
