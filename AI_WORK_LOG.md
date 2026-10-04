@@ -912,3 +912,9 @@ Kết quả chạy toàn bộ: xem mục kế tiếp.
 **Kiểm:** integration `v68-lesson-map` thêm khung năng lực mẫu KHTN + ánh xạ YCCĐ trong fixture; kiểm `subjects[].score/practiced` (môn chưa luyện = null), `competency-profile` (trục chỉ nhận minh chứng thầy cô để trống), và trên trình duyệt: thiếu một trục thì không tô vùng, sau khi ghi một minh chứng thực hành thì tô vùng và trục đó là chấm rỗng. Ảnh: `artifacts/v68-ability.png`, `v68-ability-full.png`, `v68-ability-mobile.png` (đã xem cả hai cỡ màn). Toàn bộ: unit 137/137, security 27/27, integration 168/168, build đạt.
 
 **Điều cần anh Hiếu quyết (chưa làm):** trên web thật biểu đồ năng lực theo môn sẽ trống cho tới khi (1) nhà trường công bố khung năng lực của môn (mẫu KHTN 3 thành phần, Toán 5 thành phần đã có sẵn), (2) YCCĐ / câu hỏi được gắn vào thành phần năng lực, (3) học sinh làm bài sau thời điểm gắn (bài cũ không suy ngược). "Tìm hiểu tự nhiên" không tính từ câu tự chấm, cần thầy cô ghi minh chứng thực hành. Ba cách gắn đã nêu: tự động theo mức nhận thức của câu; tổ trưởng gắn theo YCCĐ / Chủ đề (cần công cụ gắn hàng loạt); thêm cột năng lực vào mẫu Excel chương trình.
+
+## 2026-10-04 22:07 — Đẩy main `7014202` (anh Hiếu "up main"); deploy CHƯA chạy
+
+- Trước đó main đã ở `b6a3d7a` (V6.8 bản đồ bài học + CI, deploy trưa 04/10, run xanh). Lần này fast-forward thêm 2 commit: `64c513d` (trang chủ học sinh làm lại phần nhìn) và `7014202` (biểu đồ năng lực). Không có migration.
+- Run "Verify & Deploy" 37211882838 nằm ở trạng thái `queued`, chưa có runner nhận sau 13 phút (22:08 → 22:21): runner self-hosted trên máy Home không trực tuyến hoặc đang bận. Web thật vẫn chạy bản `b6a3d7a`.
+- Việc tiếp: anh Hiếu / AI Ubuntu kiểm máy Home và dịch vụ GitHub runner; runner lên lại thì run đang xếp hàng tự chạy (GitHub giữ hàng đợi tối đa 24 giờ, quá hạn thì bấm "Re-run"). Lỗi tỉ lệ 99% ở `availability.jsx` vẫn chưa sửa (phiên riêng không tạo commit nào).
