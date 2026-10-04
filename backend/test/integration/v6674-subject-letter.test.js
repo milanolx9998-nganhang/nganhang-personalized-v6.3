@@ -84,13 +84,14 @@ test('V6674 Toán: file mẫu không cột Phân môn, có Ví dụ + Dùng AI; 
   assert.match(res.headers.get('content-disposition'), /Mau_chuong_trinh_Toan_khoi10\.xlsx/);
   const s = sheets(buffer);
   assert.deepEqual(Object.keys(s), ['Hướng dẫn', 'Chương trình', 'Bài học', 'Ví dụ', 'Dùng AI']);
-  assert.deepEqual(s['Chương trình'][0], ['Số Chủ đề', 'Tên Chủ đề (Outcome)', 'Số YCCĐ', 'Nội dung YCCĐ', 'Trang / nguồn']);
+  assert.deepEqual(s['Chương trình'][0], ['Số Chủ đề', 'Tên Chủ đề (Outcome)', 'Số YCCĐ', 'Nội dung YCCĐ', 'Năng lực', 'Trang / nguồn']);
+  assert.match(s['Hướng dẫn'].flat().join('\n'), /C1 = Tư duy và lập luận toán học/, 'Hướng dẫn liệt kê thành phần năng lực của môn');
   assert.deepEqual(s['Bài học'][0], ['Chương / Chủ đề SGK', 'Số bài', 'Tên bài', 'Mã YCCĐ của bài']);
   assert(s['Ví dụ'].flat().includes('T.1.2; T.1.3'), 'Ví dụ Toán dùng chữ T');
   assert.match(s['Dùng AI'].flat().join('\n'), /Câu T\. 1\. 1\. NB\. 1\. TN/);
 
   // Giáo viên điền Chương trình và thêm mã vào các Bài đang có (thiếu chữ thì hệ thống tự thêm T).
-  const cur = [s['Chương trình'][0], [1, 'Mệnh đề và tập hợp', 1, 'Phát biểu được mệnh đề toán học.', 'tr. 1'], ['', '', 2, 'Nhận biết được tập con, tập rỗng.', ''],
+  const cur = [s['Chương trình'][0], [1, 'Mệnh đề và tập hợp', 1, 'Phát biểu được mệnh đề toán học.', 'C1; c4', 'tr. 1'], ['', '', 2, 'Nhận biết được tập con, tập rỗng.', 'Sử dụng công cụ, phương tiện học toán', ''],
     [2, 'Bất phương trình bậc nhất hai ẩn', 1, 'Nhận biết được bất phương trình bậc nhất hai ẩn.', '']];
   const les = s['Bài học'].map(r => [...r]);
   const setCodes = (title, codes, number) => { const row = les.find(r => String(r[2]).trim() === title); if (row) row[3] = codes; else les.push(['Chương kiểm thử', number, title, codes]); };
@@ -99,7 +100,10 @@ test('V6674 Toán: file mẫu không cột Phân môn, có Ví dụ + Dùng AI; 
   const preview = await post('/curriculum/template/preview', {subject_id: toan, grade: GRADE}, file, 'Mau.xlsx');
   expect(preview, 200);
   assert.equal(preview.data.ok, true, JSON.stringify(preview.data.errors));
-  assert.deepEqual({...preview.data.counts, lessons: undefined}, {outcomes: 2, yccds: 3, lessons: undefined, links: 3});
+  assert.deepEqual({...preview.data.counts, lessons: undefined}, {outcomes: 2, yccds: 3, lessons: undefined, links: 3, abilities: 2});
+  const badAbility = await post('/curriculum/template/preview', {subject_id: toan, grade: GRADE}, workbook({...s, 'Chương trình': [cur[0], [1, 'Mệnh đề', 1, 'YCCĐ', 'C9', '']], 'Bài học': [s['Bài học'][0]]}), 'Mau.xlsx');
+  assert.equal(badAbility.data.ok, false);
+  assert.match(badAbility.data.errors.map(e => e.message).join('\n'), /Năng lực "C9" không có trong khung của môn/);
 
   // Mã chữ của môn khác bị chặn ngay ở bước kiểm tra, không tạo gì.
   const wrong = await post('/curriculum/template/preview', {subject_id: toan, grade: GRADE}, workbook({...s, 'Chương trình': cur, 'Bài học': [s['Bài học'][0], ['', 1, 'Mệnh đề', 'L.1.1']]}), 'Mau.xlsx');
@@ -120,11 +124,21 @@ test('V6674 Toán: file mẫu không cột Phân môn, có Ví dụ + Dùng AI; 
   assert.equal(ws.data.can.set_letter, true);
   assert.deepEqual(ws.data.draft.outcomes.flatMap(o => o.yccds.map(y => y.label)), ['T.1.1', 'T.1.2', 'T.2.1']);
   assert.equal(ws.data.draft.diff.counts.lessons_kept_not_in_file, 0);
+  assert.deepEqual(ws.data.draft.abilities, {mapped: 2, total: 3});
+  assert.deepEqual(ws.data.draft.outcomes[0].yccds.map(y => y.abilities), [['C1', 'C4'], ['C5']]);
+  assert.equal(ws.data.subject.abilities.length, 5);
 
   const pub = await call('POST', `/curriculum/versions/${draftId}/publish`, {revision: ws.data.draft.revision, confirmed: true, reason: 'Công bố Toán kiểm thử'});
   expect(pub, 200);
   assert.equal(pub.data.lessons.links_created, 3, JSON.stringify(pub.data.lessons));
   assert.deepEqual(pub.data.lessons.skipped, []);
+  // Công bố: cột Năng lực thành bản gắn năng lực cho YCCĐ của bản vừa công bố, chia đều trọng số.
+  assert.deepEqual(pub.data.abilities, {mapped: 2, skipped: []});
+  const maps = (await db.query("SELECT y.code,m.entries FROM competency_mapping_versions m JOIN curriculum_yccds y ON y.id=m.target_id::int WHERE m.target_type='yccd' AND y.curriculum_version_id=$1 ORDER BY y.code", [draftId])).rows;
+  assert.deepEqual(maps.map(m => [m.code, m.entries.map(e => [e.code, e.weight])]), [['T.1.1', [['C1', 0.5], ['C4', 0.5]]], ['T.1.2', [['C5', 1]]]]);
+  // Tải lại file từ bản đang dùng: cột Năng lực giữ đúng mã đã nạp.
+  const again = sheets((await download(`/curriculum/template?${q()}`)).buffer)['Chương trình'];
+  assert.deepEqual(again.slice(1).map(r => r[4]), ['C1; C4', 'C5', '']);
   yccdIds = Object.fromEntries((await db.query('SELECT code,id FROM curriculum_yccds WHERE curriculum_version_id=$1', [draftId])).rows.map(r => [r.code, r.id]));
 });
 

@@ -95,7 +95,7 @@ test('V6673 mẫu: tải về có sẵn chương trình + Bài; tải lại nguy
   original = Buffer.from(await res.arrayBuffer());
   const s = sheets(original);
   assert.deepEqual(Object.keys(s), ['Hướng dẫn', 'Chương trình', 'Bài học', 'Ví dụ', 'Dùng AI']);
-  assert.deepEqual(s['Chương trình'][0], ['Phân môn', 'Số Chủ đề', 'Tên Chủ đề (Outcome)', 'Số YCCĐ', 'Nội dung YCCĐ', 'Trang / nguồn']);
+  assert.deepEqual(s['Chương trình'][0], ['Phân môn', 'Số Chủ đề', 'Tên Chủ đề (Outcome)', 'Số YCCĐ', 'Nội dung YCCĐ', 'Năng lực', 'Trang / nguồn']);
   assert(s['Chương trình'].some(r => r[0] === 'L' && r[1] === 2 && r[3] === 1), 'Có dòng L.2.1');
   const bai2 = s['Bài học'].find(r => r[1] === 2);
   assert(bai2 && String(bai2[4]).split('; ').includes('L.2.1'), 'Bài 2 có mã L.2.1: ' + JSON.stringify(bai2));

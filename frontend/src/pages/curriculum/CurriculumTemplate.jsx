@@ -8,7 +8,7 @@ import CopyPrompt from '../../components/CopyPrompt.jsx';
 import LessonCoverage from './LessonCoverage.jsx';
 
 const base='/api/curriculum';
-const COUNT_LABELS={outcomes_added:'Chủ đề thêm',outcomes_renamed:'Chủ đề đổi tên',outcomes_removed:'Chủ đề bỏ',yccds_added:'YCCĐ thêm',yccds_changed:'YCCĐ sửa nội dung',yccds_removed:'YCCĐ bỏ',lessons_added:'Bài thêm',lessons_changed:'Bài đổi tên / đổi YCCĐ',lessons_kept_not_in_file:'Bài không có trong file (giữ nguyên)'};
+const COUNT_LABELS={outcomes_added:'Chủ đề thêm',outcomes_renamed:'Chủ đề đổi tên',outcomes_removed:'Chủ đề bỏ',yccds_added:'YCCĐ thêm',yccds_changed:'YCCĐ sửa nội dung',yccds_ability_changed:'YCCĐ đổi năng lực',yccds_removed:'YCCĐ bỏ',lessons_added:'Bài thêm',lessons_changed:'Bài đổi tên / đổi YCCĐ',lessons_kept_not_in_file:'Bài không có trong file (giữ nguyên)'};
 const date=v=>v?new Date(v).toLocaleString('vi-VN',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
 
 function Diff({diff}){
@@ -24,6 +24,7 @@ function Diff({diff}){
    {diff.yccds.added.map(y=><p key={'ya'+y.label}>+ YCCĐ <b>{y.label}</b> · {y.text}</p>)}
    {diff.yccds.changed.map(y=><p key={'yc'+y.label}>~ YCCĐ <b>{y.label}</b>: {y.before} → <strong>{y.after}</strong></p>)}
    {diff.yccds.removed.map(y=><p key={'yd'+y.label}>− YCCĐ <b>{y.label}</b> · {y.text}</p>)}
+   {(diff.yccds.abilities||[]).map(y=><p key={'yn'+y.label}>~ Năng lực của YCCĐ <b>{y.label}</b>: {y.before||'chưa ghi'} → <strong>{y.after||'bỏ trống'}</strong></p>)}
    {diff.lessons.added.map(l=><p key={'la'+l.number}>+ Bài {l.number}: {l.name} · {l.codes.join('; ')||'chưa có YCCĐ'}</p>)}
    {diff.lessons.changed.map(l=><p key={'lc'+l.number}>~ Bài {l.number}: {l.name}{l.fields.length?' · đổi '+l.fields.join(', '):''}{l.added_codes.length?' · thêm '+l.added_codes.join('; '):''}{l.removed_codes.length?' · bỏ '+l.removed_codes.join('; '):''}</p>)}
    {diff.lessons.removed.map(l=><p key={'lr'+l.number}>· Bài {l.number}: {l.name} — không có trong file, giữ nguyên</p>)}
@@ -74,6 +75,9 @@ export default function CurriculumTemplate({catalog}){
     {ws.subject.letters.length
      ?<p>Mã câu hỏi môn {ws.subject.name}: chữ đầu mã <b>{ws.subject.letter_hint}</b> · ví dụ <code className="code-hint">{example}</code> (chữ môn · Chủ đề · YCCĐ · Mức · Số câu · Dạng).</p>
      :<p className="warn-box">Môn {ws.subject.name} chưa có chữ viết tắt dùng trong mã câu hỏi nên chưa nạp được file mẫu. {ws.can.set_letter?'Đặt chữ ở mục bên dưới.':'Nhờ quản trị đặt chữ viết tắt cho môn.'}</p>}
+    {ws.subject.abilities.length>0&&<p>Năng lực của môn (CT GDPT 2018): {ws.subject.abilities.map(a=>a.code+' = '+a.name).join(' · ')}. {ws.subject.auto_abilities
+      ?'Cột “Năng lực” trong file mẫu để trống cũng được: hệ thống tự ước tính theo mức của câu hỏi. Ghi mã thì hệ thống dùng đúng mã đã ghi.'
+      :'Môn này cần ghi mã ở cột “Năng lực” của file mẫu cho từng YCCĐ (file có hướng dẫn, ví dụ và lệnh AI điền hộ); YCCĐ để trống thì câu hỏi của nó chưa vào biểu đồ năng lực của học sinh.'}</p>}
     <div className="practice-actions">
      <button className="btn primary" disabled={busy} onClick={()=>run(()=>downloadFile(base+'/template?'+query,`Mau_chuong_trinh_khoi${grade}.xlsx`))}>Tải file mẫu Excel{draft?' (theo bản nháp)':''}</button>
      {ws.subject.letters.length>0&&<button className="btn" disabled={busy} onClick={()=>run(()=>downloadFile(base+'/template/word?'+query,`Mau_Word_nhap_cau_khoi${grade}.docx`))}>Tải mẫu Word nhập câu</button>}
@@ -112,7 +116,7 @@ export default function CurriculumTemplate({catalog}){
     {preview&&!preview.ok&&<Problems title="Lỗi" items={preview.errors}/>}
     {preview&&<Problems title="Lưu ý" items={preview.warnings}/>}
     {preview?.ok&&<>
-     <p className="ok-box">File hợp lệ: {preview.counts.outcomes} Chủ đề · {preview.counts.yccds} YCCĐ · {preview.counts.lessons} Bài · {preview.counts.links} liên kết Bài–YCCĐ.</p>
+     <p className="ok-box">File hợp lệ: {preview.counts.outcomes} Chủ đề · {preview.counts.yccds} YCCĐ · {preview.counts.lessons} Bài · {preview.counts.links} liên kết Bài–YCCĐ{ws.subject.abilities.length>0?` · ${preview.counts.abilities}/${preview.counts.yccds} YCCĐ có ghi năng lực`:''}.</p>
      <h4>Thay đổi so với bản đang dùng</h4><Diff diff={preview.diff}/>
      {preview.replaces_draft&&<p className="warn-box">Bản nháp {preview.replaces_draft} đang mở sẽ được lưu trữ và thay bằng nội dung file này.</p>}
      <label>Lý do / căn cứ<textarea value={reason} onChange={e=>setReason(e.target.value)} placeholder="Ví dụ: Cập nhật chương trình năm học 2026-2027 theo kế hoạch dạy học của tổ"/></label>
@@ -122,6 +126,7 @@ export default function CurriculumTemplate({catalog}){
 
    {draft&&<article className="practice-card">
     <h3>Bản nháp {draft.version_code}</h3>
+    {ws.subject.abilities.length>0&&<p>Cột Năng lực: {draft.abilities.mapped}/{draft.abilities.total} YCCĐ đã ghi{ws.subject.auto_abilities?' (phần còn lại hệ thống tự ước tính theo mức câu hỏi)':''}. Sửa cột này trong file mẫu rồi tải lên lại.</p>}
     <h4>Thay đổi so với bản đang dùng</h4><Diff diff={draft.diff}/>
     {ws.can.import&&<>
      <label>Lý do sửa (dùng cho các lần lưu bên dưới)<input value={editReason} onChange={e=>setEditReason(e.target.value)} placeholder="Ví dụ: sửa lỗi chính tả YCCĐ"/></label>
@@ -160,7 +165,7 @@ export default function CurriculumTemplate({catalog}){
      <p>Công bố xong: bản này thành chương trình đang dùng (mã câu hỏi mới đối chiếu theo bản này), Bài và liên kết Bài–YCCĐ được dựng lại theo danh sách Bài. Bản cũ vẫn giữ trong lịch sử; câu hỏi và bài làm cũ không bị sửa.</p>
      <label>Lý do công bố<input value={publishReason} onChange={e=>setPublishReason(e.target.value)}/></label>
      <label className="check-label"><input type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/>Tôi đã rà nội dung bản nháp</label>
-     <button className="btn primary" disabled={busy||!confirmed||publishReason.trim().length<3} onClick={()=>run(()=>api.post(`${base}/versions/${draft.id}/publish`,{revision:draft.revision,confirmed:true,reason:publishReason}),r=>{setPublished(r.lessons);setConfirmed(false);return 'Đã công bố.'+(r.lessons?` Bài: tạo ${r.lessons.topics_created}, cập nhật ${r.lessons.topics_updated}; liên kết mới ${r.lessons.links_created}.`:'');})}>Công bố bản nháp</button>
+     <button className="btn primary" disabled={busy||!confirmed||publishReason.trim().length<3} onClick={()=>run(()=>api.post(`${base}/versions/${draft.id}/publish`,{revision:draft.revision,confirmed:true,reason:publishReason}),r=>{setPublished(r.lessons);setConfirmed(false);return 'Đã công bố.'+(r.abilities?` Năng lực: gắn ${r.abilities.mapped} YCCĐ.`:'')+(r.lessons?` Bài: tạo ${r.lessons.topics_created}, cập nhật ${r.lessons.topics_updated}; liên kết mới ${r.lessons.links_created}.`:'');})}>Công bố bản nháp</button>
     </div>:<p className="staff-muted">Bản nháp chờ BGH chuyên môn / quản trị công bố.</p>}
    </article>}
    {published?.skipped?.length>0&&<Problems title="Lưu ý" items={published.skipped.map(s=>({at:'Bài '+s.lesson,message:`${s.code}: ${s.reason}`}))}/>}

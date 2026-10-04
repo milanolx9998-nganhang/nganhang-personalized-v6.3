@@ -58,3 +58,41 @@ test('V6674 lệnh AI: KHTN có cột Phân môn và chữ L/H/S; Toán không c
   assert.match(t.questions, /Câu T\. 1\. 1\. NB\. 1\. TN/);
   assert.doesNotMatch(Object.values(k).join('\n') + Object.values(t).join('\n'), /"/);
 });
+
+// V6.8.2 — cột "Năng lực" của sheet Chương trình: gắn YCCĐ vào thành phần năng lực của môn ngay trong file mẫu.
+const van = {id: 7, code: 'NguVan', name: 'Ngữ Văn', code_letter: 'V', branches: [], auto_abilities: false,
+  axes: [{id: 1, code: 'C1', name: 'Đọc'}, {id: 2, code: 'C2', name: 'Viết'}, {id: 3, code: 'C3', name: 'Nói và nghe'}]};
+const HEAD_ABLE = ['Số Chủ đề', 'Tên Chủ đề (Outcome)', 'Số YCCĐ', 'Nội dung YCCĐ', 'Năng lực', 'Trang / nguồn'];
+
+test('V682 cột Năng lực: nhận mã hoặc tên thành phần, nhiều mã cách nhau bằng dấu ;, tên có dấu phẩy không bị tách sai', () => {
+  const khoa = {...toan, axes: [{id: 1, code: 'C1', name: 'Nhận thức'}, {id: 3, code: 'C3', name: 'Vận dụng kiến thức, kĩ năng đã học'}], auto_abilities: true};
+  const parsed = parseTemplate(book([HEAD_ABLE, [1, 'Chủ đề', 1, 'Một', 'c1; C3', ''], ['', '', 2, 'Hai', 'Vận dụng kiến thức, kĩ năng đã học', ''], ['', '', 3, 'Ba', 'C1, C3', ''], ['', '', 4, 'Bốn', '', '']],
+    [['Số bài', 'Tên bài', 'Mã YCCĐ của bài']]), {subject: khoa});
+  assert.deepEqual(parsed.errors, []);
+  assert.deepEqual(parsed.outcomes[0].yccds.map(y => y.abilities), [['C1', 'C3'], ['C3'], ['C1', 'C3'], []]);
+  assert.deepEqual(parsed.warnings, [], 'môn có quy tắc tự động thì để trống không bị nhắc');
+});
+
+test('V682 cột Năng lực: mã lạ báo lỗi kèm danh sách dùng được; môn tính theo kĩ năng nhắc số YCCĐ còn trống', () => {
+  const rows = [HEAD_ABLE, [1, 'Đọc hiểu văn bản', 1, 'Một', 'Đọc', ''], ['', '', 2, 'Hai', '', ''], ['', '', 3, 'Ba', '', '']];
+  const ok = parseTemplate(book(rows, [['Số bài', 'Tên bài', 'Mã YCCĐ của bài']]), {subject: van});
+  assert.deepEqual(ok.errors, []);
+  assert.match(ok.warnings.map(w => w.message).join('\n'), /2 YCCĐ chưa ghi cột Năng lực/);
+  const bad = parseTemplate(book([HEAD_ABLE, [1, 'Chủ đề', 1, 'Một', 'C9', '']], [['Số bài', 'Tên bài', 'Mã YCCĐ của bài']]), {subject: van});
+  assert.match(bad.errors[0].message, /Năng lực "C9" không có trong khung của môn \(dùng: C1 = Đọc; C2 = Viết; C3 = Nói và nghe\)/);
+});
+
+test('V682 file mẫu: có cột Năng lực, hướng dẫn liệt kê thành phần của môn, lệnh AI biết điền cột này; tải về nạp lại giữ nguyên', async () => {
+  const data = {outcomes: [{branch: 'V', number: 1, title: 'Đọc hiểu', yccds: [{number: 1, text: 'YCCĐ một', page: '', abilities: ['C1']}, {number: 2, text: 'YCCĐ hai', page: '', abilities: []}]}], lessons: []};
+  const buffer = buildWorkbook(data, {subject: van, grade: 10, source: 'thử'});
+  const wb = XLSX.read(buffer), rows = name => XLSX.utils.sheet_to_json(wb.Sheets[name], {header: 1, defval: ''});
+  assert.deepEqual(rows(SHEETS.curriculum)[0], HEAD_ABLE);
+  assert.deepEqual(rows(SHEETS.curriculum).slice(1).map(r => r[4]), ['C1', '']);
+  const guide = rows(SHEETS.guide).flat().join('\n');
+  assert.match(guide, /C1 = Đọc; C2 = Viết; C3 = Nói và nghe/);
+  assert.match(guide, /KHÔNG tự ước tính được/);
+  assert.match(buildPrompts(van, 10).curriculum, /Cột Năng lực: ghi MÃ thành phần năng lực.*C1 = Đọc/);
+  const parsed = parseTemplate(await parseWorkbook({originalname: 'mau.xlsx', buffer}), {subject: van});
+  assert.deepEqual(parsed.errors, []);
+  assert.deepEqual(parsed.outcomes[0].yccds.map(y => y.abilities), [['C1'], []]);
+});

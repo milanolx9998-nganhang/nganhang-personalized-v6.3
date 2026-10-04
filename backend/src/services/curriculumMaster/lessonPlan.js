@@ -63,6 +63,38 @@ export async function currentLessons(c, subjectId, grade, outcomes) {
   })).sort((a, b) => a.number - b.number);
 }
 
+// Khung năng lực đang dùng của môn + khối (bản công bố mới nhất): các thành phần và quy tắc mặc định theo mức nhận thức.
+export async function frameworkOf(c, subjectId, grade) {
+  const f = (await c.query("SELECT id,title,level_rule FROM competency_frameworks WHERE subject_id=$1 AND grade_from<=$2 AND grade_to>=$2 AND status='PUBLISHED' ORDER BY published_at DESC,id DESC LIMIT 1", [subjectId, grade])).rows[0];
+  if (!f) return null;
+  f.axes = (await c.query("SELECT id,code,name,allowed_evidence,framework_id FROM competency_axes WHERE framework_id=$1 AND status='ACTIVE' ORDER BY order_index,id", [f.id])).rows;
+  return f;
+}
+
+// Năng lực đang gắn cho từng YCCĐ của môn + khối (bản gắn mới nhất): yccd id → {mã thành phần, entries}.
+export async function yccdAbilities(c, subjectId, grade) {
+  const rows = (await c.query("SELECT DISTINCT ON(target_id) id,target_id,entries FROM competency_mapping_versions WHERE subject_id=$1 AND grade=$2 AND target_type='yccd' ORDER BY target_id,id DESC", [subjectId, grade])).rows;
+  return new Map(rows.map(r => [Number(r.target_id), {mapping_id: Number(r.id), entries: r.entries || [], codes: (r.entries || []).map(e => e.code).filter(Boolean)}]));
+}
+
+// Cột "Năng lực" của file mẫu (lesson_plan.competencies: nhãn YCCĐ → mã thành phần) thành bản gắn năng lực cho YCCĐ của phiên bản
+// vừa công bố, chia đều trọng số. YCCĐ của phiên bản mới là dòng mới nên luôn ghi bản gắn mới; bản cũ giữ làm lịch sử.
+export async function applyCompetencyPlan(c, v, actor) {
+  const plan = Object.entries(v.lesson_plan?.competencies || {}).filter(([, codes]) => codes?.length);
+  if (!plan.length) return null;
+  const labels = await versionLabels(c, v.id), axes = (await frameworkOf(c, v.subject_id, v.grade))?.axes || [], out = {mapped: 0, skipped: []};
+  for (const [label, codes] of plan) {
+    const y = labels.get(label), picked = codes.map(code => axes.find(a => a.code === code));
+    if (!y) { out.skipped.push({code: label, reason: 'Không có YCCĐ này trong phiên bản'}); continue; }
+    if (picked.some(a => !a)) { out.skipped.push({code: label, reason: 'Năng lực không còn trong khung đang dùng: ' + codes.join('; ')}); continue; }
+    const entries = picked.map(a => ({axis_id: a.id, weight: 1 / picked.length, allowed_evidence: a.allowed_evidence, framework_id: a.framework_id, code: a.code, name: a.name}));
+    await c.query("INSERT INTO competency_mapping_versions(subject_id,grade,target_type,target_id,entries,reason,created_by) VALUES($1,$2,'yccd',$3,$4,$5,$6)",
+      [v.subject_id, v.grade, String(y.id), JSON.stringify(entries), 'Theo cột Năng lực của file mẫu chương trình ' + v.version_code, actor.id]);
+    out.mapped++;
+  }
+  return out;
+}
+
 export async function applyLessonPlan(c, v) {
   const plan = v.lesson_plan?.lessons || [];
   if (!plan.length) return null;

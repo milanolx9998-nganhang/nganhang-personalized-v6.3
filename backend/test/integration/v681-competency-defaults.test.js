@@ -24,7 +24,7 @@ const connection = {host: process.env.DB_HOST, port: process.env.DB_PORT, user: 
 const adminPool = new pg.Pool({...connection, database: source});
 const pw = crypto.randomBytes(12).toString('base64url');
 const GRADE = 8;
-let db, server, admin, student, studentId, khtn, lessonId;
+let db, server, admin, student, studentId, khtn, lessonId, yccdId;
 
 async function req(method, url, body, token = admin) {
   const res = await fetch(origin + '/api' + url, {method, headers: {Authorization: 'Bearer ' + token, ...(body !== undefined ? {'Content-Type': 'application/json'} : {})}, body: body === undefined ? undefined : JSON.stringify(body)});
@@ -56,6 +56,7 @@ test.before(async () => {
   const yccd = (await db.query("INSERT INTO curriculum_yccds(outcome_id,code,text) VALUES($1,'V681.Y','YCCĐ giả lập') RETURNING id", [outcome])).rows[0].id;
   lessonId = (await db.query("INSERT INTO topics(subject_id,grade,chapter,name,order_index) VALUES($1,$2,'Chương V681','Bài 901: Kiểm thử năng lực',901) RETURNING id", [khtn, GRADE])).rows[0].id;
   await db.query("INSERT INTO topic_yccd_map(topic_id,yccd_id,status) VALUES($1,$2,'ACTIVE')", [lessonId, yccd]);
+  yccdId = yccd;
 
   fs.mkdirSync(uploadsDir, {recursive: true});
   const log = fs.openSync(path.join(artifacts, 'v681-server.log'), 'w');
@@ -112,4 +113,15 @@ test('V681: làm bài KHTN không cần ai gắn năng lực — biểu đồ c�
   assert.deepEqual([c1.performance_score, c1.evidence_count], [100, 6], 'câu nhận biết → Nhận thức KHTN');
   assert.deepEqual([c2.performance_score, c2.evidence_count], [0, 4], 'câu vận dụng → một phần Tìm hiểu tự nhiên');
   assert.deepEqual([c3.performance_score, c3.evidence_count], [0, 4], 'câu vận dụng → Vận dụng kiến thức, kĩ năng');
+});
+
+test('V682: YCCĐ được gắn năng lực (như cột Năng lực của file mẫu) thì thắng quy tắc theo mức, kể cả với bài đã làm trước đó', async () => {
+  const axes = (await req('GET', '/competency/frameworks')).data.frameworks.find(f => f.code === 'GDPT2018-KHTN').axes;
+  const c2 = axes.find(a => a.code === 'C2');
+  expect(await req('PUT', '/competency/mappings/yccd/' + yccdId, {entries: [{axis_id: c2.id, weight: 1}], normalize: true, confirmed: true, reason: 'Gắn theo YCCĐ'}), 200);
+  const p = await req('GET', `/practice/students/${studentId}/competency-profile?subject_id=${khtn}&grade=${GRADE}`, undefined, student);
+  expect(p, 200);
+  assert.deepEqual([p.data.estimated_items, p.data.unmapped_items], [0, 0]);
+  assert.deepEqual(p.data.axes.map(a => a.evidence_count), [0, 10, 0], 'cả 10 câu tính cho Tìm hiểu tự nhiên');
+  assert.equal(p.data.axes[1].performance_score, 60, '6 câu đúng trên 10');
 });

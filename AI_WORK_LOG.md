@@ -934,3 +934,18 @@ Kết quả chạy toàn bộ: xem mục kế tiếp.
 **Việc tiếp:** chờ anh Hiếu "up main" (có migration v681). Deploy `7014202` đã chạy xong, thành công lúc 22:30 ngày 04/10 (runner máy Home nhận việc trễ khoảng 20 phút); web thật đang ở `7014202`.
 
 **Deploy `8d0d9d4`** (anh Hiếu "up main", thứ Hai 00:10): fast-forward từ `7014202`, CI run 37219559269 SUCCESS — Verify 63 giây, Deploy 35 giây; migration v681 chạy trong deploy. Chưa kiểm giao diện web thật.
+
+## 2026-10-05 — V6.8.2: cột "Năng lực" trong file mẫu chương trình
+
+**Yêu cầu:** anh Hiếu: gắn năng lực bằng tay ở trang nâng cao quá khó hiểu; các môn còn lại (không có quy tắc tự động) phải nạp bằng mẫu, có hướng dẫn đọc hiểu.
+
+**Thay đổi (không có migration):**
+- File mẫu Excel: sheet Chương trình thêm cột "Năng lực" (chỉ khi môn + khối có khung đã công bố), ghi mã (`C1; C3`) hoặc tên thành phần; sheet Hướng dẫn thêm mục "CỘT NĂNG LỰC" liệt kê thành phần của môn và nói rõ môn nào để trống được; sheet Ví dụ và Lệnh 1 của "Dùng AI" có cột này. Tải về có sẵn mã đang dùng.
+- Nạp: mã lạ báo lỗi kèm danh sách dùng được; môn không có quy tắc tự động được nhắc số YCCĐ còn trống. Lưu ở `curriculum_versions.lesson_plan.competencies` (nhãn YCCĐ → mã); `saveLessonPlan` giữ nguyên phần này.
+- Công bố: `applyCompetencyPlan` (lessonPlan.js) ghi `competency_mapping_versions` cho YCCĐ của bản vừa công bố, chia đều trọng số; trả `abilities: {mapped, skipped}`.
+- `competency/service.js` `profile()`: thứ tự snapshot lượt làm → năng lực đang gắn cho YCCĐ (đọc lúc xem, nên bài làm trước đó cũng tính) → quy tắc theo mức.
+- Giao diện trang Chương trình môn học: dòng thành phần năng lực của môn, số YCCĐ đã ghi ở bước kiểm tra và ở bản nháp, khác biệt "YCCĐ đổi năng lực". Sửa cột này chỉ qua file (chưa có ô sửa trên web).
+
+**Kiểm:** unit 141/141 (3 test mới cho cột Năng lực), security 27/27, integration 171/171 (v6674: Toán nạp `C1; c4` và tên thành phần có dấu phẩy → công bố tạo đúng 2 bản gắn, tải lại giữ mã; v681: YCCĐ đã gắn thắng quy tắc theo mức), build đạt. File xem thử: `artifacts/Mau_chuong_trinh_NguVan_khoi10.xlsx` (không commit).
+
+**Việc tiếp:** chờ anh Hiếu "up main".

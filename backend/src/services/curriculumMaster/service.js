@@ -8,7 +8,7 @@ import {curriculumImpact} from '../curriculumManagement.js';
 import {mapRows,validateRows,fields} from './importRules.js';
 import {detectTrustedProfile,normalizeSourceRows,BLOCKING_SOURCE_FLAGS,HARD_BLOCK_SOURCE_FLAGS,TRUSTED_PROFILE} from './trustedProfiles.js';
 import {canonicalKey} from '../questionCode.js';
-import {applyLessonPlan,versionContent,currentLessons} from './lessonPlan.js';
+import {applyLessonPlan,applyCompetencyPlan,versionContent,currentLessons} from './lessonPlan.js';
 export async function permitted(actor,capability,version,c=pool){
  if(!await can(actor,capability,{subjectId:version.subject_id,grade:version.grade},c))fail('Không có quyền chương trình trong môn/khối này',403);
 }
@@ -85,7 +85,8 @@ export async function publishVersion(actor,id,raw){
  const count=(await c.query("SELECT count(*)::int n FROM curriculum_yccds y JOIN curriculum_outcomes o ON o.id=y.outcome_id WHERE y.curriculum_version_id=$1 AND y.status<>'RETIRED' AND o.status<>'RETIRED'",[id])).rows[0].n;if(!count)fail('Cần ít nhất một YCCĐ có Outcome hợp lệ');
  await c.query("UPDATE curriculum_outcomes SET status='ACTIVE' WHERE curriculum_version_id=$1 AND status='DRAFT'",[id]);await c.query("UPDATE curriculum_yccds SET status='ACTIVE' WHERE curriculum_version_id=$1 AND status='DRAFT'",[id]);
  let lessons=null;if(v.lesson_plan?.lessons?.length){await permitted(actor,'curriculum.manage_lessons',v,c);lessons=await applyLessonPlan(c,v);}
- await c.query("UPDATE curriculum_versions SET status='PUBLISHED',published_by=$2,published_at=now() WHERE id=$1",[id,actor.id]);await audit(c,actor,v,'PUBLISHED',{...v,lesson_plan:undefined},{status:'PUBLISHED',count,lessons},d.reason);return {ok:true,lessons};});
+ const abilities=await applyCompetencyPlan(c,v,actor);
+ await c.query("UPDATE curriculum_versions SET status='PUBLISHED',published_by=$2,published_at=now() WHERE id=$1",[id,actor.id]);await audit(c,actor,v,'PUBLISHED',{...v,lesson_plan:undefined},{status:'PUBLISHED',count,lessons,abilities},d.reason);return {ok:true,lessons,abilities};});
 }
 export async function diffVersions(actor,a,b){
  const x=await detail(actor,a),y=await detail(actor,b);if(x.version.subject_id!==y.version.subject_id||x.version.grade!==y.version.grade)fail('Chỉ đối chiếu cùng môn/khối');

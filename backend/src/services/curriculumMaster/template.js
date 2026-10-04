@@ -16,10 +16,10 @@ import {can} from '../accessResolver.js';
 import {canonicalKey} from '../questionCode.js';
 import {effectiveCurriculumVersion} from '../curriculumResolver.js';
 import {parseWorkbook, permitted, getVersion} from './service.js';
-import {letterOf, lessonTitle, yccdLabelOf, versionContent, currentLessons, versionLabels} from './lessonPlan.js';
+import {letterOf, lessonTitle, yccdLabelOf, versionContent, currentLessons, versionLabels, frameworkOf, yccdAbilities} from './lessonPlan.js';
 
 export const SHEETS = {guide: 'Hướng dẫn', curriculum: 'Chương trình', lessons: 'Bài học', example: 'Ví dụ', ai: 'Dùng AI'};
-const CURRICULUM_COLUMNS = ['Phân môn', 'Số Chủ đề', 'Tên Chủ đề (Outcome)', 'Số YCCĐ', 'Nội dung YCCĐ', 'Trang / nguồn'];
+const CURRICULUM_COLUMNS = ['Phân môn', 'Số Chủ đề', 'Tên Chủ đề (Outcome)', 'Số YCCĐ', 'Nội dung YCCĐ', 'Năng lực', 'Trang / nguồn'];
 const LESSON_COLUMNS = ['Chương / Chủ đề SGK', 'Số bài', 'Tên bài', 'Phân môn', 'Mã YCCĐ của bài'];
 const LIMITS = {outcomes: 300, yccds: 3000, lessons: 400, codes: 100};
 
@@ -39,9 +39,12 @@ const letterHint = subject => branched(subject)
   ? [...new Set(subject.branches.map(b => `${letterOf(b.code)} = ${b.name}`))].join(', ')
   : subject.code_letter ? `${subject.code_letter} = ${subject.name}` : '';
 // Môn không chia phân môn: file không có cột Phân môn (chữ của môn được điền tự động).
-const columnsOf = subject => branched(subject)
-  ? {curriculum: CURRICULUM_COLUMNS, lessons: LESSON_COLUMNS}
-  : {curriculum: CURRICULUM_COLUMNS.slice(1), lessons: LESSON_COLUMNS.filter(c => c !== 'Phân môn')};
+// Cột Năng lực (V6.8.2) chỉ có khi môn + khối có khung năng lực đã công bố (subject.axes).
+const columnsOf = subject => ({
+  curriculum: CURRICULUM_COLUMNS.filter(c => (c !== 'Phân môn' || branched(subject)) && (c !== 'Năng lực' || subject.axes?.length > 0)),
+  lessons: branched(subject) ? LESSON_COLUMNS : LESSON_COLUMNS.filter(c => c !== 'Phân môn'),
+});
+const abilityHint = subject => (subject.axes || []).map(a => `${a.code} = ${a.name}`).join('; ');
 // Mã mẫu cho hướng dẫn / lệnh AI: YCCĐ đầu tiên của chương trình đang dùng, không có thì 1.1.
 const sampleOf = (subject, outcomes) => {
   const o = outcomes.find(x => x.yccds.length), letter = subjectLetters(subject)[0] || 'X';
@@ -50,7 +53,7 @@ const sampleOf = (subject, outcomes) => {
 
 // ---------- Đọc file ----------
 const HEADERS = {
-  curriculum: {branch: ['phan mon'], topic: ['so chu de'], title: ['ten chu de'], yccd: ['so yccd'], text: ['noi dung yccd', 'yeu cau can dat'], page: ['trang', 'nguon']},
+  curriculum: {branch: ['phan mon'], topic: ['so chu de'], title: ['ten chu de'], yccd: ['so yccd'], text: ['noi dung yccd', 'yeu cau can dat'], ability: ['nang luc'], page: ['trang', 'nguon']},
   lessons: {chapter: ['chuong'], number: ['so bai'], name: ['ten bai'], branch: ['phan mon'], codes: ['ma yccd']},
 };
 function findHeader(rows, spec, required) {
@@ -80,6 +83,20 @@ export function branchResolver(subject) {
     const hit = map.get(k) ?? [...map.entries()].find(([alias]) => alias.length > 2 && k.startsWith(alias))?.[1];
     return hit ? {value: hit} : {error: `Phân môn "${clean(raw)}" không có trong môn này (dùng: ${hint})`};
   };
+}
+
+// Cột "Năng lực": mã (C1) hoặc tên thành phần trong khung năng lực của môn; nhiều thành phần cách nhau bằng dấu ; (tên thành phần có
+// thể chứa dấu phẩy nên chỉ tách theo dấu phẩy khi cả cụm không khớp tên nào).
+function parseAbilities(raw, axes) {
+  const codes = [], errors = [], find = token => { const k = norm(token); return axes.find(a => norm(a.code) === k || norm(a.name) === k) || (k.length >= 6 ? axes.find(a => norm(a.name).startsWith(k)) : null); };
+  for (const part of String(raw ?? '').split(/[;\n]+/).map(clean).filter(Boolean)) {
+    for (const token of find(part) ? [part] : part.split(',').map(clean).filter(Boolean)) {
+      const hit = find(token);
+      if (!hit) errors.push(axes.length ? `Năng lực "${token}" không có trong khung của môn (dùng: ${axes.map(a => `${a.code} = ${a.name}`).join('; ')})` : 'Môn này chưa có khung năng lực: để trống cột Năng lực');
+      else if (!codes.includes(hit.code)) codes.push(hit.code);
+    }
+  }
+  return {codes, errors};
 }
 
 // Mã YCCĐ trong cột "Mã YCCĐ của bài": "L.2.1", "L. 2. 1", "2.1" (thiếu chữ thì lấy phân môn của Bài / chữ của môn).
@@ -165,7 +182,9 @@ export function parseTemplate(book, {subject}) {
     if (!o) outcomes.set(key, o = {branch: b.value, number: topic, title, yccds: []});
     else if (o.title !== title) { err(`Chủ đề ${outcomeLabel(b.value, topic)} đã có tên khác ở dòng trên ("${o.title}")`); continue; }
     if (o.yccds.some(y => y.number === number)) { err(`Trùng số YCCĐ ${yccdLabelOf(b.value, topic, number)}`); continue; }
-    o.yccds.push({number, text, page: cell('page').slice(0, 300), row});
+    const ability = parseAbilities(cell('ability'), subject.axes || []);
+    if (ability.errors.length) { ability.errors.forEach(err); continue; }
+    o.yccds.push({number, text, page: cell('page').slice(0, 300), abilities: ability.codes, row});
     count++;
     prev = {branchRaw: cell('branch') || prev?.branchRaw || '', branch: b.value, topic, title};
   }
@@ -176,6 +195,9 @@ export function parseTemplate(book, {subject}) {
     const nums = o.yccds.map(y => y.number).sort((a, b) => a - b);
     if (nums[0] !== 1 || nums.some((n, i) => n !== i + 1)) warnings.push({sheet: SHEETS.curriculum, message: `Chủ đề ${outcomeLabel(o.branch, o.number)}: số YCCĐ không liên tục từ 1 (${nums.join(', ')}) — kiểm tra lại nếu không cố ý`});
   }
+  // Môn không có quy tắc tự động theo mức (Ngữ văn, Tiếng Anh…): YCCĐ chưa ghi năng lực thì câu hỏi của nó không vào biểu đồ năng lực.
+  const blank = list.reduce((n, o) => n + o.yccds.filter(y => !y.abilities.length).length, 0);
+  if (subject.axes?.length && !subject.auto_abilities && blank) warnings.push({sheet: SHEETS.curriculum, message: `${blank} YCCĐ chưa ghi cột Năng lực: câu hỏi của các YCCĐ này chưa được tính vào biểu đồ năng lực của học sinh`});
 
   // Sheet "Bài học"
   const lh = findHeader(les.rows, HEADERS.lessons, ['number', 'name', 'codes']);
@@ -257,6 +279,7 @@ export function buildPrompts(subject, grade, sample = sampleOf(subject, [])) {
     `- Số Chủ đề: 1, 2, 3… theo đúng thứ tự các chủ đề (mạch nội dung) trong văn bản${b ? ', đánh số riêng trong từng phân môn' : ''}.`,
     '- Số YCCĐ: đánh lại từ 1 trong mỗi Chủ đề.',
     '- Ghi Tên Chủ đề ở mọi dòng, không để trống.',
+    ...(subject.axes?.length ? [`- Cột Năng lực: ghi MÃ thành phần năng lực mà YCCĐ đó chủ yếu hướng tới, chọn trong: ${abilityHint(subject)}. Thường 1 mã, nhiều nhất 2 mã cách nhau bằng dấu chấm phẩy. Không chắc thì để trống.`] : []),
     '- Trang / nguồn: số trang trong văn bản nếu thấy; không thấy thì để trống.',
     `- Chỉ lấy YCCĐ của khối ${grade}; bỏ phần nội dung dạy học, gợi ý phương pháp, đánh giá.`,
     '- Trả về dạng bảng (không phải khối code), không giải thích. Chỗ nào không chắc thì liệt kê sau bảng, mở đầu bằng GHI CHÚ:',
@@ -314,6 +337,7 @@ export function buildWorkbook(data, {subject, grade, source}) {
     ['Tên Chủ đề (Outcome) — tên chủ đề / mạch nội dung như trong văn bản chương trình', 'Năng lượng cơ học'],
     ['Số YCCĐ — đánh lại từ 1 trong mỗi Chủ đề', '1'],
     ['Nội dung YCCĐ — chép nguyên văn, không tóm tắt', 'Viết được biểu thức tính động năng của vật.'],
+    ...(subject.axes?.length ? [[`Năng lực — mã thành phần năng lực mà YCCĐ hướng tới (không bắt buộc), nhiều mã cách nhau bằng dấu ;`, subject.axes[0].code]] : []),
     ['Trang / nguồn — số trang hoặc tên văn bản (không bắt buộc)', 'tr. 58'],
     ['Chương / Chủ đề SGK — tên chương của sách; để trống thì lấy theo dòng trên', 'Chương I. Năng lượng cơ học'],
     ['Số bài — chỉ ghi số, không ghi chữ "Bài"', '5'],
@@ -325,6 +349,15 @@ export function buildWorkbook(data, {subject, grade, source}) {
     ['Mức: NB nhận biết · TH thông hiểu · VD vận dụng · VDC vận dụng cao. Dạng: TN trắc nghiệm · ĐS đúng/sai · TLN trả lời ngắn · GN ghép nối · TL tự luận.'],
     ['Vì vậy khi sửa chương trình, KHÔNG đánh số lại Chủ đề / YCCĐ đã dùng: câu hỏi cũ sẽ trỏ sai chỗ.'],
     [],
+    ...(subject.axes?.length ? [
+      ['CỘT NĂNG LỰC — để biểu đồ năng lực của học sinh có số'],
+      [`Thành phần năng lực của môn ${subject.name} theo CT GDPT 2018: ${abilityHint(subject)}.`],
+      ['Mỗi YCCĐ ghi mã thành phần mà nó chủ yếu hướng tới. Học sinh làm câu hỏi thuộc YCCĐ đó thì kết quả được tính cho thành phần này.'],
+      [subject.auto_abilities
+        ? 'Môn này ĐỂ TRỐNG cũng được: hệ thống tự ước tính theo mức của câu hỏi (nhận biết, thông hiểu → nhận thức; vận dụng → vận dụng). Ghi mã thì hệ thống dùng đúng mã đã ghi.'
+        : 'Môn này KHÔNG tự ước tính được (năng lực chia theo kĩ năng, không theo mức câu hỏi): YCCĐ để trống thì câu hỏi của nó không vào biểu đồ.'],
+      [],
+    ] : []),
     ['LỖI HAY GẶP'],
     ['• Đổi tên sheet hoặc dòng tiêu đề → hệ thống không đọc được. Chỉ sửa từ dòng 2 trở xuống.'],
     ['• Ô Số Chủ đề / Tên Chủ đề để trống (hoặc gộp ô) thì lấy theo dòng trên — không cần ghi lặp lại.'],
@@ -333,14 +366,14 @@ export function buildWorkbook(data, {subject, grade, source}) {
     [`• Viết mã sai dạng (${X} 2 1, ${X}-2-1). Đúng: ${code}; nhiều mã cách nhau bằng dấu ;`],
     ['• Bài không có trong file vẫn được giữ nguyên trên hệ thống (không bị xoá).'],
   ];
-  const curRows = [cols.curriculum];
-  for (const o of data.outcomes) for (const y of o.yccds) curRows.push([...(b ? [o.branch] : []), o.number, o.title, y.number, y.text, y.page || '']);
+  const able = subject.axes?.length > 0, curRows = [cols.curriculum];
+  for (const o of data.outcomes) for (const y of o.yccds) curRows.push([...(b ? [o.branch] : []), o.number, o.title, y.number, y.text, ...(able ? [(y.abilities || []).join('; ')] : []), y.page || '']);
   const lesRows = [cols.lessons, ...data.lessons.map(l => [l.chapter || '', l.number, l.name, ...(b ? [l.branch || ''] : []), (l.codes || []).join('; ')])];
   const ex = examplesFor(subject);
   const exampleRows = [
     ['VÍ DỤ CÁCH ĐIỀN — sheet này chỉ để xem, hệ thống KHÔNG nạp'], [ex.note], [],
-    [`Sheet "${SHEETS.curriculum}"`], cols.curriculum, ...ex.curriculum,
-    ['Dòng trống ở Phân môn / Số Chủ đề / Tên Chủ đề = giống dòng trên.'], [],
+    [`Sheet "${SHEETS.curriculum}"`], cols.curriculum, ...(able ? ex.curriculum.map((r, i) => [...r.slice(0, -1), subject.axes[i % 2 ? subject.axes.length - 1 : 0].code, r.at(-1)]) : ex.curriculum),
+    ['Dòng trống ở Phân môn / Số Chủ đề / Tên Chủ đề = giống dòng trên.' + (able ? ' Mã ở cột Năng lực trong ví dụ chỉ minh hoạ cách ghi.' : '')], [],
     [`Sheet "${SHEETS.lessons}"`], cols.lessons, ...ex.lessons,
     ['Chương để trống = giống dòng trên. Bài ôn tập có thể không có mã YCCĐ.'],
   ];
@@ -360,7 +393,7 @@ export function buildWorkbook(data, {subject, grade, source}) {
     ['LỆNH 3 — CHUYỂN CÂU HỎI SANG MẪU WORD NHẬP CÂU (dùng ở màn Nhập câu hỏi)'], ...lines(prompts.questions),
   ];
   const sheet = (rows, widths) => { const s = XLSX.utils.aoa_to_sheet(rows); s['!cols'] = widths.map(wch => ({wch})); return s; };
-  const curWidths = b ? [10, 10, 45, 9, 90, 14] : [10, 45, 9, 90, 14], lesWidths = b ? [34, 8, 50, 10, 40] : [34, 8, 50, 40];
+  const curWidths = [...(b ? [10] : []), 10, 45, 9, 90, ...(able ? [14] : []), 14], lesWidths = b ? [34, 8, 50, 10, 40] : [34, 8, 50, 40];
   XLSX.utils.book_append_sheet(wb, sheet(guide, [110, 40]), SHEETS.guide);
   XLSX.utils.book_append_sheet(wb, sheet(curRows, curWidths), SHEETS.curriculum);
   XLSX.utils.book_append_sheet(wb, sheet(lesRows, lesWidths), SHEETS.lessons);
@@ -416,7 +449,14 @@ async function subjectOf(c, id) {
   s.branches = (await c.query('SELECT id,code,name FROM branches WHERE subject_id=$1 ORDER BY id', [id])).rows;
   return s;
 }
-const toData = outcomes => outcomes.map(o => ({branch: o.branch, number: o.number, title: o.title, yccds: o.yccds.map(y => ({number: y.number, text: y.text, page: y.page}))}));
+const toData = outcomes => outcomes.map(o => ({branch: o.branch, number: o.number, title: o.title, yccds: o.yccds.map(y => ({number: y.number, text: y.text, page: y.page, abilities: y.abilities || []}))}));
+// Môn kèm khung năng lực của khối: subject.axes (thành phần), subject.auto_abilities (khung có quy tắc tự động theo mức).
+async function subjectFor(c, id, grade) {
+  const subject = await subjectOf(c, id), framework = await frameworkOf(c, id, grade);
+  subject.axes = framework?.axes || [];
+  subject.auto_abilities = !!framework?.level_rule;
+  return subject;
+}
 const publishedContent = async (c, subject, grade) => {
   const effective = await effectiveCurriculumVersion(c, subject.id, grade);
   return {effective, outcomes: await versionContent(c, {versionId: effective?.id ?? null, subjectId: subject.id, grade})};
@@ -427,6 +467,10 @@ async function state(c, subject, grade) {
   const draft = (await c.query("SELECT * FROM curriculum_versions WHERE subject_id=$1 AND grade=$2 AND status='DRAFT' ORDER BY id DESC LIMIT 1", [subject.id, grade])).rows[0] || null;
   const lessons = await currentLessons(c, subject.id, grade, published);
   const draftContent = draft ? await versionContent(c, {versionId: draft.id}) : null;
+  // Năng lực của từng YCCĐ: bản đang dùng lấy từ bản gắn mới nhất; bản nháp lấy từ cột Năng lực đã nạp (lesson_plan.competencies).
+  const mapped = await yccdAbilities(c, subject.id, grade), planned = draft?.lesson_plan?.competencies || {};
+  for (const o of published) for (const y of o.yccds) y.abilities = mapped.get(y.id)?.codes || [];
+  for (const o of draftContent || []) for (const y of o.yccds) y.abilities = planned[yccdLabelOf(o.branch, o.number, y.number)] || [];
   return {effective, draft, published, lessons, draftContent};
 }
 
@@ -438,6 +482,8 @@ export function diffData(before, after) {
   for (const [k, p] of a.o) if (!b.o.has(k)) outcomes.removed.push({label: k, title: p.title});
   for (const [k, x] of b.y) { const p = a.y.get(k); if (!p) yccds.added.push({label: k, text: x.text}); else if (!same(p.text, x.text)) yccds.changed.push({label: k, before: p.text, after: x.text}); }
   for (const [k, p] of a.y) if (!b.y.has(k)) yccds.removed.push({label: k, text: p.text});
+  const codes = y => [...(y.abilities || [])].sort().join('; ');
+  yccds.abilities = [...b.y].filter(([k, x]) => a.y.has(k) && codes(a.y.get(k)) !== codes(x)).map(([k, x]) => ({label: k, before: codes(a.y.get(k)), after: codes(x)}));
   const la = new Map(before.lessons.map(l => [l.number, l])), lb = new Map(after.lessons.map(l => [l.number, l]));
   for (const [n, l] of lb) {
     const p = la.get(n);
@@ -448,10 +494,10 @@ export function diffData(before, after) {
   }
   for (const [n, p] of la) if (!lb.has(n)) lessons.removed.push({number: n, name: p.name});
   const counts = {outcomes_added: outcomes.added.length, outcomes_removed: outcomes.removed.length, outcomes_renamed: outcomes.renamed.length,
-    yccds_added: yccds.added.length, yccds_removed: yccds.removed.length, yccds_changed: yccds.changed.length,
+    yccds_added: yccds.added.length, yccds_removed: yccds.removed.length, yccds_changed: yccds.changed.length, yccds_ability_changed: yccds.abilities.length,
     lessons_added: lessons.added.length, lessons_kept_not_in_file: lessons.removed.length, lessons_changed: lessons.changed.length};
   return {counts, outcomes: {added: cap(outcomes.added), removed: cap(outcomes.removed), renamed: cap(outcomes.renamed)},
-    yccds: {added: cap(yccds.added), removed: cap(yccds.removed), changed: cap(yccds.changed)},
+    yccds: {added: cap(yccds.added), removed: cap(yccds.removed), changed: cap(yccds.changed), abilities: cap(yccds.abilities)},
     lessons: {added: cap(lessons.added), removed: cap(lessons.removed), changed: cap(lessons.changed)}};
 }
 
@@ -474,8 +520,10 @@ async function createDraft(c, actor, subject, grade, data, {sourceName, reason})
   const archived = (await c.query("UPDATE curriculum_versions SET status='ARCHIVED' WHERE subject_id=$1 AND grade=$2 AND status='DRAFT' RETURNING id,version_code", [subject.id, grade])).rows;
   const seq = (await c.query('SELECT count(*)::int AS n FROM curriculum_versions WHERE subject_id=$1 AND grade=$2', [subject.id, grade])).rows[0].n + 1;
   const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  // Cột Năng lực: nhãn YCCĐ → mã thành phần; áp dụng thành bản gắn năng lực khi công bố (applyCompetencyPlan).
+  const competencies = Object.fromEntries(data.outcomes.flatMap(o => o.yccds.filter(y => y.abilities?.length).map(y => [yccdLabelOf(o.branch, o.number, y.number), y.abilities])));
   const v = (await c.query('INSERT INTO curriculum_versions(subject_id,grade,version_code,title,source_name,source_ref,based_on,created_by,lesson_plan) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *',
-    [subject.id, grade, `${subject.code}${grade}-${stamp}-${seq}`, `Chương trình ${subject.name} khối ${grade}`, sourceName.slice(0, 300), 'File mẫu chương trình', effective?.id ?? null, actor.id, JSON.stringify({lessons: data.lessons})])).rows[0];
+    [subject.id, grade, `${subject.code}${grade}-${stamp}-${seq}`, `Chương trình ${subject.name} khối ${grade}`, sourceName.slice(0, 300), 'File mẫu chương trình', effective?.id ?? null, actor.id, JSON.stringify({lessons: data.lessons, competencies})])).rows[0];
   let order = 0, yccdCount = 0;
   for (const o of data.outcomes) {
     const key = o.branch ? canonicalKey({subject_code: subject.code, grade, branch_code: o.branch, outcome_number: o.number}) : null;
@@ -492,7 +540,7 @@ async function createDraft(c, actor, subject, grade, data, {sourceName, reason})
       yccdCount++;
     }
   }
-  const counts = {outcomes: data.outcomes.length, yccds: yccdCount, lessons: data.lessons.length, links: data.lessons.reduce((n, l) => n + l.codes.length, 0)};
+  const counts = {outcomes: data.outcomes.length, yccds: yccdCount, lessons: data.lessons.length, links: data.lessons.reduce((n, l) => n + l.codes.length, 0), abilities: Object.keys(competencies).length};
   await audit(c, actor, v, 'TEMPLATE_DRAFT_CREATED', archived.length ? {archived_drafts: archived} : null, counts, reason);
   return {version: {id: v.id, version_code: v.version_code, status: 'DRAFT'}, archived_drafts: archived, counts};
 }
@@ -503,7 +551,7 @@ async function allow(actor, capabilities, subject, grade, c = pool) {
 }
 
 export async function templateFile(actor, query) {
-  const d = scope.parse(query), subject = await subjectOf(pool, d.subject_id);
+  const d = scope.parse(query), subject = await subjectFor(pool, d.subject_id, d.grade);
   await allow(actor, ['curriculum.read'], subject, d.grade);
   const s = await state(pool, subject, d.grade);
   const fromDraft = !!s.draft, data = fromDraft
@@ -514,17 +562,19 @@ export async function templateFile(actor, query) {
 }
 
 export async function templateWorkspace(actor, query) {
-  const d = scope.parse(query), subject = await subjectOf(pool, d.subject_id);
+  const d = scope.parse(query), subject = await subjectFor(pool, d.subject_id, d.grade);
   await allow(actor, ['curriculum.read'], subject, d.grade);
   const s = await state(pool, subject, d.grade), ctx = {subjectId: subject.id, grade: d.grade};
   const count = outcomes => ({outcomes: outcomes.length, yccds: outcomes.reduce((n, o) => n + o.yccds.length, 0)});
   return {
-    subject: {id: subject.id, name: subject.name, branches: branched(subject) ? subjectLetters(subject) : [], code_letter: subject.code_letter, letters: subjectLetters(subject), letter_hint: letterHint(subject)}, grade: d.grade,
+    subject: {id: subject.id, name: subject.name, branches: branched(subject) ? subjectLetters(subject) : [], code_letter: subject.code_letter, letters: subjectLetters(subject), letter_hint: letterHint(subject),
+      abilities: subject.axes.map(a => ({code: a.code, name: a.name})), auto_abilities: subject.auto_abilities}, grade: d.grade,
     published: {version: s.effective && {id: s.effective.id, version_code: s.effective.version_code, published_at: s.effective.published_at},
       legacy: !s.effective && s.published.length > 0, ...count(s.published), lessons: s.lessons.length},
     draft: s.draft && {id: s.draft.id, version_code: s.draft.version_code, revision: s.draft.revision, created_at: s.draft.created_at, source_name: s.draft.source_name,
       outcomes: s.draftContent.map(o => ({id: o.id, label: outcomeLabel(o.branch, o.number), branch: o.branch, number: o.number, title: o.title, code: o.row.code, domain_code: o.row.domain_code || '', order_index: o.row.order_index || 0,
-        yccds: o.yccds.map(y => ({id: y.id, label: yccdLabelOf(o.branch, o.number, y.number), number: y.number, text: y.text, code: y.row.code, page: y.page || '', order_index: y.row.order_index || 0}))})),
+        yccds: o.yccds.map(y => ({id: y.id, label: yccdLabelOf(o.branch, o.number, y.number), number: y.number, text: y.text, code: y.row.code, page: y.page || '', order_index: y.row.order_index || 0, abilities: y.abilities}))})),
+      abilities: {mapped: s.draftContent.reduce((n, o) => n + o.yccds.filter(y => y.abilities.length).length, 0), total: s.draftContent.reduce((n, o) => n + o.yccds.length, 0)},
       lessons: s.draft.lesson_plan?.lessons || [], has_lesson_plan: !!s.draft.lesson_plan,
       diff: diffData({outcomes: toData(s.published), lessons: s.lessons}, {outcomes: toData(s.draftContent), lessons: s.draft.lesson_plan?.lessons || s.lessons})},
     can: {
@@ -536,7 +586,7 @@ export async function templateWorkspace(actor, query) {
 }
 
 async function readUpload(actor, raw, file, capabilities) {
-  const d = scope.parse(raw), subject = await subjectOf(pool, d.subject_id);
+  const d = scope.parse(raw), subject = await subjectFor(pool, d.subject_id, d.grade);
   await allow(actor, capabilities, subject, d.grade);
   if (!file) fail('Chọn file mẫu (.xlsx)');
   if (!/\.xlsx$/i.test(file.originalname)) fail('Dùng file mẫu .xlsx tải từ hệ thống');
@@ -548,7 +598,8 @@ export async function previewTemplate(actor, raw, file) {
   if (parsed.errors.length) return {ok: false, errors: parsed.errors.slice(0, 300), error_count: parsed.errors.length, warnings: parsed.warnings.slice(0, 100)};
   const s = await state(pool, subject, d.grade);
   return {ok: true, warnings: parsed.warnings.slice(0, 100), replaces_draft: s.draft ? s.draft.version_code : null,
-    counts: {outcomes: parsed.outcomes.length, yccds: parsed.outcomes.reduce((n, o) => n + o.yccds.length, 0), lessons: parsed.lessons.length, links: parsed.lessons.reduce((n, l) => n + l.codes.length, 0)},
+    counts: {outcomes: parsed.outcomes.length, yccds: parsed.outcomes.reduce((n, o) => n + o.yccds.length, 0), lessons: parsed.lessons.length, links: parsed.lessons.reduce((n, l) => n + l.codes.length, 0),
+      abilities: parsed.outcomes.reduce((n, o) => n + o.yccds.filter(y => y.abilities.length).length, 0)},
     diff: diffData({outcomes: toData(s.published), lessons: s.lessons}, parsed)};
 }
 
@@ -562,7 +613,7 @@ export async function importTemplate(actor, raw, file) {
 // "Sửa trên web": mở bản nháp từ bản đang dùng (kèm danh sách Bài + liên kết hiện tại). Đã có bản nháp thì dùng bản đó.
 export async function startDraft(actor, raw) {
   const d = scope.extend({reason: z.string().trim().min(3).max(1000).default('Mở bản nháp để sửa trên web')}).parse(raw);
-  const subject = await subjectOf(pool, d.subject_id);
+  const subject = await subjectFor(pool, d.subject_id, d.grade);
   await allow(actor, ['curriculum.edit_draft'], subject, d.grade);
   return tx(async c => {
     const s = await state(c, subject, d.grade);
@@ -584,7 +635,7 @@ export async function saveLessonPlan(actor, versionId, raw) {
     const labels = new Set((await versionLabels(c, v.id)).keys());
     const result = normalizeLessons(d.lessons.map((l, i) => ({...l, codes: Array.isArray(l.codes) ? l.codes.join(';') : l.codes, row: i + 1, at: `Bài ${l.number}`})), {subject, labels});
     if (result.errors.length) fail(`Danh sách Bài còn ${result.errors.length} lỗi`, 422, {errors: result.errors});
-    await c.query('UPDATE curriculum_versions SET lesson_plan=$2 WHERE id=$1', [v.id, JSON.stringify({lessons: result.lessons})]);
+    await c.query('UPDATE curriculum_versions SET lesson_plan=$2 WHERE id=$1', [v.id, JSON.stringify({...v.lesson_plan, lessons: result.lessons})]);
     await audit(c, actor, v, 'LESSON_PLAN_SAVED', {lessons: v.lesson_plan?.lessons?.length ?? 0}, {lessons: result.lessons.length}, d.reason);
     return {ok: true, lessons: result.lessons, warnings: result.warnings};
   });
@@ -592,7 +643,7 @@ export async function saveLessonPlan(actor, versionId, raw) {
 
 // Lệnh AI cho màn Chương trình môn học và màn Nhập câu hỏi (cùng nội dung với sheet "Dùng AI").
 export async function templatePrompts(actor, query) {
-  const d = scope.parse(query), subject = await subjectOf(pool, d.subject_id);
+  const d = scope.parse(query), subject = await subjectFor(pool, d.subject_id, d.grade);
   await allow(actor, ['curriculum.read'], subject, d.grade);
   const {outcomes} = await publishedContent(pool, subject, d.grade), sample = sampleOf(subject, outcomes);
   return {subject: {id: subject.id, name: subject.name, letters: subjectLetters(subject), letter_hint: letterHint(subject)}, grade: d.grade,
