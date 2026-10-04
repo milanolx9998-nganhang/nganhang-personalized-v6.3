@@ -18,6 +18,7 @@ files.push('migration-v6661-edit-ops.sql');
 files.push('migration-v6672-school-bank-name.sql');
 files.push('migration-v6673-curriculum-template.sql');
 files.push('migration-v6674-subject-code-letter.sql');
+files.push('migration-v681-competency-defaults.sql');
 const client=await pool.connect();
 try {
  await client.query('SELECT pg_advisory_lock(9182741)');

@@ -3,6 +3,12 @@ export const subjectTemplates={
  KHTN:{title:'Năng lực KHTN — CTGDPT 2018',axes:[['KHTN-C1','Nhận thức khoa học tự nhiên',true],['KHTN-C2','Tìm hiểu tự nhiên',false],['KHTN-C3','Vận dụng kiến thức, kĩ năng đã học',true]]},
  MATH:{title:'Năng lực Toán — CTGDPT 2018',axes:[['MATH-C1','Tư duy và lập luận toán học',true],['MATH-C2','Mô hình hoá toán học',false],['MATH-C3','Giải quyết vấn đề toán học',true],['MATH-C4','Giao tiếp toán học',false],['MATH-C5','Sử dụng công cụ, phương tiện học toán',false]]}
 };
+// V6.8.1 — quy tắc mặc định theo mức nhận thức: câu chưa được gắn năng lực riêng thì tính cho các thành phần theo mức của câu
+// (framework.level_rule: {"1":{"C1":1},"2":{"C1":0.7,"C2":0.3},…}; 1 NB, 2 TH, 3 VD, 4 VDC). Là ước tính, luôn nhường cho mapping riêng.
+export function levelEntries(rule,axes,level){
+ const weights=rule?.[String(level)];if(!weights)return [];
+ return Object.entries(weights).map(([code,weight])=>{const a=axes.find(x=>x.code===code);return a&&Number(weight)>0?{axis_id:a.id,weight:Number(weight),allowed_evidence:[...new Set([...(a.allowed_evidence||[]),'AUTO_GRADED_ITEM'])],source:'LEVEL_RULE'}:null;}).filter(Boolean);
+}
 const day=86400000;
 export function projectAxis(axis,evidence,config,now){
  const clock=new Date(now).getTime();

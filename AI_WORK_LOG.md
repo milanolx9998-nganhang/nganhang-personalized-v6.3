@@ -918,3 +918,17 @@ Kết quả chạy toàn bộ: xem mục kế tiếp.
 - Trước đó main đã ở `b6a3d7a` (V6.8 bản đồ bài học + CI, deploy trưa 04/10, run xanh). Lần này fast-forward thêm 2 commit: `64c513d` (trang chủ học sinh làm lại phần nhìn) và `7014202` (biểu đồ năng lực). Không có migration.
 - Run "Verify & Deploy" 37211882838 nằm ở trạng thái `queued`, chưa có runner nhận sau 13 phút (22:08 → 22:21): runner self-hosted trên máy Home không trực tuyến hoặc đang bận. Web thật vẫn chạy bản `b6a3d7a`.
 - Việc tiếp: anh Hiếu / AI Ubuntu kiểm máy Home và dịch vụ GitHub runner; runner lên lại thì run đang xếp hàng tự chạy (GitHub giữ hàng đợi tối đa 24 giờ, quá hạn thì bấm "Re-run"). Lỗi tỉ lệ 99% ở `availability.jsx` vẫn chưa sửa (phiên riêng không tạo commit nào).
+
+## 2026-10-05 — V6.8.1: khung năng lực CT GDPT 2018 có sẵn + quy tắc theo mức nhận thức
+
+**Yêu cầu:** anh Hiếu không hiểu vì sao phía học sinh chưa có khung năng lực; muốn AI tự nạp khung CT GDPT 2018 và dùng một quy tắc % theo thang Bloom thay cho việc gắn tay.
+
+**Thay đổi:**
+- Migration `migration-v681-competency-defaults.sql` (chỉ thêm): cột `competency_frameworks.level_rule`; nạp và công bố khung năng lực đặc thù cho 13 môn (KHTN 3, Vật lí / Hoá / Sinh 3, Địa 3, Sử 3, Toán 5, Ngữ văn 3, Tiếng Anh 5, Tin 5, Công nghệ 5, GDCD 3, GDKT&PL 3); bỏ qua môn đã có khung nháp / đã công bố; khung KHTN / Toán tạo từ mẫu cũ được điền `level_rule` nếu còn trống. IELTS không có khung.
+- Quy tắc mặc định (`level_rule`, là ƯỚC TÍNH): KHTN / Lí / Hoá / Sinh / Địa — NB → C1; TH → C1 0,7 + C2 0,3; VD → C2 0,4 + C3 0,6; VDC → C2 0,2 + C3 0,8. Sử — NB → C1; TH → C1 0,3 + C2 0,7; VD → C2 0,5 + C3 0,5; VDC → C2 0,2 + C3 0,8. Toán — NB → C1 0,6 + C4 0,4; TH → C1 0,7 + C4 0,3; VD → C2 0,4 + C3 0,6; VDC → C1 0,2 + C2 0,3 + C3 0,5 (C5 "công cụ" không có câu tự chấm). Văn, Anh, Tin, Công nghệ, GDCD, GDKT&PL không có quy tắc theo mức (năng lực theo kĩ năng / loại hoạt động): cần gắn theo YCCĐ / Chủ đề hoặc minh chứng thầy cô.
+- `competency/rules.js`: `levelEntries`. `competency/service.js` `profile()`: câu có mapping riêng (snapshot) vẫn ưu tiên; câu chưa gắn thì áp `level_rule` lúc đọc — nên bài đã làm trước đó cũng có số. Trả thêm `estimated_items`, `level_rule`; `unmapped_items` chỉ còn câu không gắn được vào đâu.
+- `LessonMap.jsx`: thẻ "Năng lực môn" ghi rõ phần ước tính theo mức của câu; môn theo kĩ năng ghi cần thầy cô gắn / ghi minh chứng.
+
+**Kiểm:** migration qua cổng an toàn, chạy trên DB local (13 khung PUBLISHED); học sinh demo local có 3 trục KHTN từ 30 câu đã làm (35,5 / 18 / 0). Unit 138/138 (thêm `levelEntries`), security 27/27, integration mới `v681-competency-defaults` 2/2, toàn bộ integration 169/170 — lỗi duy nhất vẫn là test tải V6661 (1589 ms > 1500 ms, dao động do máy). Build frontend đạt.
+
+**Việc tiếp:** chờ anh Hiếu "up main" (có migration v681). Deploy `7014202` trước đó còn xếp hàng vì runner máy Home chưa nhận việc — kiểm lại trước khi đẩy tiếp.

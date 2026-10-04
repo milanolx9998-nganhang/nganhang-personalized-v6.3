@@ -20,3 +20,17 @@ test('V66 framework dùng trục môn học 3/5, không thêm hợp tác hoặc 
  assert(subjectTemplates.MATH.axes.some(a=>a[1]==='Giao tiếp toán học'));
  assert(!JSON.stringify(subjectTemplates).includes('Giao tiếp và hợp tác'));
 });
+
+// V6.8.1 — quy tắc mặc định theo mức nhận thức cho câu chưa gắn năng lực riêng.
+test('V681 quy tắc theo mức: mức của câu → thành phần năng lực và trọng số; trục ngoài khung hoặc trọng số 0 bị bỏ; luôn cho phép minh chứng tự chấm', async () => {
+  const {levelEntries} = await import('../../src/services/competency/rules.js');
+  const axes = [{id: 11, code: 'C1', allowed_evidence: ['TEACHER_RUBRIC']}, {id: 12, code: 'C2', allowed_evidence: ['AUTO_GRADED_ITEM']}, {id: 13, code: 'C3', allowed_evidence: []}];
+  const rule = {1: {C1: 1}, 2: {C1: 0.7, C2: 0.3}, 3: {C2: 0.4, C3: 0.6, C9: 1}, 4: {C3: 0.8, C2: 0}};
+  assert.deepEqual(levelEntries(rule, axes, 1).map(e => [e.axis_id, e.weight]), [[11, 1]]);
+  assert.deepEqual(levelEntries(rule, axes, 2).map(e => [e.axis_id, e.weight]), [[11, 0.7], [12, 0.3]]);
+  assert.deepEqual(levelEntries(rule, axes, 3).map(e => [e.axis_id, e.weight]), [[12, 0.4], [13, 0.6]]);
+  assert.deepEqual(levelEntries(rule, axes, 4).map(e => [e.axis_id, e.weight]), [[13, 0.8]]);
+  assert.ok(levelEntries(rule, axes, 1)[0].allowed_evidence.includes('AUTO_GRADED_ITEM'));
+  assert.deepEqual(levelEntries(null, axes, 1), []);
+  assert.deepEqual(levelEntries(rule, axes, null), []);
+});

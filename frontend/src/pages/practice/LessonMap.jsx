@@ -15,17 +15,17 @@ const pad=n=>n==null?'•':String(n).padStart(2,'0');
 const toneOf=lessons=>{const count={};for(const l of lessons)if(l.branch)count[l.branch]=(count[l.branch]||0)+1;const top=Object.keys(count).sort((a,b)=>count[b]-count[a])[0];return ['L','H','S'].includes(top)?'tone-'+top:'';};
 const Name=({lesson})=><>{lesson.number!=null&&<span className="sr-only">Bài {lesson.number}: </span>}{lesson.title}</>;
 
-// Năng lực của môn theo khung nhà trường đã công bố (CT GDPT 2018): điểm từ câu trả lời đã gắn năng lực và minh chứng giáo viên ghi.
-// Chưa công bố khung thì nói rõ, không vẽ số tự đặt.
+// Năng lực của môn theo khung CT GDPT 2018 (có sẵn từ V6.8.1): điểm từ câu trả lời và minh chứng giáo viên ghi. Câu chưa gắn năng lực riêng
+// được ước tính theo mức nhận thức của câu (quy tắc mặc định của khung) — ghi rõ là ước tính. Môn chưa có khung thì nói rõ, không vẽ số tự đặt.
 function SubjectAbility({studentId,subject,grade}){
  const [profile,setProfile]=useState(undefined);
  useEffect(()=>{let live=true;setProfile(undefined);api.get(`${base}/students/${studentId}/competency-profile?subject_id=${subject.id}&grade=${grade}`).then(d=>{if(live)setProfile(d);}).catch(()=>{if(live)setProfile(null);});return()=>{live=false;};},[studentId,subject.id,grade]);
  const has=profile?.framework&&profile.axes.length>0,counted=has?profile.axes.reduce((n,a)=>n+a.evidence_count,0):0;
  return <article className="ability-card"><h3>Năng lực môn {subject.name}</h3>
-  {profile===undefined?<p>Đang tải…</p>:!has?<p>Nhà trường chưa công bố khung năng lực môn {subject.name}, nên chưa có biểu đồ này. Khi có, biểu đồ hiện từng thành phần năng lực theo Chương trình GDPT 2018.</p>:<>
-   <p>{profile.framework.title} · tính từ {counted} minh chứng (câu đã gắn năng lực, bài thầy cô chấm).</p>
+  {profile===undefined?<p>Đang tải…</p>:!has?<p>Môn {subject.name} chưa có khung năng lực nên chưa có biểu đồ này.</p>:<>
+   <p>{profile.framework.title} · tính từ {counted} minh chứng.{profile.estimated_items>0?' Phần lớn là ước tính theo mức của câu hỏi: câu nhận biết, thông hiểu tính cho thành phần nhận thức; câu vận dụng tính cho thành phần vận dụng.':''}{!profile.level_rule&&!counted?' Môn này tính theo kĩ năng nên cần thầy cô gắn câu hỏi vào từng thành phần hoặc ghi minh chứng.':''}</p>
    <SkillRadar label={'Năng lực môn '+subject.name} axes={profile.axes.map(a=>({key:a.axis_id,label:a.name,value:a.evidence_count&&a.performance_score!=null?Math.round(a.performance_score):null,weak:!a.sufficient,detail:a.evidence_count+' minh chứng'}))}/>
-   {(profile.axes.some(a=>a.evidence_count&&!a.sufficient)||profile.unmapped_items>0)&&<p className="ability-note">{profile.axes.some(a=>a.evidence_count&&!a.sufficient)?'Chấm rỗng: mới có ít minh chứng nên số còn đổi nhiều. ':''}{profile.unmapped_items>0?`${profile.unmapped_items} câu em làm trước đây chưa gắn năng lực nên không tính.`:''}</p>}
+   {(profile.axes.some(a=>a.evidence_count&&!a.sufficient)||profile.unmapped_items>0)&&<p className="ability-note">{profile.axes.some(a=>a.evidence_count&&!a.sufficient)?'Chấm rỗng: mới có ít minh chứng nên số còn đổi nhiều. ':''}{profile.unmapped_items>0?`${profile.unmapped_items} câu em đã làm chưa gắn được vào thành phần năng lực nào nên không tính.`:''}</p>}
    <Link className="ability-more" to="/practice/portfolio?tab=competency">Xem minh chứng →</Link></>}
  </article>;
 }
