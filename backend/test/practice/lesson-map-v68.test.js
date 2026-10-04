@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {allocate, fitPercent} from '../../src/services/practice/selection.js';
-import {lessonProgress, streakOf, badgesOf} from '../../src/services/practice/lessonMap.js';
+import {lessonProgress, streakOf, weekOf, badgesOf} from '../../src/services/practice/lessonMap.js';
 import {pool} from '../../src/db/pool.js';
 
 test.after(() => pool.end());
@@ -48,6 +48,12 @@ test('V68 chuỗi ngày học: tính tới hôm nay, hôm nay chưa học thì t
   assert.deepEqual(streakOf(['2026-10-01', '2026-10-02'], '2026-10-03'), {current: 2, best: 2, today_done: false});
   assert.deepEqual(streakOf(['2026-09-20', '2026-09-21', '2026-09-22', '2026-09-23', '2026-10-01'], '2026-10-03'), {current: 0, best: 4, today_done: false});
   assert.deepEqual(streakOf(['2026-09-30', '2026-10-01'], '2026-10-01'), {current: 2, best: 2, today_done: true}, 'qua ranh giới tháng');
+  // Dải 7 ngày gần nhất: 04/10/2026 là Chủ nhật.
+  const week = weekOf(['2026-09-28', '2026-10-02', '2026-10-04'], '2026-10-04');
+  assert.deepEqual(week.map(d => d.date), ['2026-09-28', '2026-09-29', '2026-09-30', '2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04']);
+  assert.deepEqual(week.map(d => d.weekday), [1, 2, 3, 4, 5, 6, 0]);
+  assert.deepEqual(week.map(d => d.done), [true, false, false, false, true, false, true]);
+  assert.deepEqual(week.map(d => d.today), [false, false, false, false, false, false, true]);
 });
 
 test('V68 huy hiệu: tính từ số liệu thật, có tiến độ cho huy hiệu đếm được', () => {

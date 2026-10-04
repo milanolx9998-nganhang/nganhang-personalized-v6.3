@@ -205,13 +205,15 @@ test('V68 trình duyệt: trang chủ học sinh có bản đồ, bấm "Luyện
     await page.getByRole('heading', {name: 'Em đang vướng gì', exact: true}).waitFor();
     await page.getByText('Em đang ở đây', {exact: true}).waitFor();
     assert.equal(await page.getByRole('heading', {name: 'Nội dung nên củng cố'}).count(), 0, 'mục củng cố cũ nhường chỗ cho bản đồ');
-    await page.getByText('Huy hiệu', {exact: true}).click();
+    await page.getByRole('heading', {name: 'Huy hiệu', exact: true}).waitFor();
+    assert.equal(await page.locator('.week-strip li.today.done').count(), 1, 'dải 7 ngày đánh dấu hôm nay đã luyện');
+    assert.equal(await page.locator('.badge-shelf li.earned').count(), 2);
     await page.screenshot({path: path.join(artifacts, 'v68-student-map.png'), fullPage: true});
     await page.setViewportSize({width: 390, height: 844});
     assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2), 'không tràn ngang trên điện thoại');
     await page.screenshot({path: path.join(artifacts, 'v68-student-map-mobile.png'), fullPage: true});
     await page.setViewportSize({width: 1280, height: 1100});
-    await page.locator('.lesson-chapter .lesson-row', {hasText: 'Bài 2: Sáu câu'}).getByRole('button', {name: 'Luyện tiếp', exact: true}).click();
+    await page.locator('.route .station-row', {hasText: 'Bài 2: Sáu câu'}).getByRole('button', {name: 'Luyện tiếp', exact: true}).click();
     await page.waitForURL(/\/practice\/attempts\//);
     assert.deepEqual(errors, []);
 

@@ -56,6 +56,12 @@ export function streakOf(days, today) {
   return {current, best, today_done: set.has(today)};
 }
 
+// 7 ngày gần nhất (kết thúc ở hôm nay) cho dải "nhịp học": ngày nào có lượt hoàn thành. weekday: 0 = Chủ nhật … 6 = Thứ bảy.
+export function weekOf(days, today) {
+  const set = new Set(days), end = new Date(today + 'T00:00:00Z');
+  return Array.from({length: 7}, (_, i) => { const d = new Date(end); d.setUTCDate(d.getUTCDate() - (6 - i)); const date = d.toISOString().slice(0, 10); return {date, weekday: d.getUTCDay(), done: set.has(date), today: i === 6}; });
+}
+
 export function badgesOf({completed, answered: answeredCount, retries, streak, chapters}) {
   const lessons = chapters.flatMap(c => c.lessons), cap = (n, max) => `${Math.min(n, max)}/${max}`;
   return [
@@ -183,7 +189,7 @@ export async function lessonMap(user, raw) {
     grade, subjects, subject: subjects.find(s => s.id === subjectId), chapters, current_lesson_id: current?.id ?? null, focus,
     rules: {min_questions: min, lesson_count: lessonCount, counts: COUNT_CHOICES.filter(n => n >= min && n <= cfg.practice_max_questions), threshold: cfg.mastery_threshold, focus_below: FOCUS_BELOW},
     summary: {lessons: lessons.length, practicable: open.length, started: started.length, done: open.filter(l => l.progress.status === 'done').length, locked: lessons.length - open.length},
-    motivation: {streak, stars: {earned: open.reduce((n, l) => n + l.progress.stars, 0), total: open.length * 3},
+    motivation: {streak, week: weekOf(activity.days, activity.today), stars: {earned: open.reduce((n, l) => n + l.progress.stars, 0), total: open.length * 3},
       badges: badgesOf({completed: activity.completed, answered: answeredCount, retries: activity.retries, streak, chapters})},
   };
 }

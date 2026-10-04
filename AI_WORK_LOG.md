@@ -855,3 +855,44 @@ Kết quả chạy toàn bộ: xem mục kế tiếp.
 - CI trên GitHub: lần đầu (`79147f6`) job smoke xanh, job verify đỏ vì test xuất phiếu Word/PDF cần Chromium của Playwright (máy Home cài sẵn, máy GitHub chưa) → thêm bước `npx playwright install --with-deps chromium`; lần hai (`596bc42`, run 37133809197) cả hai job xanh: verify 46 giây, smoke 27 giây. Log job đọc bằng thông tin đăng nhập git của repo (API log không công khai), không in ra.
 
 **Việc tiếp:** chờ anh Hiếu "up main". Bảo vệ `main` bằng "bắt buộc CI xanh" chỉ dùng được khi đổi sang luồng pull request (đẩy thẳng main thì CI này không chạy trên commit đó).
+
+## 2026-10-03 — Đánh giá (CHƯA chốt): đưa dự án dự thi "Giáo viên sáng tạo – Tài năng" 2026–2027
+
+**Yêu cầu:** anh Hiếu nhờ đọc bộ tài liệu cuộc thi của trường (kế hoạch, kickoff, key visual — nằm ở OneDrive của anh, ngoài repo) và đánh giá phương án cho dự án dự thi, đề xuất 4–5 tính năng bám chủ đề. Chỉ đọc và đánh giá, không sửa code.
+
+**Điều rút ra từ tài liệu:**
+- Chủ đề "Học cách dạy – Dạy cách học": giáo viên là chủ thể phát triển, học sinh là người thụ hưởng; không thi sản phẩm của học sinh, không chấm theo công nghệ. Ba nhịp dạy cách học: trước nhiệm vụ (biết bắt đầu) – khi thực hiện (biết cách làm, hỗ trợ không làm thay) – sau nhiệm vụ (biết tự sửa).
+- Sản phẩm được phép là phần mềm / website, nhưng phải có cơ sở lí luận, thực nghiệm trên lớp, minh chứng trước–sau; hồ sơ gồm đề cương DOCX, PPTX, video dưới 5 phút, thư mục minh chứng.
+- 7 trục chấm chung (lí luận – giải pháp – hiệu quả – số liệu – bài học – logic – hoàn thiện) và 7 hạng mục giải: dạy cách học, cá nhân hoá, đánh giá và phản hồi, hợp tác, công nghệ hỗ trợ tự học, động lực tự học, tự học nghề nghiệp. Mỗi đội 1 hạng mục chính + 1 phụ, tối đa 6 giáo viên.
+- Mốc: đăng ký ý tưởng (tối đa 200 chữ) tới 20/10/2026, chọn đội 31/10; coaching 11/2026–3/2027 (dạy thử trên lớp 02–03/2027); chung kết 4–5/2027.
+- Quy tắc chính trực: giáo viên làm chủ sản phẩm, không nhờ người khác hoặc AI làm thay; không dùng AI tạo minh chứng.
+
+**Nhận định đã nêu với anh Hiếu:** dự án hiện là nền tảng (ngân hàng câu hỏi + luyện tập), chưa phải "dự án" theo nghĩa cuộc thi; cần thu hẹp thành một vấn đề nghề nghiệp cụ thể. Khuyên hạng mục chính "Đánh giá và phản hồi" (học sinh hiểu phản hồi, biết làm gì tiếp), phụ "Công nghệ hỗ trợ tự học"; thí điểm một môn + khối. Rủi ro phải hỏi BTC sớm: phần mềm được lập trình với AI.
+
+**5 tính năng đề xuất (chưa làm):** (1) đặt mục tiêu trước khi luyện từ YCCĐ của Bài; (2) nhật ký sửa lỗi sau khi nộp + luyện lại; (3) báo cáo "chắc / chưa chắc" so với đúng / sai; (4) gợi ý theo bậc, tách đúng độc lập và đúng sau gợi ý; (5) xuất hồ sơ minh chứng trước–sau cho giáo viên (ẩn danh). Chờ anh Hiếu chọn hạng mục và tính năng.
+
+**Kế hoạch 5 tính năng "dạy cách học" (anh Hiếu bảo lập kế hoạch cả 5; CHƯA làm, chờ duyệt):**
+- Đã kiểm schema: `attempt_items` có sẵn `uncertain`, `first_response`, `grade_result`; `attempts` có `retry_of`; nội dung câu hỏi (`question_versions.content`) chưa có gợi ý; dữ liệu local 40 câu đã làm, 0 câu tick "chưa chắc" (nút có nhưng không ai dùng).
+- B0 nền chung: một migration chỉ thêm cột (`attempts.goal`, `attempt_items.error_cause / error_note / hints_used`), công tắc bật công cụ theo lớp (để có giai đoạn "trước" làm mốc và lớp đối chứng), định nghĩa chỉ báo. Không đổi công thức chấm và điểm thành thạo.
+- B1 (TN3, nhỏ): hỏi nhanh "chắc / chưa chắc" khi chốt câu; sau nộp hiện bảng chắc–đúng / chắc–sai / chưa chắc–đúng / chưa chắc–sai.
+- B2 (TN2, vừa): sau nộp, mỗi câu sai chọn nguyên nhân + ghi một dòng, rồi luyện lại; đo tỉ lệ lỗi được sửa qua `retry_of`; giáo viên xem phân bố nguyên nhân theo Bài.
+- B3 (TN1, nhỏ–vừa): trước khi luyện hiện YCCĐ của Bài + chọn mục tiêu; sau nộp đối chiếu.
+- B4 (TN5, vừa): xuất Excel minh chứng theo lớp và hai khoảng thời gian, mã học sinh ẩn danh, có sheet "chưa tiến bộ" và "nguồn, cách tính".
+- B5 (TN4, lớn): gợi ý tối đa 3 bậc trong nội dung câu (soạn tay + nhập Word "Gợi ý 1:"), endpoint riêng để mở từng bậc (không gửi trước xuống máy học sinh), chỉ ở chế độ luyện; báo cáo đúng độc lập / đúng sau gợi ý. Nút thắt là công soạn gợi ý, bắt đầu từ một chương.
+- Lịch gợi ý theo cuộc thi: B0–B2 trong 10–11/2026 (đồng thời thu mốc "trước"), B3–B5 trong 12/2026–01/2027, dạy thử 02–03/2027.
+
+**5 ý tưởng dạy học KHTN khác đã đề xuất:** Dự đoán – Quan sát – Giải thích cho thí nghiệm biểu diễn; báo cáo thí nghiệm theo Nhận định – Bằng chứng – Lập luận kèm tự chấm / chấm chéo; vai trò xoay vòng trong nhóm thực hành; bài mẫu giảm dần gợi ý cho bài toán tính; "hai phút nhớ lại" + lịch tự ôn ngắt quãng.
+
+## 2026-10-04 — Làm lại phần nhìn trang chủ học sinh (V6.8, bản đồ bài học)
+
+**Yêu cầu:** anh Hiếu xem web (main đã ở b6a3d7a, deploy trưa 04/10 — không phải do phiên này đẩy) và nói giao diện học sinh "chưa đổi, trông hơi xấu". Bản đồ V6.8 đầu tiên dùng lại thẻ trắng + dòng chữ, chương bị gập lại.
+
+**Thay đổi (chỉ trang chủ học sinh; giữ bảng màu và phông của app):**
+- `LessonMap.jsx` viết lại phần hiển thị: mỗi chương là một "tuyến" (màu theo phân môn KHTN: L xanh mực, H nâu cam, S xanh lá), mỗi Bài là một "trạm" có vòng tiến độ quanh số bài; khối "Em đang ở đây" nền đậm với nút vàng là điểm nhấn duy nhất; "Em đang vướng gì" có thanh điểm và vạch mốc 70; huy hiệu thành hàng huy chương; chương luôn mở.
+- `StudentHome.jsx`: dải "nhịp học" 7 ngày gần nhất ở đầu trang; cột "Bài được giao" (bài đang dở, bài sắp hết hạn, bài khác) nằm cạnh khối "Em đang ở đây", trên điện thoại xếp lên trước.
+- Máy chủ: `lessonMap.js` thêm `weekOf` và `motivation.week` (7 ngày gần nhất, ngày nào có lượt hoàn thành). Không có migration.
+- CSS trong `styles/learning.css` (khối V6.8 thay mới), có `prefers-reduced-motion`.
+
+**Kiểm:** chụp ảnh bằng Playwright trên database sao chép tạm với một học sinh giả (đã xoá database và script tạm sau khi xong): máy tính 1366 px và điện thoại 390 px, không tràn ngang, không lỗi console; chế độ chọn nhiều bài hiển thị đúng. Test: unit 137/137, security 27/27, integration 168/168 (test trình duyệt V68 kiểm thêm dải 7 ngày và số huy hiệu đạt), build đạt.
+
+**Việc tiếp:** chờ anh Hiếu xem ảnh, góp ý phần nhìn, rồi "up main". Màn làm bài (Player), hồ sơ học tập và thanh bên chưa đổi.
