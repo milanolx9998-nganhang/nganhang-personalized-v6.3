@@ -24,7 +24,7 @@ const connection = {host: process.env.DB_HOST, port: process.env.DB_PORT, user: 
 const adminPool = new pg.Pool({...connection, database: source});
 const pw = crypto.randomBytes(12).toString('base64url');
 const GRADE = 9;
-let db, server, admin, student, loner, teacher, subjectId, otherTopic;
+let db, server, admin, student, loner, teacher, subjectId, otherTopic, studentId, axisIds;
 const lessons = {};   // tên ngắn → topic id
 
 async function req(method, url, body, token = admin) {
@@ -58,6 +58,7 @@ test.before(async () => {
   for (const [username, role] of [['v68_admin', 'admin'], ['v68_student', 'student'], ['v68_loner', 'student'], ['v68_teacher', 'teacher']]) {
     ids[username] = (await db.query('INSERT INTO users(username,password_hash,full_name,role,must_change_password) VALUES($1,$2,$1,$3,false) RETURNING id', [username, hash, role])).rows[0].id;
   }
+  studentId = ids.v68_student;
   await db.query('INSERT INTO student_profiles(user_id,student_code) VALUES($1,$2),($3,$4)', [ids.v68_student, 'V68-01', ids.v68_loner, 'V68-02']);
   const dep = (await db.query("INSERT INTO departments(code,name) VALUES('V68_DEP','Tổ bản đồ') RETURNING id")).rows[0].id;
   subjectId = (await db.query("INSERT INTO subjects(code,name,department_id) VALUES('V68MAP','Môn bản đồ',$1) RETURNING id", [dep])).rows[0].id;
@@ -95,6 +96,14 @@ test.before(async () => {
     }
   };
   await add('b1', 1, 6); await add('b1', 2, 4); await add('b1', 3, 2); await add('b2', 1, 6); await add('b3', 1, 3);
+
+  // Khung năng lực (mẫu KHTN: 3 thành phần) công bố và gắn YCCĐ trước khi học sinh làm bài: câu trả lời từ đây mang minh chứng năng lực.
+  const frame = await req('POST', '/competency/frameworks', {subject_id: subjectId, grade_from: GRADE, grade_to: GRADE, code: 'V68-NL', title: 'Khung năng lực kiểm thử', source: 'Chỉ trong database kiểm thử', version: 'test-1', template: 'KHTN'});
+  expect(frame, 201);
+  expect(await req('POST', `/competency/frameworks/${frame.data.id}/publish`, {revision: frame.data.revision, confirmed: true, reason: 'Fixture V68'}), 200);
+  const axes = (await req('GET', '/competency/frameworks')).data.frameworks.find(f => f.id === frame.data.id).axes;
+  axisIds = axes.map(a => a.id);
+  expect(await req('PUT', '/competency/mappings/yccd/' + yccd, {entries: [{axis_id: axes[0].id, weight: .6}, {axis_id: axes[2].id, weight: .4}], normalize: true, confirmed: true, reason: 'Fixture V68'}), 200);
 });
 
 test.after(() => cleanupIntegration({server, db, adminPool, name, dump, uploadsDir}));
@@ -185,6 +194,17 @@ test('V68 tiến độ: sao, chuỗi ngày, huy hiệu và "Em đang vướng g�
   assert.equal(lessonOf(m, lessons.b1).progress.stars, 1);
   assert.equal(m.current_lesson_id, lessons.b1);
   assert.equal(m.motivation.stars.earned, 4);
+
+  // Biểu đồ các môn: môn đã luyện có điểm và số bài; môn chưa luyện để trống (null), không phải 0.
+  const mine = m.subjects.find(s => s.id === subjectId), rest = m.subjects.filter(s => s.id !== subjectId);
+  assert.equal(mine.practiced, 2);
+  assert.ok(mine.score > 0 && mine.score < 100, 'điểm môn là trung bình các Bài đã luyện: ' + mine.score);
+  assert.ok(rest.length > 0 && rest.every(s => s.score === null && s.practiced === 0));
+  // Biểu đồ năng lực của môn: thành phần có câu tự chấm thì có điểm, thành phần chỉ nhận minh chứng thầy cô ghi thì để trống.
+  const p = await req('GET', `/practice/students/${studentId}/competency-profile?subject_id=${subjectId}&grade=${GRADE}`, undefined, student);
+  expect(p, 200);
+  assert.deepEqual(p.data.axes.map(a => a.evidence_count > 0), [true, false, true]);
+  assert.equal(p.data.axes[1].performance_score, null);
 });
 
 test('V68 trình duyệt: trang chủ học sinh có bản đồ, bấm "Luyện tiếp" vào thẳng bài làm; giáo viên xem độ phủ ở trang Chương trình', {timeout: 90000}, async () => {
@@ -208,9 +228,26 @@ test('V68 trình duyệt: trang chủ học sinh có bản đồ, bấm "Luyện
     await page.getByRole('heading', {name: 'Huy hiệu', exact: true}).waitFor();
     assert.equal(await page.locator('.week-strip li.today.done').count(), 1, 'dải 7 ngày đánh dấu hôm nay đã luyện');
     assert.equal(await page.locator('.badge-shelf li.earned').count(), 2);
+    // Biểu đồ năng lực: một biểu đồ chung các môn, một biểu đồ theo thành phần năng lực của môn đang xem.
+    await page.getByRole('heading', {name: 'Các môn khối 9', exact: true}).waitFor();
+    const ability = page.locator('.ability-card', {hasText: 'Năng lực môn Môn bản đồ'});
+    await ability.locator('.skill-radar').waitFor();
+    assert.equal(await ability.locator('.radar-label').count(), 3);
+    assert.equal(await ability.locator('.radar-label', {hasText: 'chưa có dữ liệu'}).count(), 1, 'thành phần chưa có minh chứng để trống, không vẽ thành 0');
+    assert.equal(await ability.locator('.skill-radar .area').count(), 0, 'thiếu một trục thì không tô vùng');
+    await page.locator('.ability').screenshot({path: path.join(artifacts, 'v68-ability.png')});
+    // Thầy cô ghi một minh chứng thực hành cho "Tìm hiểu tự nhiên": đủ ba trục thì tô vùng; trục mới có 1 minh chứng dùng chấm rỗng.
+    expect(await req('POST', '/competency/rubrics', {student_id: studentId, subject_id: subjectId, grade: GRADE, axis_id: axisIds[1], evidence_type: 'PRACTICAL_TASK', activity: 'Thực hành đo và ghi số liệu', performance: .8, notes: 'Fixture V68', occurred_at: new Date(Date.now() - 1000).toISOString(), reason: 'Fixture V68'}), 201);
+    await page.reload();
+    await ability.locator('.skill-radar .area').waitFor();
+    assert.equal(await ability.locator('.radar-label', {hasText: 'chưa có dữ liệu'}).count(), 0);
+    assert.equal(await ability.locator('.skill-radar .dot.weak').count(), 1);
+    await page.locator('.ability').screenshot({path: path.join(artifacts, 'v68-ability-full.png')});
     await page.screenshot({path: path.join(artifacts, 'v68-student-map.png'), fullPage: true});
     await page.setViewportSize({width: 390, height: 844});
     assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2), 'không tràn ngang trên điện thoại');
+    await page.waitForTimeout(400);   // thanh điều hướng thu lại có hiệu ứng chuyển
+    await page.locator('.ability').screenshot({path: path.join(artifacts, 'v68-ability-mobile.png')});
     await page.screenshot({path: path.join(artifacts, 'v68-student-map-mobile.png'), fullPage: true});
     await page.setViewportSize({width: 1280, height: 1100});
     await page.locator('.route .station-row', {hasText: 'Bài 2: Sáu câu'}).getByRole('button', {name: 'Luyện tiếp', exact: true}).click();

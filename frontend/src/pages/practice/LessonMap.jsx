@@ -2,9 +2,10 @@
 // tối đa 3 Bài đang vướng, tự tạo đề từ nhiều Bài, huy hiệu. Mọi nút luyện là một chạm: máy chủ tự chọn số câu và tỉ lệ mức.
 // Màu tuyến theo phân môn của KHTN (L / H / S); môn khác dùng màu chính.
 import {useEffect,useState} from 'react';
-import {useNavigate} from 'react-router-dom';
+import {Link,useNavigate} from 'react-router-dom';
 import {api} from '../../api/client.js';
 import {base,ErrorBox} from './shared.jsx';
+import SkillRadar from '../../components/SkillRadar.jsx';
 
 const STATUS={new:'Chưa luyện',practicing:'Đang luyện',done:'Đạt mục tiêu'};
 const BADGE_ICONS={first:'🚀',streak3:'🔥',streak7:'💪',hundred:'💯',fix:'🛠️',star3:'⭐',chapter:'📘',challenge:'🧗'};
@@ -14,7 +15,22 @@ const pad=n=>n==null?'•':String(n).padStart(2,'0');
 const toneOf=lessons=>{const count={};for(const l of lessons)if(l.branch)count[l.branch]=(count[l.branch]||0)+1;const top=Object.keys(count).sort((a,b)=>count[b]-count[a])[0];return ['L','H','S'].includes(top)?'tone-'+top:'';};
 const Name=({lesson})=><>{lesson.number!=null&&<span className="sr-only">Bài {lesson.number}: </span>}{lesson.title}</>;
 
-export default function LessonMap({onLoaded,aside}){
+// Năng lực của môn theo khung nhà trường đã công bố (CT GDPT 2018): điểm từ câu trả lời đã gắn năng lực và minh chứng giáo viên ghi.
+// Chưa công bố khung thì nói rõ, không vẽ số tự đặt.
+function SubjectAbility({studentId,subject,grade}){
+ const [profile,setProfile]=useState(undefined);
+ useEffect(()=>{let live=true;setProfile(undefined);api.get(`${base}/students/${studentId}/competency-profile?subject_id=${subject.id}&grade=${grade}`).then(d=>{if(live)setProfile(d);}).catch(()=>{if(live)setProfile(null);});return()=>{live=false;};},[studentId,subject.id,grade]);
+ const has=profile?.framework&&profile.axes.length>0,counted=has?profile.axes.reduce((n,a)=>n+a.evidence_count,0):0;
+ return <article className="ability-card"><h3>Năng lực môn {subject.name}</h3>
+  {profile===undefined?<p>Đang tải…</p>:!has?<p>Nhà trường chưa công bố khung năng lực môn {subject.name}, nên chưa có biểu đồ này. Khi có, biểu đồ hiện từng thành phần năng lực theo Chương trình GDPT 2018.</p>:<>
+   <p>{profile.framework.title} · tính từ {counted} minh chứng (câu đã gắn năng lực, bài thầy cô chấm).</p>
+   <SkillRadar label={'Năng lực môn '+subject.name} axes={profile.axes.map(a=>({key:a.axis_id,label:a.name,value:a.evidence_count&&a.performance_score!=null?Math.round(a.performance_score):null,weak:!a.sufficient,detail:a.evidence_count+' minh chứng'}))}/>
+   {(profile.axes.some(a=>a.evidence_count&&!a.sufficient)||profile.unmapped_items>0)&&<p className="ability-note">{profile.axes.some(a=>a.evidence_count&&!a.sufficient)?'Chấm rỗng: mới có ít minh chứng nên số còn đổi nhiều. ':''}{profile.unmapped_items>0?`${profile.unmapped_items} câu em làm trước đây chưa gắn năng lực nên không tính.`:''}</p>}
+   <Link className="ability-more" to="/practice/portfolio?tab=competency">Xem minh chứng →</Link></>}
+ </article>;
+}
+
+export default function LessonMap({onLoaded,aside,studentId}){
  const nav=useNavigate(),[subject,setSubject]=useState(''),[data,setData]=useState(null),[error,setError]=useState(''),[starting,setStarting]=useState('');
  const [showLocked,setShowLocked]=useState(false),[picking,setPicking]=useState(false),[picked,setPicked]=useState([]),[count,setCount]=useState(0);
  useEffect(()=>{let live=true;api.get(base+'/lesson-map'+(subject?'?subject_id='+subject:'')).then(d=>{if(!live)return;setData(d);setPicked([]);onLoaded?.(d);}).catch(e=>{if(live){setError(e.message);onLoaded?.(null);}});return()=>{live=false;};},[subject]);
@@ -85,6 +101,12 @@ export default function LessonMap({onLoaded,aside}){
    <p className="map-foot">
     {summary.locked>0&&<button type="button" className="btn link" onClick={()=>setShowLocked(!showLocked)}>{showLocked?'Ẩn':'Hiện'} {summary.locked} bài chưa đủ câu hỏi</button>}
     <span>Vòng quanh số bài là điểm thành thạo. ★ đã luyện · ★★ từ {rules.focus_below} điểm · ★★★ từ {rules.threshold} điểm qua ít nhất 2 lượt. “Ít dữ liệu”: em mới làm ít câu nên điểm còn đổi nhiều.</span></p>
+  </section>
+  <section className="ability" aria-label="Biểu đồ năng lực">
+   <article className="ability-card"><h3>Các môn khối {data.grade}</h3><p>Điểm thành thạo trung bình của những bài em đã luyện ở mỗi môn, kèm số bài đã luyện.</p>
+    <SkillRadar label={'Các môn khối '+data.grade} axes={data.subjects.map(s=>({key:s.id,label:s.name,value:s.score??null,weak:s.practiced<2,detail:`${s.practiced}/${s.lessons} bài`}))}/>
+    {data.subjects.some(s=>s.practiced===1)&&<p className="ability-note">Chấm rỗng: môn mới luyện 1 bài, số còn đổi nhiều.</p>}</article>
+   {studentId&&<SubjectAbility studentId={studentId} subject={data.subject} grade={data.grade}/>}
   </section>
   <section className="badge-shelf" aria-labelledby="badge-title">
    <header><h3 id="badge-title">Huy hiệu</h3><span>{earned}/{m.badges.length} đã đạt · chuỗi dài nhất {m.streak.best} ngày</span></header>

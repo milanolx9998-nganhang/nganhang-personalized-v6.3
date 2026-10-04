@@ -165,7 +165,10 @@ export async function lessonMap(user, raw) {
   }
   const types = await practiceTypes(pool, subjectId), topics = await lessonsOf(pool, subjectId, grade);
   const usable = tally(await usableByLesson(pool, {subjectId, grade, types, student: user}));
-  const states = (await pool.query('SELECT m.state FROM mastery_states m JOIN topics t ON t.id=m.topic_id WHERE m.student_id=$1 AND t.subject_id=$2 AND t.grade=$3', [user.id, subjectId, grade])).rows.map(r => r.state);
+  // Thành thạo của mọi môn trong khối: dùng cho bản đồ của môn đang chọn và cho biểu đồ chung các môn (điểm trung bình các Bài đã luyện).
+  const allStates = (await pool.query("SELECT t.subject_id,m.state FROM mastery_states m JOIN topics t ON t.id=m.topic_id WHERE m.student_id=$1 AND t.grade=$2 AND t.status='ACTIVE'", [user.id, grade])).rows;
+  const states = allStates.filter(r => r.subject_id === subjectId).map(r => r.state);
+  for (const s of subjects) { const own = allStates.filter(r => r.subject_id === s.id).map(r => r.state); s.score = round(weighted(own)); s.practiced = new Set(own.map(x => x.topic_id)).size; }
   const min = floorOf(cfg), lessonCount = clamp(LESSON_COUNT, min, cfg.practice_max_questions);
   const lessons = topics.map(t => {
     const levels = usable.get(t.id) || [0, 0, 0, 0], total = sum(levels);

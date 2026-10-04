@@ -896,3 +896,19 @@ Kết quả chạy toàn bộ: xem mục kế tiếp.
 **Kiểm:** chụp ảnh bằng Playwright trên database sao chép tạm với một học sinh giả (đã xoá database và script tạm sau khi xong): máy tính 1366 px và điện thoại 390 px, không tràn ngang, không lỗi console; chế độ chọn nhiều bài hiển thị đúng. Test: unit 137/137, security 27/27, integration 168/168 (test trình duyệt V68 kiểm thêm dải 7 ngày và số huy hiệu đạt), build đạt.
 
 **Việc tiếp:** chờ anh Hiếu xem ảnh, góp ý phần nhìn, rồi "up main". Màn làm bài (Player), hồ sơ học tập và thanh bên chưa đổi.
+
+## 2026-10-04 — Biểu đồ năng lực ("lục giác") trên trang chủ học sinh
+
+**Yêu cầu:** anh Hiếu: phần nhìn trang chủ ổn, nhưng thiếu biểu đồ năng lực kiểu bóng đá — một biểu đồ chung các môn, và vào mỗi môn có một biểu đồ theo các năng lực của môn trong CT GDPT 2018 (ví dụ năng lực tìm hiểu tự nhiên).
+
+**Hiện trạng trước khi làm:** hệ thống năng lực V6.6.3 đã có (khung, trục, ánh xạ YCCĐ / Chủ đề / câu → trục, minh chứng rubric giáo viên, `competency-profile`), radar cũ nằm ở Hồ sơ học tập → Năng lực và chỉ hiện khi mọi trục đủ minh chứng. Database máy này: chưa có khung nào công bố, chưa có ánh xạ nào, chưa câu trả lời nào mang minh chứng năng lực.
+
+**Thay đổi:**
+- `frontend/src/components/SkillRadar.jsx` (mới): biểu đồ mạng nhện SVG một chuỗi. Trục chưa có dữ liệu để trống (nan nét đứt, nhãn "chưa có dữ liệu"), không coi là 0; chỉ tô vùng khi mọi trục có số, còn thiếu thì vẽ từng "tia" từ tâm; trục ít dữ liệu dùng chấm rỗng; nhãn mỗi trục ghi số và căn cứ (mấy bài / mấy minh chứng); dưới 3 trục thì đổi sang thanh ngang.
+- `LessonMap.jsx`: khối `.ability` giữa bản đồ và huy hiệu, hai thẻ: "Các môn khối N" (mỗi trục một môn có Bài ở khối) và "Năng lực môn X" (đọc `GET /practice/students/:id/competency-profile`; chưa có khung công bố thì ghi rõ, không vẽ). `StudentHome.jsx` truyền `studentId`.
+- `lessonMap.js`: mỗi môn trong `subjects[]` thêm `score` (trung bình thành thạo các Bài đã luyện, theo số câu; chưa luyện = null) và `practiced` (số Bài đã luyện). Một truy vấn `mastery_states` cho cả khối thay cho truy vấn theo môn. Không có migration.
+- CSS trong `learning.css`. Lưu ý: `practice.css` có `.practice-page figure svg{max-height:250px}` cho biểu đồ cũ nên radar phải ghi đè bằng `.practice-page .skill-radar svg`.
+
+**Kiểm:** integration `v68-lesson-map` thêm khung năng lực mẫu KHTN + ánh xạ YCCĐ trong fixture; kiểm `subjects[].score/practiced` (môn chưa luyện = null), `competency-profile` (trục chỉ nhận minh chứng thầy cô để trống), và trên trình duyệt: thiếu một trục thì không tô vùng, sau khi ghi một minh chứng thực hành thì tô vùng và trục đó là chấm rỗng. Ảnh: `artifacts/v68-ability.png`, `v68-ability-full.png`, `v68-ability-mobile.png` (đã xem cả hai cỡ màn). Toàn bộ: unit 137/137, security 27/27, integration 168/168, build đạt.
+
+**Điều cần anh Hiếu quyết (chưa làm):** trên web thật biểu đồ năng lực theo môn sẽ trống cho tới khi (1) nhà trường công bố khung năng lực của môn (mẫu KHTN 3 thành phần, Toán 5 thành phần đã có sẵn), (2) YCCĐ / câu hỏi được gắn vào thành phần năng lực, (3) học sinh làm bài sau thời điểm gắn (bài cũ không suy ngược). "Tìm hiểu tự nhiên" không tính từ câu tự chấm, cần thầy cô ghi minh chứng thực hành. Ba cách gắn đã nêu: tự động theo mức nhận thức của câu; tổ trưởng gắn theo YCCĐ / Chủ đề (cần công cụ gắn hàng loạt); thêm cột năng lực vào mẫu Excel chương trình.

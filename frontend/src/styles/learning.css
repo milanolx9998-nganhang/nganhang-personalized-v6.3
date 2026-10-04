@@ -126,7 +126,31 @@
 .station-row .btn{flex:none;min-width:108px}
 .map-foot{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:baseline;margin:4px 0 0;color:var(--muted);font-size:12.5px;line-height:1.5}
 
-.badge-shelf{margin:22px 0 18px;padding:16px 20px 18px;border:1px solid var(--line);border-radius:18px;background:#fff}
+/* Biểu đồ năng lực: một chuỗi, màu chính; lưới và trục chìm; trục thiếu dữ liệu nét đứt, không coi là 0. */
+.ability{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:22px 0 0}
+.ability-card{padding:16px 20px 14px;border:1px solid var(--line);border-radius:18px;background:#fff}
+.ability-card h3{margin:0;font-size:16px}.ability-card>p{margin:4px 0 0;color:var(--muted);font-size:12.5px;line-height:1.5}
+.ability-card .ability-note{margin-top:8px}
+.practice-page .skill-radar{position:relative;max-width:440px;margin:10px auto 8px;aspect-ratio:440/320}
+.practice-page .skill-radar svg{position:absolute;inset:0;width:100%;height:100%;max-width:none;max-height:none;overflow:visible}
+.skill-radar .ring{fill:none;stroke:var(--line-soft);stroke-width:1}.skill-radar .ring.outer{stroke:var(--line-strong)}
+.skill-radar .spoke{stroke:var(--line-soft);stroke-width:1}.skill-radar .spoke.empty{stroke:var(--line-strong);stroke-dasharray:3 4}
+.skill-radar .area{fill:var(--accent);fill-opacity:.14;stroke:var(--accent);stroke-width:2;stroke-linejoin:round}
+.skill-radar .reach{stroke:var(--accent);stroke-width:2;stroke-linecap:round}
+.skill-radar .dot{fill:var(--accent);stroke:#fff;stroke-width:2}.skill-radar .dot.weak{fill:#fff;stroke:var(--accent)}
+.skill-radar .hit{fill:transparent}
+.radar-label{position:absolute;max-width:26%;color:var(--muted);font-size:12px;line-height:1.3}
+.radar-label strong{display:block;color:var(--ink);font-weight:500}.radar-label b{font:500 13px var(--font-mono);color:var(--ink)}
+.radar-label.top,.radar-label.bottom{max-width:46%;text-align:center}.radar-label.under{transform:translate(-50%,0);text-align:center}.radar-label.under.r{transform:translate(50%,0)}
+.radar-label.top{transform:translate(-50%,-100%)}.radar-label.bottom{transform:translate(-50%,0)}
+.radar-label.right{transform:translate(0,-50%)}.radar-label.left{transform:translate(-100%,-50%);text-align:right}
+.radar-label.high{max-width:36%}.radar-label.right.high{transform:translate(-15%,-100%)}.radar-label.left.high{transform:translate(-85%,-100%)}
+.radar-label.low{max-width:36%}.radar-label.right.low{transform:translate(-15%,0)}.radar-label.left.low{transform:translate(-85%,0)}
+.ability-card .ability-more{display:inline-block;margin-top:6px;font-size:13px}
+.radar-bars{list-style:none;margin:12px 0 0;padding:0}.radar-bars li{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,2fr) auto;gap:10px;align-items:center;padding:5px 0;font-size:13px}
+.radar-bars .bar{height:8px;border-radius:99px;background:var(--surface-3);overflow:hidden}.radar-bars .bar i{display:block;height:100%;border-radius:99px;background:var(--accent)}
+.radar-bars b{font:500 13px var(--font-mono)}
+.badge-shelf{margin:14px 0 18px;padding:16px 20px 18px;border:1px solid var(--line);border-radius:18px;background:#fff}
 .badge-shelf header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:4px 12px}
 .badge-shelf h3{margin:0;font-size:16px}.badge-shelf header span{color:var(--muted);font-size:12.5px}
 .badge-shelf ul{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:14px 10px;list-style:none;margin:16px 0 0;padding:0}
@@ -139,7 +163,7 @@
 
 @media(prefers-reduced-motion:no-preference){.hero-ring{animation:fill-in .9s cubic-bezier(.2,.7,.2,1) both}.station{animation:fill-in .7s cubic-bezier(.2,.7,.2,1) .15s both}}
 @media(max-width:1180px){.badge-shelf ul{grid-template-columns:repeat(4,minmax(0,1fr))}}
-@media(max-width:1080px){.home-top{grid-template-columns:minmax(0,1fr)}.home-top .todo-card{order:-1}}
+@media(max-width:1080px){.home-top{grid-template-columns:minmax(0,1fr)}.home-top .todo-card{order:-1}.ability{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:680px){
  .week-strip{width:100%;min-width:0}
  .station-hero{grid-template-columns:minmax(0,1fr);gap:16px;padding:22px 20px}.hero-ring{width:84px;height:84px}.hero-ring::before{inset:7px}.hero-ring span{font-size:30px}.station-hero h3{font-size:22px}

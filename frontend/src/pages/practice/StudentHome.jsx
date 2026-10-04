@@ -38,7 +38,7 @@ export default function StudentHome(){
  </aside>;
  return <section className="practice-page student-home"><header className="learning-header"><div><span className="eyebrow">Chào {user.full_name}</span><h1>Việc học của em</h1><p>Mỗi lần luyện, hiểu thêm một chút.</p></div>{map?.motivation?.week&&<WeekStrip motivation={map.motivation}/>}</header>
  <ErrorBox error={error}/>
- <LessonMap onLoaded={setMap} aside={todo}/>
+ <LessonMap onLoaded={setMap} aside={todo} studentId={user.id}/>
  {hasMap===false&&<section><h2>Nội dung nên củng cố</h2>{d.signals.focus.length?<FocusTopics states={d.signals.focus.slice(0,2)} id={user.id} self/>:<p>{d.signals.low_confidence?'Chưa đủ dữ liệu để xác định nội dung nên củng cố.':'Bắt đầu luyện để theo dõi tiến bộ của em.'}</p>}</section>}
  <div className="practice-actions home-foot"><Link className={'btn '+(d.unfinished.length||hasMap?'':'primary')} to="/practice/new">{hasMap?'Tự chọn bài luyện':'Bắt đầu tự luyện'}</Link><Link className="btn" to={portfolioUrl(user.id,true)}>Xem toàn bộ hồ sơ học tập →</Link></div>
  <details className="practice-card student-progress"><summary>Tiến bộ gần đây · {d.summary.completed_attempts} lượt hoàn thành</summary><div className="practice-stats">{[[d.summary.completed_attempts,'Lượt hoàn thành'],[d.summary.answered_questions,'Câu đã trả lời'],[d.summary.unique_questions,'Câu khác nhau'],[d.summary.active_days,'Ngày hoạt động']].map(([n,label])=><article key={label}><strong>{n}</strong>{label}</article>)}</div><ProgressChart attempts={d.recent_completed_attempts}/></details></section>;
