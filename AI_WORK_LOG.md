@@ -932,3 +932,5 @@ Kết quả chạy toàn bộ: xem mục kế tiếp.
 **Kiểm:** migration qua cổng an toàn, chạy trên DB local (13 khung PUBLISHED); học sinh demo local có 3 trục KHTN từ 30 câu đã làm (35,5 / 18 / 0). Unit 138/138 (thêm `levelEntries`), security 27/27, integration mới `v681-competency-defaults` 2/2, toàn bộ integration 169/170 — lỗi duy nhất vẫn là test tải V6661 (1589 ms > 1500 ms, dao động do máy). Build frontend đạt.
 
 **Việc tiếp:** chờ anh Hiếu "up main" (có migration v681). Deploy `7014202` đã chạy xong, thành công lúc 22:30 ngày 04/10 (runner máy Home nhận việc trễ khoảng 20 phút); web thật đang ở `7014202`.
+
+**Deploy `8d0d9d4`** (anh Hiếu "up main", thứ Hai 00:10): fast-forward từ `7014202`, CI run 37219559269 SUCCESS — Verify 63 giây, Deploy 35 giây; migration v681 chạy trong deploy. Chưa kiểm giao diện web thật.
