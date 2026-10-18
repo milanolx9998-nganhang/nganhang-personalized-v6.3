@@ -1,5 +1,15 @@
 # AI HANDOFF
 
+## Handoff snapshot
+- Status: in_progress
+- Last completed: V6.9 "Đấu" — backend đủ (ghép linh hoạt, máy, giờ vàng, rank, kiểu phòng), UI Gemini 1–4c đã nối route; chạy thử trình duyệt mọi luồng chính và sửa lỗi tích hợp (`7ee43ea`, `8754b72`); luật rank khi bỏ trận theo anh Hiếu 19/10.
+- In progress: chờ anh Hiếu duyệt ảnh giao diện.
+- Exact next action: viết test trình duyệt cố định (`backend/test/integration/v69-battle-ui.test.js`) từ kịch bản tạm `backend/scripts/_tmp-battle-ui.mjs`; đổi ô "Mã môn" Giờ vàng trong AdminBattle sang chọn môn.
+- Blockers / decisions needed: merge `main`/deploy chỉ khi anh Hiếu bảo "up" (ngoài giờ học).
+- Latest verification: unit 203/203, security 27/27, integration 189/190 (V6661 tải, lỗi cũ khi chạy song song), build OK, Playwright trên server thử 3196.
+- Last safe commit: 8754b72 (nhánh `feat-v69-battle`)
+- Working tree notes: chưa commit và không commit — `backend/scripts/_tmp-battle-{sandbox,prep,ui}.mjs` (kịch bản thử), `.claude/`; DB clone `nganhang_battle_ui_tmp` còn giữ để thử tiếp (xoá khi xong).
+
 ## Bàn giao mới nhất — 18/10/2026: backend Đấu V6.9
 
 - Đã hoàn thiện backend theo kế hoạch 1.3 §23 và sửa review V4 B0–B3, Q1–Q8. Giữ phần nháp trước; không sửa React, không commit/push/đổi nhánh, không sửa `.env`, không truy cập mạng ngoài. Báo cáo chi tiết: `docs/thiet-ke/phan-bien/TRIEN_KHAI_BACKEND_CODEX.md`; hợp đồng frontend: mục `/api/battle` trong `docs/API.md`.
