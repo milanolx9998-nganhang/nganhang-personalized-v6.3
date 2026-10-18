@@ -507,7 +507,7 @@ export default function ProjectorPage() {
       const rows = options.map((opt, idx) => {
         const key = String(opt.id ?? letters[idx]);
         const count = Number(
-          dist[key] ?? dist.options?.[key] ?? dist.counts?.[key] ?? 0
+          dist.choices?.[key] ?? dist[key] ?? dist.options?.[key] ?? dist.counts?.[key] ?? 0
         );
         return {
           key,
@@ -583,7 +583,7 @@ export default function ProjectorPage() {
       {
         key: 'empty',
         label: '— Bỏ trống / Chưa chốt',
-        count: Number(dist.empty ?? dist.unanswered ?? dist.skipped ?? 0),
+        count: Number(dist.blank ?? dist.empty ?? dist.unanswered ?? dist.skipped ?? 0),
         correct: false,
       },
     ];

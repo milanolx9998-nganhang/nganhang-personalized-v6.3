@@ -39,26 +39,28 @@ export function createRatings(db=pool){
     mmr[subject]=Number((await c.query('SELECT mmr FROM battle_subject_ratings WHERE user_id=$1 AND grade=$2 AND season=$3 AND subject_id=$4',[p.user_id,room.grade,d.season,subject])).rows[0].mmr);
    }snapshots.set(p.user_id,{rating,mmr});
   }
+  // Người chủ động rời vẫn tính thua; người ở lại chỉ xếp hạng với nhau, còn một mình thì ván không tính hạng.
+  const leavers=new Set(humans.filter(h=>h.left_at&&h.leave_reason==='left').map(h=>h.user_id)),stay=rows.filter(x=>!leavers.has(x.user_id));
   for(const p of humans){
+   const forfeited=leavers.has(p.user_id);if(!forfeited&&stay.length<2)continue;
    if(!meta.ranked?.[p.user_id]||(await c.query('SELECT 1 FROM battle_rating_events WHERE room_id=$1 AND user_id=$2',[room.id,p.user_id])).rowCount)continue;
-   const {rating,mmr}=snapshots.get(p.user_id),own=rows.find(x=>x.user_id===p.user_id),others=rows.filter(x=>x.user_id!==p.user_id),opponents=humans.filter(x=>x!==p).map(x=>x.user_id),mean=values=>values.reduce((a,b)=>a+b,0)/values.length;
+   const field=forfeited?rows:stay,{rating,mmr}=snapshots.get(p.user_id),found=field.find(x=>x.user_id===p.user_id),own={...found,rank:1+field.filter(x=>x.points>found.points).length},others=field.filter(x=>x.user_id!==p.user_id),opponents=humans.filter(x=>x!==p&&field.some(f=>f.user_id===x.user_id)).map(x=>x.user_id),mean=values=>values.reduce((a,b)=>a+b,0)/values.length;
    const ownMmr=mean(Object.values(mmr)),otherMmr=mean(others.map(o=>snapshots.has(o.user_id)?mean(Object.values(snapshots.get(o.user_id).mmr)):d.base_mmr));
    const todayStart=new Date(localDay(room.ended_at)+'T00:00:00+07:00'),today=(await c.query('SELECT opponents,has_bots,shield FROM battle_rating_events WHERE user_id=$1 AND created_at >= $2 AND created_at < $2::timestamptz+interval \'1 day\'',[p.user_id,todayStart])).rows,bot=Boolean(room.has_bots);
-   const forfeited=Boolean(p.left_at&&p.leave_reason==='left');
-   let delta=lpDelta({size:rows.length,rank:forfeited?rows.length:own.rank,tied:!forfeited&&rows.length===2&&own.points===others[0].points,mmr:ownMmr,opponentMmr:otherMmr,width:meta.width,bot,games:rating.games},cfg),reason={width:meta.width,bot,...(forfeited?{left:true}:{})},shield=false;
+   let delta=lpDelta({size:field.length,rank:forfeited?field.length:own.rank,tied:!forfeited&&field.length===2&&own.points===others[0].points,mmr:ownMmr,opponentMmr:otherMmr,width:meta.width,bot,games:rating.games},cfg),reason={width:meta.width,bot,...(forfeited?{left:true}:{})},shield=false;
    // Đồng hạng nhiều người chia trung bình các vị trí bị chiếm.
-   const tied=rows.filter(x=>x.points===own.points);if(!forfeited&&rows.length>2&&tied.length>1)delta=Math.round(tied.reduce((s,_,i)=>s+lpDelta({size:rows.length,rank:own.rank+i,mmr:ownMmr,opponentMmr:otherMmr,width:meta.width,bot,games:rating.games},cfg),0)/tied.length);
+   const tied=field.filter(x=>x.points===own.points);if(!forfeited&&field.length>2&&tied.length>1)delta=Math.round(tied.reduce((s,_,i)=>s+lpDelta({size:field.length,rank:own.rank+i,mmr:ownMmr,opponentMmr:otherMmr,width:meta.width,bot,games:rating.games},cfg),0)/tied.length);
    const pairCap=opponents.some(id=>today.filter(e=>e.opponents.includes(id)).length>=d.pair_daily),botCap=bot&&today.filter(e=>e.has_bots).length>=d.bot_daily;
    if(pairCap||botCap){delta=0;reason.cap=pairCap?'pair_daily':'bot_daily';}
-   let streak=false;for(const opponent of opponents){if(own.points<=rows.find(x=>x.user_id===opponent).points)continue;
+   let streak=false;for(const opponent of opponents){if(own.points<=field.find(x=>x.user_id===opponent).points)continue;
     const recent=(await c.query('SELECT won,scope_key,reason FROM battle_rating_events WHERE user_id=$1 AND season=$2 AND $3=ANY(opponents) ORDER BY created_at DESC,room_id DESC LIMIT $4',[p.user_id,d.season,opponent,d.streak_wins])).rows;
     if(recent.length===d.streak_wins&&recent.every(e=>(e.won||e.reason?.won_opponents?.includes(opponent))&&e.scope_key===scopeKey))streak=true;
    }
-   const abnormal=humans.some(h=>h.left_at&&h.leave_reason!=='disconnected'||room.answers.filter(a=>a.user_id===h.user_id&&a.idx<room.asked_count).length===room.asked_count&&room.answers.filter(a=>a.user_id===h.user_id).every(a=>!a.skipped&&a.ms<d.abnormal_ms));
+   const abnormal=humans.some(h=>room.answers.filter(a=>a.user_id===h.user_id&&a.idx<room.asked_count).length===room.asked_count&&room.answers.filter(a=>a.user_id===h.user_id).every(a=>!a.skipped&&a.ms<d.abnormal_ms));
    if(delta>0&&streak){delta=Math.round(delta*d.streak_factor);reason.streak=true;}
    if(delta>0&&abnormal){delta=Math.round(delta*d.abnormal_factor);reason.abnormal=true;}
    if(!forfeited&&(p.disconnected||meta.disconnected?.[p.user_id])&&delta<0&&today.filter(e=>e.shield).length<d.shield_daily){delta=0;shield=true;reason.network_shield=true;}
-   reason.won_opponents=forfeited?[]:opponents.filter(id=>own.points>rows.find(x=>x.user_id===id).points);
+   reason.won_opponents=forfeited?[]:opponents.filter(id=>own.points>field.find(x=>x.user_id===id).points);if(!forfeited&&leavers.size)reason.others_left=[...leavers];
    const lp=floorLP(rating.lp,delta,rating.tier,cfg),after={};delta=lp-rating.lp;
    const nextTier=Math.min(d.tiers.length-1,Math.floor(lp/(d.divisions*d.division_lp)));reason.tier_before=rating.tier;reason.tier_after=nextTier;reason.visibility_offer=rating.hidden&&rating.tier<d.visible_tier&&nextTier>=d.visible_tier;
    for(const subject of subjects){const subjectOpponent=mean(others.map(o=>snapshots.get(o.user_id)?.mmr[subject]??d.base_mmr)),expected=1/(1+10**((subjectOpponent-mmr[subject])/d.mmr_scale)),actual=forfeited?0:others.reduce((s,o)=>s+(own.points>o.points?1:own.points===o.points?.5:0),0)/others.length;after[subject]=reason.cap?mmr[subject]:Math.round(mmr[subject]+d.mmr_k*(actual-expected));

@@ -296,7 +296,8 @@ export default function RevealPanel({
       const counts = options.map((opt, idx) => {
         const key = String(opt.id ?? letters[idx]);
         const c = Number(
-          distribution[key] ??
+          distribution.choices?.[key] ??
+            distribution[key] ??
             distribution.options?.[key] ??
             distribution.counts?.[key] ??
             0
@@ -365,7 +366,8 @@ export default function RevealPanel({
         key: 'empty',
         label: '— Bỏ trống / Chưa chốt',
         count: Number(
-          distribution.empty ??
+          distribution.blank ??
+            distribution.empty ??
             distribution.unanswered ??
             distribution.skipped ??
             0

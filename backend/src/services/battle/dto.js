@@ -16,7 +16,9 @@ export function questionDto(raw,reveal=false){
  }
  return out;
 }
-const publicRank=p=>({id:p.user_id,is_bot:Boolean(p.is_bot),name:p.name,class_name:p.class_name,points:p.points,correct:p.correct,rank:p.rank});
+// Điểm lẻ (Đúng/Sai, ghép nối chấm từng phần) chỉ làm tròn khi xuất; xếp hạng vẫn dùng số gốc.
+const shownPoints=v=>Math.round(Number(v)||0);
+const publicRank=p=>({id:p.user_id,is_bot:Boolean(p.is_bot),name:p.name,class_name:p.class_name,points:shownPoints(p.points),correct:p.correct,rank:p.rank});
 export function roomDto(room,viewer,now){
  const ended=terminal(room),revealed=room.phase==='reveal'||ended,through=revealed?room.asked_count:Math.max(0,room.asked_count-1);
  const rows=standings(room,through),own=room.players.find(p=>p.user_id===viewer.id),isTeacher=room.kind==='class'&&room.host_id===viewer.id;
@@ -31,7 +33,7 @@ export function roomDto(room,viewer,now){
  }else if(!ended){
   out.deadline=room.deadline??null;out.remaining=room.phase==='paused'?room.remaining:null;
   out.answered_count=room.answers.filter(a=>a.idx===room.index).length;out.player_count=activePlayers(room).length;
-  if(!isTeacher)out.players=rows.map(p=>({id:p.user_id,is_bot:Boolean(p.is_bot),name:p.name,class_name:p.class_name,points:p.points,correct:p.correct,answered:room.answers.some(a=>a.idx===room.index&&a.user_id===p.user_id)}));
+  if(!isTeacher)out.players=rows.map(p=>({id:p.user_id,is_bot:Boolean(p.is_bot),name:p.name,class_name:p.class_name,points:shownPoints(p.points),correct:p.correct,answered:room.answers.some(a=>a.idx===room.index&&a.user_id===p.user_id)}));
  }
  // Đếm ngược chưa phát câu: tuyệt đối không gửi nội dung tương lai trong ảnh chụp.
  if(room.index>=0&&room.index<room.asked_count&&!ended){
@@ -40,7 +42,7 @@ export function roomDto(room,viewer,now){
   if(own)out.my_answer=a?{received:true,response:a.response,skipped:a.skipped,...(revealed?{score:Number(a.score)}:{})}:{received:false};
   if(revealed)out.distribution=distribution(room,room.index);
  }
- if(room.kind==='team')out.teams=teamStandings(room,through);
+ if(room.kind==='team')out.teams=teamStandings(room,through).map(t=>({...t,points:shownPoints(t.points)}));
  if(ended){
   out.podium=isTeacher&&!room.show_top3?[]:rows.filter(p=>p.rank<=3).slice(0,3).map(publicRank);
   const rank=rows.find(p=>p.user_id===viewer.id);out.me=rank?{...publicRank(rank),total:rows.length}:null;
