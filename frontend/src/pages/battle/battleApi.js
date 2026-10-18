@@ -355,12 +355,8 @@ export const battleApiFlex = {
     });
   },
 
-  // 15. Lấy danh sách lớp dạy của giáo viên (hỗ trợ cả /api/practice/teacher/classes và /api/practice/classes)
-  async getTeacherClassesSafe() {
-    try {
-      return await api.get('/api/practice/teacher/classes');
-    } catch {
-      return api.get('/api/practice/classes');
-    }
+  // 15. Lấy danh sách lớp giáo viên được phân công (quản trị: mọi lớp)
+  getTeacherClassesSafe() {
+    return api.get('/api/practice/classes');
   },
 };

@@ -61,6 +61,7 @@ export default function App() {
     <BrowserRouter>
       <Suspense fallback={<p className="route-loading" role="status">Đang mở trang…</p>}><Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/practice/battle/rooms/:id/projector" element={<PrivateRoute><BattleProjector/></PrivateRoute>}/>
         <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
           <Route path="practice" element={<PracticeHome/>}/>
           <Route path="practice/flagged" element={<FlaggedReview/>}/>
@@ -68,7 +69,6 @@ export default function App() {
           <Route path="practice/attempts/:id" element={<Player/>}/>
           <Route path="practice/battle" element={<ArenaLobby/>}/>
           <Route path="practice/battle/rooms/:id" element={<BattleRoom/>}/>
-          <Route path="practice/battle/rooms/:id/projector" element={<BattleProjector/>}/>
           <Route path="practice/assignments" element={<Assignments/>}/>
           <Route path="practice/shared/:token" element={<SharedAssignment/>}/>
           <Route path="practice/banks" element={<Banks/>}/>

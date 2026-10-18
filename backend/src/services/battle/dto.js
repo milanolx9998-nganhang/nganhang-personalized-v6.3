@@ -22,8 +22,9 @@ const publicRank=p=>({id:p.user_id,is_bot:Boolean(p.is_bot),name:p.name,class_na
 export function roomDto(room,viewer,now){
  const ended=terminal(room),revealed=room.phase==='reveal'||ended,through=revealed?room.asked_count:Math.max(0,room.asked_count-1);
  const rows=standings(room,through),own=room.players.find(p=>p.user_id===viewer.id),isTeacher=room.kind==='class'&&room.host_id===viewer.id;
- const out={id:room.id,run_id:room.run_id,version:room.version,status:room.status,phase:room.phase,server_now:now,kind:room.kind,asked_count:room.asked_count,question_count:room.question_count,capacity:room.capacity,seconds:room.seconds,scope:{subject_id:room.scope.subject_id??null,subject_ids:room.scope.subject_ids,branch_id:room.scope.branch_id??null,topic_ids:room.scope.topic_ids??null},end_reason:room.end_reason??null};
+ const out={id:room.id,run_id:room.run_id,version:room.version,status:room.status,phase:room.phase,server_now:now,kind:room.kind,asked_count:room.asked_count,question_count:room.question_count,capacity:room.capacity,seconds:room.seconds,scope:{subject_id:room.scope.subject_id??null,subject_ids:room.scope.subject_ids,branch_id:room.scope.branch_id??null,topic_ids:room.scope.topic_ids??null},end_reason:room.end_reason??null,host_id:room.host_id};
  Object.assign(out,{visibility:room.visibility,open_slots:Boolean(room.open_slots),auto_match:Boolean(room.auto_match),countdown_at:room.countdown_at??null,auto_start_at:room.auto_start_at??null,label:room.has_bots?'Đấu với máy':room.open_slots?'Nhóm bạn đang tìm thêm người':null,ranked:Boolean(room.match_meta?.ranked?.[viewer.id])});
+ if(isTeacher)out.class_id=room.class_id;
  if(room.phase==='lobby')out.rank_requested=Boolean(own?.rank_requested);
  if(room.phase==='lobby'){
   out.code=room.code;out.host_id=room.host_id;out.start_reasons=startReasons(room,now);

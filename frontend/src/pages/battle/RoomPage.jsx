@@ -545,7 +545,7 @@ export default function RoomPage() {
   };
 
   // Trạng thái đang tải lần đầu
-  if (!snapshot && (streamStatus === 'connecting' || loadingFallback)) {
+  if (!snapshot && (streamStatus !== 'stopped' || loadingFallback)) {
     return (
       <div className="arena-page">
         <div className="arena-container">

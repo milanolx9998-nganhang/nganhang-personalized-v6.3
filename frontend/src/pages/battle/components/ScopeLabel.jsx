@@ -18,7 +18,7 @@ export default function ScopeLabel({ scope, options }) {
     (s) => Number(s.id) === Number(scope.subject_id)
   );
   const subjectName =
-    subjectObj?.name || scope.subject_name || 'Khoa học tự nhiên';
+    subjectObj?.name || scope.subject_name || 'Môn học';
 
   const branchObj =
     scope.branch_id !== undefined && scope.branch_id !== null

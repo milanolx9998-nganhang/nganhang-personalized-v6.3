@@ -597,7 +597,7 @@
 .arena-overlay {
   position: fixed;
   inset: 0;
-  z-index: 80;
+  z-index: 210; /* trên nút menu cố định của app (200) */
   background-color: rgba(21, 63, 87, 0.68);
   backdrop-filter: blur(3px);
   display: flex;
@@ -665,7 +665,7 @@
 .arena-fullscreen-overlay {
   position: fixed;
   inset: 0;
-  z-index: 90;
+  z-index: 220;
   background: radial-gradient(circle at center, var(--arena-dark) 0%, var(--arena-dark-deep) 100%);
   color: #FFFFFF;
   display: flex;
@@ -2923,8 +2923,328 @@
   width: 46px;
   height: 46px;
   border-radius: 50%;
-  background-color: var(--arena-amber
+  background-color: var(--arena-amber);
+  display: grid;
+  place-items: center;
+  font-size: 1.5rem;
+  flex: 0 0 auto;
+}
 
+.arena-rank-card .arena-row:has(> .arena-rank-emblem) {
+  flex-wrap: nowrap;
+  align-items: flex-start;
+}
+
+.arena-rank-tier-name {
+  font-weight: 800;
+  font-size: 1.05rem;
+}
+
+/* ===== Bổ sung (phần CSS 4b bị cắt): sảnh, thẻ phòng, lựa chọn, ghép trận ===== */
+.arena-hero-actions > .arena-btn {
+  flex: 1 1 180px;
+}
+
+.arena-filter-bar {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin: 10px 0 6px;
+}
+
+@media (min-width: 720px) {
+  .arena-filter-bar {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+    align-items: center;
+  }
+}
+
+.arena-filter-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.arena-room-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color 0.14s ease, transform 0.1s ease;
+}
+
+.arena-room-card:hover {
+  border-color: var(--arena-amber);
+  transform: translateY(-1px);
+}
+
+.arena-room-card__top,
+.arena-room-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.arena-room-card__title {
+  margin: 0;
+  font-size: 1.02rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.arena-room-card__body {
+  min-width: 0;
+  color: var(--muted, #5F5B52);
+}
+
+.arena-history-list,
+.arena-leaderboard-list,
+.arena-bot-diff-list,
+.arena-room-style-list,
+.arena-suggestions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.arena-history-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line, #E2DFD6);
+}
+
+.arena-history-row:last-child {
+  border-bottom: 0;
+}
+
+.arena-history-row__info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.arena-history-row__scope {
+  font-weight: 700;
+}
+
+.arena-leaderboard-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--arena-radius-sm);
+  background-color: var(--surface-2, #F7F5F0);
+}
+
+.arena-leaderboard-item__pos {
+  min-width: 28px;
+  font-weight: 800;
+  color: var(--arena-amber-ink);
+}
+
+.arena-leaderboard-item__name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.arena-choice-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  padding: 12px 14px;
+  text-align: left;
+  background-color: var(--surface, #FFFFFF);
+  border: 2px solid var(--line-strong, #CFCABD);
+  border-radius: var(--arena-radius-md);
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  transition: border-color 0.14s ease, background-color 0.14s ease;
+}
+
+@media (hover: hover) {
+  .arena-choice-tile:hover {
+    border-color: var(--arena-amber);
+  }
+}
+
+.arena-choice-tile:focus-visible {
+  outline: 3px solid var(--arena-amber);
+  outline-offset: 2px;
+}
+
+.arena-choice-tile--active {
+  border-color: var(--arena-amber);
+  background-color: var(--arena-amber-soft);
+}
+
+.arena-choice-tile__title {
+  font-weight: 800;
+}
+
+.arena-choice-tile__desc {
+  font-size: 0.88rem;
+  color: var(--muted, #5F5B52);
+}
+
+.arena-toggle-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--line, #E2DFD6);
+  border-radius: var(--arena-radius-md);
+  cursor: pointer;
+}
+
+.arena-toggle-row input {
+  margin-top: 3px;
+}
+
+.arena-toggle-row__title {
+  font-weight: 800;
+}
+
+.arena-selected-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.arena-selected-choices-empty {
+  padding: 10px 12px;
+  border-radius: var(--arena-radius-md);
+  background-color: var(--arena-amber-soft);
+  font-weight: 600;
+}
+
+.arena-chip-remove {
+  margin-left: 4px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  color: inherit;
+}
+
+.arena-suggestion-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1.5px dashed var(--line-strong, #CFCABD);
+  border-radius: var(--arena-radius-sm);
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.arena-suggestion-item__name {
+  min-width: 0;
+  font-weight: 700;
+}
+
+.arena-suggestion-item__add {
+  font-weight: 800;
+  color: var(--arena-amber-ink);
+  white-space: nowrap;
+}
+
+.arena-link-inline {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--accent, #1E5A7A);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.arena-teacher-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.arena-waiting-card {
+  border-top: 5px solid var(--arena-amber);
+}
+
+.arena-waiting-scope-box,
+.arena-waiting-bot-offer {
+  padding: 12px 14px;
+  border-radius: var(--arena-radius-md);
+  background-color: var(--surface-2, #F7F5F0);
+}
+
+.arena-waiting-exits__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+@media (min-width: 600px) {
+  .arena-waiting-exits__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.arena-quick-quiz {
+  padding: 12px 14px;
+  border: 1.5px dashed var(--line-strong, #CFCABD);
+  border-radius: var(--arena-radius-md);
+}
+
+.arena-quick-quiz__stem {
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.arena-emote-btn {
+  min-height: 40px;
+}
+
+.arena-urgent-banner {
+  padding: 8px 12px;
+  border-radius: var(--arena-radius-sm);
+  background-color: #FCE8E6;
+  color: #9B2C1F;
+  font-weight: 700;
+}
+
+.arena-result-view,
+.arena-reveal-wrap {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.arena-result-actions,
+.arena-reveal-footer,
+.arena-lobby-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
 
 /* ===== Trang Quản trị Đấu Trường (AdminBattle) ===== */
 .arena-admin-container {

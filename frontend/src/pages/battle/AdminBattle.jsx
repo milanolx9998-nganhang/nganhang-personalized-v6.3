@@ -959,7 +959,7 @@ export default function AdminBattle() {
                 </span>
               </div>
               <h1 className="arena-title-lg" style={{ color: '#FFFFFF' }}>
-                Bảng điều khiển Đấu Trường KHTN
+                Bảng điều khiển Đấu Trường
               </h1>
               <p className="arena-subtitle">
                 Quản lý công tắc tính năng, tham số ghép linh hoạt, bậc học thuật, Giờ vàng và an toàn học đường.

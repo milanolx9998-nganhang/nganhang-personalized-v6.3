@@ -51,9 +51,24 @@ function getVerdictMeta(myAnswer) {
 /**
  * Hiển thị đáp án đúng và bài làm của học sinh cho cả 4 loại câu hỏi.
  */
-export function QuestionSolutionDetail({ question, myResponse, mySkipped }) {
+export function QuestionSolutionDetail({ question, myResponse, mySkipped, hideMine = false }) {
   if (!question) return null;
-  const correctAnswer = question.answer;
+  // Máy chủ gửi đáp án theo dạng {correct} / {values} / {pairs} / {numeric, aliases, unit}.
+  const raw = question.answer;
+  const correctAnswer =
+    raw && typeof raw === 'object' && !Array.isArray(raw)
+      ? question.type === 'multiple_choice'
+        ? raw.correct
+        : question.type === 'true_false'
+        ? raw.values
+        : question.type === 'matching'
+        ? raw.pairs
+        : raw.numeric !== undefined
+        ? String(raw.numeric).replace('.', ',')
+        : Array.isArray(raw.aliases) && raw.aliases.length
+        ? raw.aliases
+        : null
+      : raw;
 
   // 1. Trắc nghiệm 4 lựa chọn
   if (question.type === 'multiple_choice') {
@@ -138,7 +153,7 @@ export function QuestionSolutionDetail({ question, myResponse, mySkipped }) {
                 <span className="arena-chip arena-chip--live">
                   Đáp án: {rightVal ? 'Đúng' : 'Sai'}
                 </span>
-                <span
+                {!hideMine && (<span
                   className={`arena-chip ${
                     typeof myVal !== 'boolean'
                       ? ''
@@ -150,7 +165,7 @@ export function QuestionSolutionDetail({ question, myResponse, mySkipped }) {
                   {typeof myVal !== 'boolean'
                     ? 'Em bỏ trống'
                     : `Em chọn: ${myVal ? 'Đúng' : 'Sai'} ${isMatch ? '✓' : '✕'}`}
-                </span>
+                </span>)}
               </div>
             </div>
           );
@@ -173,12 +188,12 @@ export function QuestionSolutionDetail({ question, myResponse, mySkipped }) {
 
     return (
       <div className="arena-grid-2">
-        <div className="arena-card arena-card--subtle">
+        {!hideMine && (<div className="arena-card arena-card--subtle">
           <span className="arena-field-label">Câu trả lời của em</span>
           <p className="arena-mono" style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>
             {mySkipped ? 'Đã bỏ qua' : formatShort(myResponse)}
           </p>
-        </div>
+        </div>)}
         <div className="arena-card" style={{ borderColor: 'var(--ok, #256D43)', backgroundColor: '#E6F4EC' }}>
           <span className="arena-field-label" style={{ color: 'var(--ok, #256D43)' }}>
             ✓ Đáp án đúng
@@ -228,7 +243,7 @@ export function QuestionSolutionDetail({ question, myResponse, mySkipped }) {
                 <span className="arena-chip arena-chip--live">
                   ✓ Đáp án ghép với: {correctRid} ({findRightText(correctRid)})
                 </span>
-                <span
+                {!hideMine && (<span
                   className={`arena-chip ${
                     !myRid
                       ? ''
@@ -240,7 +255,7 @@ export function QuestionSolutionDetail({ question, myResponse, mySkipped }) {
                   {!myRid
                     ? 'Em chưa ghép'
                     : `Em ghép: ${myRid} ${isCorrectPair ? '✓' : '✕'}`}
-                </span>
+                </span>)}
               </div>
             </div>
           );
@@ -310,7 +325,7 @@ export default function RevealPanel({
       );
       const correctId =
         question.answer !== undefined && question.answer !== null
-          ? String(question.answer)
+          ? String(question.answer?.correct ?? question.answer)
           : null;
 
       return (

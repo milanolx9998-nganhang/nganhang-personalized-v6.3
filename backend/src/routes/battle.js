@@ -49,7 +49,16 @@ const createLimit=limiter('battle-create',600000,async()=>Number((await settings
 r.use((req,res,next)=>{if(!battleAvailability.ready)return res.status(503).json({error:'Đấu chưa sẵn sàng',code:'BATTLE_UNAVAILABLE'});req.battleReceivedAt??=Date.now();next();});
 r.get('/me',wrap(async(req,res)=>{const cfg=await settings(),info=await battleIdentity(req.user);res.json({...info,battle_enabled:cfg.battle_enabled,battle_emergency_stop:cfg.battle_emergency_stop,battle_modes:cfg.battle_modes,current_room_id:battleRooms.studentRooms.get(req.user.id)||null,queue:matchmaking.status(req.user.id),suspension:await safety.suspension(req.user.id),reports:await safety.feedback(req.user)});}));
 r.get('/options',wrap(async(req,res)=>{
- const q=z.object({class_id:z.coerce.number().int().positive().optional(),subject_id:z.coerce.number().int().positive().optional(),count:z.coerce.number().int().refine(n=>[7,10,15].includes(n)).default(7)}).strict().parse(req.query),info=await battleIdentity(req.user,q.class_id,q.subject_id);
+ const q=z.object({class_id:z.coerce.number().int().positive().optional(),subject_id:z.coerce.number().int().positive().optional(),count:z.coerce.number().int().refine(n=>[7,10,15].includes(n)).default(7)}).strict().parse(req.query);
+ // Giáo viên chọn lớp trước: danh sách môn là các môn được phân công ở lớp đó (quản trị: mọi môn), kể cả khi đã chọn một môn.
+ if(req.user.role!=='student'&&q.class_id){
+  const cls=(await pool.query('SELECT grade FROM classes WHERE id=$1',[q.class_id])).rows[0];if(!cls)fail('Không tìm thấy lớp',404);
+  const allowed=req.user.role==='admin'?null:(await pool.query('SELECT DISTINCT subject_id FROM teacher_class_assignments WHERE teacher_id=$1 AND class_id=$2',[req.user.id,q.class_id])).rows.map(r=>Number(r.subject_id));
+  if(allowed&&(!allowed.length||q.subject_id&&!allowed.includes(q.subject_id)))fail('Cần được phân công đúng lớp và môn',403);
+  const all=await contentOptions(cls.grade,q.count,null,{}),out=q.subject_id?await contentOptions(cls.grade,q.count,null,{subject_id:q.subject_id}):all,ok=x=>!allowed||allowed.includes(Number(x.subject_id));
+  return res.json({...out,subjects:all.subjects.filter(s=>!allowed||allowed.includes(Number(s.id))),chapters:out.chapters.filter(ok),topics:out.topics.filter(ok),suggestions:[]});
+ }
+ const info=await battleIdentity(req.user,q.class_id,q.subject_id);
  if(!info.grade)fail('Giáo viên cần chọn lớp và môn');res.json(await contentOptions(info.grade,q.count,req.user.role==='student'?req.user.id:null,{subject_id:q.subject_id}));
 }));
 r.get('/lobby',wrap(async(req,res)=>{student(req);const cfg=await settings();if(!cfg.battle_modes.class)battleRooms.feature('lobby');res.json(await battleRooms.lobby(req.user));}));

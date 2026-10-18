@@ -433,7 +433,7 @@ export default function ProjectorPage() {
   };
 
   // Trạng thái đang kết nối ban đầu
-  if (!snapshot && (streamStatus === 'connecting' || loadingFallback)) {
+  if (!snapshot && (streamStatus !== 'stopped' || loadingFallback)) {
     return (
       <div className="arena-proj-page">
         <div className="arena-proj-stage">
@@ -522,7 +522,7 @@ export default function ProjectorPage() {
       );
       const correctKey =
         qItem.answer !== undefined && qItem.answer !== null
-          ? String(qItem.answer)
+          ? String(qItem.answer?.correct ?? qItem.answer)
           : null;
 
       return (
@@ -1119,6 +1119,7 @@ export default function ProjectorPage() {
                       question={question}
                       myResponse={null}
                       mySkipped={true}
+                      hideMine
                     />
 
                     <div className="arena-proj-explanation-box">
@@ -1289,6 +1290,7 @@ export default function ProjectorPage() {
                               question={qItem}
                               myResponse={null}
                               mySkipped={true}
+                      hideMine
                             />
 
                             {qDist && (
