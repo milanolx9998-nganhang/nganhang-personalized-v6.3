@@ -2778,3 +2778,149 @@
 .arena-proj-dist-row__fill--correct {
   background-color: var(--arena-amber);
 }
+
+/* ---- Lượt 4b ---- */
+
+/* ===== Banner Giờ Vàng (Golden Hour) ===== */
+.arena-golden-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.arena-golden-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: var(--arena-radius-lg);
+  background: linear-gradient(135deg, #27536B 0%, #153F57 100%);
+  color: #FFFFFF;
+  border: 1.5px solid rgba(245, 184, 46, 0.55);
+  flex-wrap: wrap;
+}
+
+.arena-golden-banner--live {
+  background: linear-gradient(135deg, #153F57 0%, #0E2D3F 100%);
+  border: 2px solid var(--arena-amber);
+  box-shadow: var(--arena-shadow-md);
+}
+
+.arena-golden-banner__left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.arena-golden-banner__title {
+  font-weight: 800;
+  font-size: 1rem;
+  color: #FFFFFF;
+}
+
+.arena-golden-banner__right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.arena-golden-banner__stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.arena-golden-banner__clock {
+  padding: 4px 10px;
+  border-radius: var(--arena-radius-sm);
+  background-color: rgba(0, 0, 0, 0.32);
+  color: var(--arena-amber);
+  font-weight: 800;
+  font-size: 0.95rem;
+}
+
+/* ===== Khối Chào mừng Sảnh (Hero Banner) ===== */
+.arena-hero-banner {
+  padding: 20px;
+}
+
+.arena-hero-banner__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.arena-code-join-form {
+  background-color: rgba(0, 0, 0, 0.24);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--arena-radius-md);
+  padding: 10px 12px;
+  min-width: 250px;
+}
+
+.arena-code-join-form__label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.82);
+  margin-bottom: 6px;
+}
+
+.arena-code-join-form__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.arena-code-join-form__input {
+  max-width: 130px;
+  text-align: center;
+  font-weight: 800;
+  font-size: 1.05rem;
+  letter-spacing: 0.08em;
+}
+
+.arena-hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+  flex-wrap: wrap;
+}
+
+.arena-hero-actions__main {
+  flex: 1 1 200px;
+}
+
+/* ===== Thẻ Bậc học thuật của em & Bảng cao thủ ===== */
+.arena-rank-And-board {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+@media (min-width: 900px) {
+  .arena-rank-And-board {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.arena-rank-card {
+  border-left: 5px solid var(--arena-amber);
+}
+
+.arena-rank-emblem {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background-color: var(--arena-amber

@@ -268,3 +268,99 @@ export function formatRoomCode(code) {
   }
   return raw;
 }
+
+/* ---- Lượt 4b ---- */
+export const battleApiFlex = {
+  // 1. Tạo vé ghép trận linh hoạt V6.9.1
+  startFlexMatch(ticket) {
+    return api.post(`${BASE}/match`, ticket);
+  },
+
+  // 2. Xác nhận vào phòng gợi ý khi đang trong hàng chờ
+  acceptSuggestedRoom(roomId) {
+    return api.post(`${BASE}/match/accept-room`, { room_id: roomId });
+  },
+
+  // 3. Lối thoát khỏi hàng chờ: 'bot' | 'public_room' | 'practice'
+  exitMatchQueue({ to, difficulty }) {
+    const payload = { to };
+    if (difficulty) payload.difficulty = difficulty;
+    return api.post(`${BASE}/match/exit`, payload);
+  },
+
+  // 4. Đấu với máy ngay từ sảnh (không qua hàng chờ, không tính hạng)
+  startBotBattle({ choices = [], lengths = 'any', difficulty = 'medium' } = {}) {
+    return api.post(`${BASE}/bot`, { choices, lengths, difficulty });
+  },
+
+  // 5. Đổi chế độ hiển thị phòng ở phòng chờ (code / public / open_slots)
+  updateRoomVisibility(roomId, { visibility, open_slots }) {
+    return api.post(`${BASE}/rooms/${encodeURIComponent(roomId)}/visibility`, {
+      visibility,
+      open_slots: Boolean(open_slots),
+    });
+  },
+
+  // 6. Bật/tắt sẵn sàng kèm tuỳ chọn tính hạng cá nhân
+  setReadyWithRank(roomId, { ready, ranked }) {
+    const body = { ready: Boolean(ready) };
+    if (typeof ranked === 'boolean') {
+      body.ranked = ranked;
+    }
+    return api.post(`${BASE}/rooms/${encodeURIComponent(roomId)}/ready`, body);
+  },
+
+  // 7. Xem bậc học thuật, LP, tiến độ định vị và lịch sử tính hạng của học sinh
+  getMyRank() {
+    return api.get(`${BASE}/rank`);
+  },
+
+  // 8. Ẩn / hiện huy hiệu bậc học thuật công khai
+  updateRankVisibility(hidden) {
+    return api.patch(`${BASE}/rank`, { hidden: Boolean(hidden) });
+  },
+
+  // 9. Bảng cao thủ cùng khối (chỉ khi cờ leaderboard bật)
+  getLeaderboard() {
+    return api.get(`${BASE}/leaderboard`);
+  },
+
+  // 10. Danh sách khung giờ vàng (dành cho Giáo viên được cấp quyền / Quản trị)
+  getGoldenHours() {
+    return api.get(`${BASE}/golden-hours`);
+  },
+
+  // 11. Tạo khung giờ vàng mới
+  createGoldenHour(payload) {
+    return api.post(`${BASE}/golden-hours`, payload);
+  },
+
+  // 12. Cập nhật khung giờ vàng
+  updateGoldenHour(id, payload) {
+    return api.put(`${BASE}/golden-hours/${encodeURIComponent(id)}`, payload);
+  },
+
+  // 13. Xoá khung giờ vàng
+  deleteGoldenHour(id) {
+    return api.del(`${BASE}/golden-hours/${encodeURIComponent(id)}`, {});
+  },
+
+  // 14. Quản trị: Cấp / gỡ quyền quản lý giờ vàng cho giáo viên
+  adminSetGoldenHourGrant({ user_id, grade, subject_id = null, enabled }) {
+    return api.put(`${BASE}/admin/golden-hour-grants`, {
+      user_id: Number(user_id),
+      grade: Number(grade),
+      subject_id: subject_id === null || subject_id === '' ? null : Number(subject_id),
+      enabled: Boolean(enabled),
+    });
+  },
+
+  // 15. Lấy danh sách lớp dạy của giáo viên (hỗ trợ cả /api/practice/teacher/classes và /api/practice/classes)
+  async getTeacherClassesSafe() {
+    try {
+      return await api.get('/api/practice/teacher/classes');
+    } catch {
+      return api.get('/api/practice/classes');
+    }
+  },
+};
