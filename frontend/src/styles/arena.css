@@ -2066,3 +2066,715 @@
   color: var(--muted, #5E5B52);
   margin-top: 14px;
 }
+
+/* ---- Lượt 4a: màn chiếu giáo viên ---- */
+
+/* ===== Màn chiếu 16:9 cho Giáo viên (ProjectorPage) ===== */
+.arena-proj-page {
+  min-height: 100vh;
+  width: 100%;
+  background: radial-gradient(circle at top, #1B4E6B 0%, #153F57 45%, #0D293A 100%);
+  color: #FFFFFF;
+  font-family: var(--font-sans, 'Lexend', sans-serif);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  overflow-x: clip;
+}
+
+.arena-proj-page *,
+.arena-proj-page *::before,
+.arena-proj-page *::after {
+  box-sizing: border-box;
+}
+
+.arena-proj-stage {
+  width: 100%;
+  max-width: 1600px;
+  min-height: calc(100vh - 16px);
+  aspect-ratio: 16 / 9;
+  margin: 0 auto;
+  padding: clamp(14px, 2vw, 28px);
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 1024px) {
+  .arena-proj-stage {
+    aspect-ratio: auto;
+    min-height: 100vh;
+  }
+}
+
+.arena-proj-center-box {
+  margin: auto;
+  text-align: center;
+  max-width: 640px;
+  padding: 32px;
+}
+
+.arena-proj-title {
+  font-size: clamp(1.6rem, 3.2vw, 2.6rem);
+  font-weight: 800;
+  line-height: 1.2;
+  margin: 0;
+  color: #FFFFFF;
+}
+
+.arena-proj-subtitle {
+  font-size: clamp(1rem, 1.6vw, 1.25rem);
+  color: rgba(255, 255, 255, 0.82);
+  margin: 6px 0 0;
+}
+
+/* Thanh đỉnh màn chiếu */
+.arena-proj-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.arena-proj-topbar__left,
+.arena-proj-topbar__right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.arena-proj-topbar__scope {
+  font-size: clamp(1rem, 1.5vw, 1.25rem);
+  font-weight: 700;
+  color: #FFFFFF;
+}
+
+.arena-proj-mini-code {
+  padding: 6px 12px;
+  border-radius: var(--arena-radius-sm);
+  background-color: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--arena-amber);
+  color: var(--arena-amber);
+  font-size: 1rem;
+}
+
+/* Phòng chờ trên màn chiếu (Lobby 2 cột lớn) */
+.arena-proj-lobby {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: clamp(16px, 2.2vw, 28px);
+  margin-top: 18px;
+  align-items: stretch;
+}
+
+@media (min-width: 960px) {
+  .arena-proj-lobby {
+    grid-template-columns: minmax(380px, 5fr) minmax(420px, 7fr);
+  }
+}
+
+.arena-proj-lobby__join-panel {
+  background-color: rgba(0, 0, 0, 0.28);
+  border: 2px solid var(--arena-amber);
+  border-radius: var(--arena-radius-xl);
+  padding: clamp(18px, 2.4vw, 30px);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.arena-proj-join-eyebrow {
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.arena-proj-huge-code {
+  font-size: clamp(2.6rem, 5.5vw, 4.4rem);
+  font-weight: 800;
+  color: var(--arena-amber);
+  letter-spacing: 0.08em;
+  line-height: 1.05;
+  text-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);
+}
+
+.arena-proj-qr-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  background-color: rgba(255, 255, 255, 0.08);
+  padding: 14px;
+  border-radius: var(--arena-radius-lg);
+  flex-wrap: wrap;
+}
+
+.arena-proj-qr-svg {
+  width: 118px;
+  height: 118px;
+  border-radius: var(--arena-radius-sm);
+  flex-shrink: 0;
+  box-shadow: var(--arena-shadow-sm);
+}
+
+.arena-proj-qr-caption {
+  flex: 1 1 180px;
+  font-size: 0.96rem;
+  color: rgba(255, 255, 255, 0.9);
+  min-width: 0;
+}
+
+.arena-proj-start-box {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.arena-proj-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+
+.arena-proj-toggle input {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--arena-amber);
+  cursor: pointer;
+}
+
+.arena-proj-start-btn {
+  min-height: 60px;
+  font-size: 1.25rem;
+}
+
+.arena-proj-reasons {
+  font-size: 0.95rem;
+  color: #FFD57E;
+  font-weight: 600;
+}
+
+.arena-proj-lobby__roster-panel {
+  background-color: rgba(255, 255, 255, 0.08);
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--arena-radius-xl);
+  padding: clamp(18px, 2.4vw, 28px);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.arena-proj-roster-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+  flex-wrap: wrap;
+}
+
+.arena-proj-roster-count {
+  font-size: clamp(1.35rem, 2.4vw, 1.9rem);
+  font-weight: 800;
+  margin: 0;
+  color: #FFFFFF;
+}
+
+.arena-proj-empty-roster {
+  margin: auto;
+  text-align: center;
+  font-size: 1.2rem;
+  color: rgba(255, 255, 255, 0.72);
+  padding: 40px 20px;
+}
+
+.arena-proj-roster-grid {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+  overflow-y: auto;
+  max-height: 58vh;
+  padding-right: 4px;
+}
+
+.arena-proj-student-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--arena-radius-md);
+  background-color: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  min-width: 0;
+  animation: arena-pop 0.25s ease-out;
+}
+
+.arena-proj-student-chip__avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: var(--arena-amber);
+  color: var(--arena-amber-ink);
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.arena-proj-student-chip__name {
+  font-weight: 700;
+  font-size: 1.02rem;
+  color: #FFFFFF;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.arena-proj-student-chip__class {
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.75);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* ===== Pha Câu hỏi trên Màn chiếu (Chữ rất lớn đọc từ cuối lớp) ===== */
+.arena-proj-question-main {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 16px;
+}
+
+.arena-proj-question-Hud {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background-color: rgba(0, 0, 0, 0.26);
+  border: 1.5px solid rgba(255, 255, 255, 0.18);
+  border-radius: var(--arena-radius-lg);
+  padding: 12px 20px;
+  flex-wrap: wrap;
+}
+
+.arena-proj-q-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  border-radius: var(--arena-radius-sm);
+  background-color: var(--arena-amber);
+  color: var(--arena-amber-ink);
+  font-size: clamp(1.1rem, 2vw, 1.45rem);
+  font-weight: 800;
+}
+
+.arena-proj-topic-badge {
+  font-size: clamp(1.05rem, 1.8vw, 1.35rem);
+  font-weight: 700;
+  color: #FFFFFF;
+}
+
+/* Đồng hồ tròn SVG */
+.arena-proj-clock {
+  position: relative;
+  width: 108px;
+  height: 108px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.arena-proj-clock__svg {
+  width: 100%;
+  height: 100%;
+}
+
+.arena-proj-clock__center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.arena-proj-clock__num {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1;
+  color: #FFFFFF;
+}
+
+.arena-proj-clock__unit {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--arena-amber);
+  margin-top: 2px;
+}
+
+/* Bộ đếm "18/23 bạn đã trả lời" */
+.arena-proj-answered-counter {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  background-color: rgba(255, 255, 255, 0.1);
+  padding: 10px 18px;
+  border-radius: var(--arena-radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+.arena-proj-answered-counter__num {
+  font-size: clamp(1.5rem, 2.8vw, 2.25rem);
+  font-weight: 800;
+  color: var(--arena-amber);
+  line-height: 1.1;
+}
+
+.arena-proj-answered-counter__label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.arena-proj-paused-banner {
+  background-color: var(--arena-amber);
+  color: var(--arena-amber-ink);
+  padding: 12px 20px;
+  border-radius: var(--arena-radius-md);
+  font-size: 1.2rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+/* Khung đề bài và 4 ô phương án trên màn chiếu */
+.arena-proj-question-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 20px;
+}
+
+.arena-proj-stem {
+  background-color: #FFFFFF;
+  color: var(--ink, #1C1B17);
+  border-radius: var(--arena-radius-xl);
+  padding: clamp(20px, 3vw, 34px);
+  font-size: clamp(1.45rem, 2.6vw, 2.15rem);
+  font-weight: 700;
+  line-height: 1.45;
+  box-shadow: var(--arena-shadow-lg);
+  overflow-wrap: break-word;
+}
+
+.arena-proj-stem--dark {
+  padding: 20px;
+  font-size: clamp(1.2rem, 2vw, 1.55rem);
+  box-shadow: none;
+  border: 1.5px solid var(--line, #E2DFD6);
+}
+
+.arena-proj-blocks {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.arena-proj-block-p {
+  background-color: rgba(255, 255, 255, 0.95);
+  color: var(--ink, #1C1B17);
+  padding: 16px 22px;
+  border-radius: var(--arena-radius-lg);
+  font-size: clamp(1.15rem, 2vw, 1.5rem);
+}
+
+.arena-proj-table {
+  background-color: #FFFFFF;
+  color: var(--ink, #1C1B17);
+  font-size: 1.15rem;
+}
+
+.arena-proj-options-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+@media (min-width: 768px) {
+  .arena-proj-options-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.arena-proj-option-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 84px;
+  padding: 16px 20px;
+  background-color: #FFFFFF;
+  color: var(--ink, #1C1B17);
+  border-radius: var(--arena-radius-lg);
+  border: 3px solid transparent;
+  box-shadow: var(--arena-shadow-md);
+  min-width: 0;
+}
+
+.arena-proj-option-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 68px;
+  height: 54px;
+  padding: 0 12px;
+  border-radius: var(--arena-radius-md);
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #FFFFFF;
+  flex-shrink: 0;
+}
+
+.arena-proj-option-card.arena-option-btn--A .arena-proj-option-badge {
+  background-color: var(--arena-opt-a);
+}
+.arena-proj-option-card.arena-option-btn--B .arena-proj-option-badge {
+  background-color: var(--arena-opt-b);
+}
+.arena-proj-option-card.arena-option-btn--C .arena-proj-option-badge {
+  background-color: var(--arena-opt-c);
+}
+.arena-proj-option-card.arena-option-btn--D .arena-proj-option-badge {
+  background-color: var(--arena-opt-d);
+}
+
+.arena-proj-option-text {
+  font-size: clamp(1.2rem, 2vw, 1.6rem);
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: break-word;
+  min-width: 0;
+}
+
+/* Đúng/Sai, Trả lời ngắn, Ghép đôi trên màn chiếu */
+.arena-proj-tf-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.arena-proj-tf-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  background-color: #FFFFFF;
+  color: var(--ink, #1C1B17);
+  border-radius: var(--arena-radius-lg);
+  font-size: clamp(1.15rem, 1.9vw, 1.45rem);
+  font-weight: 600;
+}
+
+.arena-proj-tf-item__idx {
+  font-weight: 800;
+  color: var(--accent, #1E5A7A);
+}
+
+.arena-proj-tf-item__text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.arena-proj-prompt-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 22px;
+  border-radius: var(--arena-radius-lg);
+  background-color: rgba(0, 0, 0, 0.32);
+  border: 2px dashed var(--arena-amber);
+  font-size: clamp(1.2rem, 2vw, 1.5rem);
+  font-weight: 700;
+  flex-wrap: wrap;
+}
+
+.arena-proj-matching-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.arena-proj-matching-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.arena-proj-matching-title {
+  margin: 0;
+  font-size: 1.15rem;
+  color: var(--arena-amber);
+  text-transform: uppercase;
+}
+
+.arena-proj-matching-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  background-color: #FFFFFF;
+  color: var(--ink, #1C1B17);
+  border-radius: var(--arena-radius-md);
+  font-size: clamp(1.05rem, 1.7vw, 1.35rem);
+  font-weight: 600;
+}
+
+.arena-proj-controls-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+  flex-wrap: wrap;
+}
+
+/* ===== Pha Lời giải & Kết quả trên Màn chiếu ===== */
+.arena-proj-reveal-main,
+.arena-proj-result-main {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-top: 16px;
+}
+
+.arena-proj-reveal-top,
+.arena-proj-result-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.arena-proj-reveal-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .arena-proj-reveal-grid {
+    grid-template-columns: 7fr 5fr;
+  }
+}
+
+.arena-proj-light-card {
+  background-color: var(--surface, #FFFFFF);
+  color: var(--ink, #1C1B17);
+  border-radius: var(--arena-radius-xl);
+  padding: clamp(18px, 2.2vw, 26px);
+  box-shadow: var(--arena-shadow-lg);
+}
+
+.arena-proj-dark-panel {
+  background-color: rgba(0, 0, 0, 0.3);
+  border: 1.5px solid rgba(255, 255, 255, 0.22);
+  border-radius: var(--arena-radius-xl);
+  padding: clamp(18px, 2.2vw, 26px);
+}
+
+.arena-proj-explanation-box {
+  margin-top: 18px;
+  padding: 16px 20px;
+  border-radius: var(--arena-radius-md);
+  background-color: var(--surface-2, #FAF9F6);
+  border-left: 6px solid var(--accent, #1E5A7A);
+}
+
+.arena-proj-explanation-text {
+  font-size: clamp(1.05rem, 1.6vw, 1.3rem);
+  line-height: 1.55;
+}
+
+/* Cột phân bố cỡ lớn trên máy chiếu */
+.arena-proj-dist-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.arena-proj-dist-row {
+  padding: 12px 14px;
+  border-radius: var(--arena-radius-md);
+  background-color: rgba(255, 255, 255, 0.08);
+  border: 1.5px solid rgba(255, 255, 255, 0.16);
+}
+
+.arena-proj-dist-row--correct {
+  background-color: rgba(37, 109, 67, 0.32);
+  border-color: #68D391;
+}
+
+.arena-proj-dist-row__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  flex-wrap: wrap;
+}
+
+.arena-proj-dist-row__badge {
+  color: #FFFFFF;
+}
+
+.arena-proj-dist-row--correct .arena-proj-dist-row__badge {
+  color: var(--arena-amber);
+}
+
+.arena-proj-dist-row__stat {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.arena-proj-dist-row__track {
+  height: 18px;
+  background-color: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.arena-proj-dist-row__fill {
+  height: 100%;
+  background-color: #63B3ED;
+  border-radius: 999px;
+  transition: width 0.35s ease;
+}
+
+.arena-proj-dist-row__fill--correct {
+  background-color: var(--arena-amber);
+}
