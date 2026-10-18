@@ -75,3 +75,55 @@ Ghép nối tiếp với ván sắp kết thúc (gom người vừa chơi xong);
 - Sảnh hiện banner đếm ngược trước 30 phút; trong khung giờ, hàng chờ của khối / môn đó ưu tiên ghép nhanh (lịch nới rút ngắn theo cấu hình, ví dụ 5/10/15 s) và phòng ghép nhanh tự chạy.
 - Không có thưởng điểm hay xếp hạng riêng (giữ nguyên tắc ván đấu không ảnh hưởng thành thạo); chỉ banner + số bạn đang tham gia.
 - Bảng `battle_golden_hours(id, grade, subject_id NULL, starts_at, minutes, repeat_weekdays int[] NULL, created_by, active)`.
+
+## 10. Bổ sung theo yêu cầu chủ dự án (18/10, 19:40): ghép thật linh hoạt + rank
+
+> "Ghép trận thật linh hoạt. Có thể chênh lệch một chút không sao. Có thể kèm rank, giống Đấu Trường Chân Lý hay Liên Minh Huyền Thoại. Ghép từ rộng đến hẹp, hẹp đến rộng để nhiều, dễ gặp nhau, không cứng nhắc."
+
+### 10.1 Ghép hai chiều (rộng ↔ hẹp)
+- **Rộng gặp hẹp ngay:** vé "cả môn" / "Bất kỳ" ghép được **ngay lập tức** với vé hẹp (một Bài) nếu phạm vi hẹp nằm trong phạm vi rộng; ván dùng **phạm vi chung cụ thể nhất** (ở đây là Bài của bạn chọn hẹp), không bắt người chọn hẹp phải nới.
+- **Hẹp nới ra rộng** theo lịch §2 (có trần "phần em đã học tới").
+- **Chênh lệch nhỏ chấp nhận được:** kiểu (đôi ↔ nhiều người nếu cả hai tick), độ dài ván (7 ↔ 10 nếu tick "Bất kỳ" hoặc cả hai), trình độ (§10.3) — mỗi thứ có "độ dung sai" tăng dần theo thời gian chờ, cấu hình được.
+- Ghép **chéo nguồn**: vé có thể vào phòng ghép nhanh đang chờ, phòng công khai của học sinh, hoặc ghép với vé khác — lấy phương án đến sớm nhất.
+
+### 10.2 Hai chế độ hàng chờ
+| | Thường | Xếp hạng |
+|---|---|---|
+| Ảnh hưởng rank | Không | Có |
+| Ghép | Linh hoạt tối đa (mọi chênh lệch) | Linh hoạt có kiểm soát trình độ (§10.3) |
+| Đối thủ máy, phòng tự tạo, phòng lớp | Có | **Không tính rank** |
+| Số câu | 7 / 10 / 15 / Bất kỳ | 7 hoặc 10 (cố định theo mùa, cấu hình) |
+
+### 10.3 Rank (kiểu ĐTCL / LMHT, theo khối, theo mùa = học kỳ)
+- **Điểm ẩn (MMR)** kiểu Elo cho từng học sinh / khối / mùa; bắt đầu 1000. Dùng để ghép (cửa sổ ±100 → ±200 sau 10 s → bỏ giới hạn sau 20 s) và để tính điểm hạng nhận/mất.
+- **Bậc hiển thị:** Đồng → Bạc → Vàng → Bạch kim → Kim cương → Cao thủ; mỗi bậc 4 cấp IV–I, **100 điểm hạng (LP)** / cấp. 5 ván "định vị" đầu mùa chưa hiện bậc.
+- **Nhận / mất LP:**
+  - Đôi: thắng +18…+25, thua −12…−18 (tuỳ chênh MMR); hoà ±0.
+  - Nhiều người (như ĐTCL): theo thứ hạng trong ván — nửa trên nhận, nửa dưới mất ít; ví dụ 8 người: +40 +30 +20 +10 / −5 −10 −15 −20; số người khác thì nội suy.
+  - Đồng hạng chia đều. Bỏ ván giữa chừng: tính như hạng chót.
+- **Mềm cho học sinh:** không rớt bậc trong 3 ván đầu sau khi lên bậc; ở Đồng IV không mất LP; LP mất giảm một nửa trong 10 ván đầu mùa.
+- **Chống "cày" với bạn:** ván xếp hạng chỉ từ ghép tự động (không phòng tự tạo, không mã); cùng cặp đối thủ gặp lại trong 24 giờ: từ ván thứ 3 LP × 0,5, từ ván thứ 5 không tính.
+- **Hiển thị:** huy hiệu bậc cạnh tên trong phòng và sảnh (học sinh có thể **ẩn bậc của mình** với người khác trong cài đặt); hồ sơ riêng của em có bậc, LP, lịch sử 20 ván xếp hạng. **Bảng cao thủ** top 20 theo khối: cờ cấu hình, mặc định **tắt** (quản trị bật khi nhà trường đồng ý).
+- **Tách biệt học tập:** rank không ảnh hưởng điểm thành thạo, không giáo viên nào dùng để chấm; mùa reset mềm mỗi học kỳ (MMR kéo về 1000 một nửa khoảng cách).
+- Dữ liệu: `battle_ratings(user_id, grade, season, mmr, lp, tier, division, games, placement_left, protected_games, hidden)`, `battle_rating_events(room_id, user_id, delta_lp, mmr_before, mmr_after, reason)`; cập nhật **trong cùng giao dịch kết thúc ván**, chỉ một lần mỗi ván (khoá duy nhất room_id + user_id).
+- Cờ: `ranked`, `leaderboard`; tham số bảng LP, cửa sổ MMR, số ván định vị trong cấu hình.
+
+### 10.4 Điều chỉnh sau phản biện của Gemini (`phan-bien/RANK_GEMINI_PHAN_BIEN.md`) — **thay thế §10.2–10.3 ở các điểm dưới**
+1. **Một hàng chờ duy nhất.** Mặc định ván tính hạng; trên vé có công tắc "Đấu thử, không tính hạng". Người tính hạng và không tính hạng **vẫn ghép chung phòng** (mỗi người chỉ nhận / mất LP theo lựa chọn của mình). Không chia đôi nguồn người.
+2. **Đối thủ máy được vào ván tính hạng** sau 25 giây chờ (hoặc lấp chỗ trống cho phòng 3–4 người): thắng máy tối đa **+12 LP**, tối đa **3 ván / ngày** có LP từ máy; thua máy chỉ −5.
+3. **Chống "học tủ một Bài":** ván tính hạng yêu cầu phạm vi **tối thiểu cả Chương** (vé chọn một Bài vẫn ghép được, nhưng ván đó không tính hạng với người chọn hẹp). Khi rộng gặp hẹp trong ván tính hạng: bộ câu **50% từ phạm vi hẹp + 50% từ phạm vi chung rộng hơn** (trong trần "đã học tới" của cả hai). Hệ số LP theo độ rộng: một Chương ×1,0; cả phân môn / môn ×1,1; nhiều môn ×1,2.
+4. **Chống cày thay cho trần 24 giờ:** chỉ giảm LP khi **A thắng B liên tiếp 3 lần trong cùng phạm vi** (ván thứ 4 trở đi ×0,5) hoặc ván có dấu hiệu bất thường (một bên trả lời hết câu dưới 2 giây / câu, hoặc bỏ ván); tối đa 10 ván tính hạng / ngày với cùng một đối thủ.
+5. **Mất kết nối không bị coi là bét bảng:** giữ điểm đã tích luỹ tới lúc văng để xếp hạng; mỗi ngày một **"khiên mạng"** (lần đầu văng trong ngày không bị trừ LP).
+6. **Tên bậc học thuật, không rớt bậc lớn trong mùa:** **Tập sự → Khám phá → Tinh anh → Thông thái → Bậc thầy → Thách đấu**; mỗi bậc **3 cấp (III–I) × 100 LP**; đã lên bậc nào thì cả mùa không tụt xuống bậc dưới (thua nhiều chỉ về cấp III, 0 LP).
+7. **MMR ẩn theo từng môn** (KHTN, Toán, Văn, Anh… riêng); **một bậc hiển thị chung** từ tổng LP. Ghép dùng MMR của môn trong phạm vi chung (nhiều môn → trung bình).
+8. **Phòng nhiều người tính hạng tối đa 4 người**; bảng LP cố định, không nội suy:
+   | Cỡ phòng | Hạng 1 | Hạng 2 | Hạng 3 | Hạng 4 |
+   |---|---|---|---|---|
+   | 2 (đấu đôi) | thắng +25…+35 | thua −8…−12 | | |
+   | 3 | +30 | +10 | −8 | |
+   | 4 | +35 | +18 | −5 | −10 |
+   Đấu đôi hoà: +10 cho cả hai. Chênh MMR ≥ 150: người yếu hơn thắng **+35**, thua chỉ **−5**.
+9. **Định vị 3 ván**, hiện bậc khởi đầu ngay sau ván 1 (thưởng thêm ở ván 2–3).
+10. **Cửa sổ MMR:** 0–8 giây ±250; sau 8 giây bỏ giới hạn trình độ (ưu tiên cùng Bài / Chương hơn cùng trình độ).
+11. **Ẩn / hiện bậc:** **Tập sự và Khám phá mặc định ẩn** với người khác (người khác chỉ thấy khung trung tính, em vẫn thấy LP của mình); khi lên **Tinh anh** hiện màn chúc mừng với nút "Hiện huy hiệu ở sảnh" (em tự chọn). Ẩn được bất cứ lúc nào.
+12. Mọi con số trên là **tham số cấu hình** (quản trị chỉnh theo số đo thật), đúng quyết định "không cố định một hướng".
