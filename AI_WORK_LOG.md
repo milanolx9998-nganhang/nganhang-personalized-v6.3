@@ -949,3 +949,31 @@ Kết quả chạy toàn bộ: xem mục kế tiếp.
 **Kiểm:** unit 141/141 (3 test mới cho cột Năng lực), security 27/27, integration 171/171 (v6674: Toán nạp `C1; c4` và tên thành phần có dấu phẩy → công bố tạo đúng 2 bản gắn, tải lại giữ mã; v681: YCCĐ đã gắn thắng quy tắc theo mức), build đạt. File xem thử: `artifacts/Mau_chuong_trinh_NguVan_khoi10.xlsx` (không commit).
 
 **Việc tiếp:** chờ anh Hiếu "up main".
+
+## 2026-10-18 — Tab "Đấu" (thi đấu): đánh giá Mầm Tri Thức và demo giao diện (CHƯA code app)
+
+**Yêu cầu:** anh Hiếu bảo đọc hồ sơ bàn giao Mầm Tri Thức (`D:\AI\clone\blu\docs\ban-giao-2026-10-17`, dự án tự học tiếng Anh/KHTN của anh, JS thuần + SQLite) và cân nhắc đưa phần thi đấu (solo bạn bè, cả lớp, khác lớp, đôi / đội / nhiều người) thành một tab cạnh "Tự ôn" trong app này; chú ý UX/UI mới vì Mầm Tri Thức "trông chán".
+
+**Đã làm:** đọc hồ sơ 01–08, báo cáo đánh giá UX và nửa đầu `backend/rooms.mjs`. Kết luận: không ghép mã (khác stack, khác mô hình quyền), lấy luật chơi và ý tưởng phòng theo mã; làm lại trong app mình. Anh Hiếu chốt: điểm thành thạo của ván đấu chỉ tính trong ván (gộp sau); bật tìm đối thủ tự do, không công tắc theo lớp; không chat tự do; làm xong ý tưởng và kế hoạch chi tiết trước khi triển khai. Đề xuất giữ tối thiểu an toàn: chỉ ghép cùng trường và cùng khối, tên kèm lớp, nút báo cáo/chặn.
+
+**Demo giao diện:** `agy` (Antigravity CLI 1.3.5) chạy không tương tác bị chặn quyền chạy lệnh / ghi tệp (tài khoản không có `--mode auto`, không bật `--dangerously-skip-permissions`) nên không sinh được tệp. Dùng Gemini web (model "4 Argon", tài khoản của anh, anh đã cho phép) sinh `docs/thiet-ke/dau-truong-demo/index.html` (một tệp, 7 màn, dữ liệu giả); lấy mã bằng sao chép từ khung xem mã; ảnh chụp 7 màn × 2 cỡ ở `anh/`. Chưa commit (thư mục chưa theo dõi).
+
+**Kiểm:** mở bằng Playwright, 14 ảnh, không lỗi console, không tràn ngang. Nội dung 4 câu KHTN trong demo đã đối chiếu đúng. Lỗi thấy: màn Sảnh trên điện thoại bị cắt mép phải (ô nhập mã, hàng "Phòng đang chờ"); nhãn tab "Tự ôn" xuống dòng; thanh điều hướng demo chiếm khoảng 1/5 màn điện thoại.
+
+**Việc tiếp:** anh duyệt giao diện; sửa lỗi bố cục (nhờ Gemini sửa hoặc tự sửa); viết kế hoạch chi tiết (luật điểm, phòng và SSE, mô hình dữ liệu, quyền, an toàn học sinh, kiểm tải) trước khi code.
+
+## 2026-10-18 — Kế hoạch chi tiết tab "Đấu" (V6.9) + kế hoạch sửa demo Gemini
+
+**Yêu cầu:** anh Hiếu thấy demo tạm ổn; bảo lên kế hoạch tích hợp đầy đủ: sảnh hiện phòng học sinh tạo, đấu theo chủ đề, tìm bạn cùng môn / cùng chủ đề, phòng chưa chọn nội dung thì vào phòng rồi cả phòng cùng chọn môn và (tuỳ) chủ đề; kèm kế hoạch sửa lỗi demo Gemini.
+
+**Thay đổi:** tạo `task_plan.md` (gốc dự án): trải nghiệm sảnh / tạo phòng / tìm đối thủ (gợi ý từ bản đồ bài học, nới dần Bài → Chương → môn) / cùng chọn nội dung (luật bỏ phiếu), luật điểm, kiến trúc (engine thuần, deck chỉ kho trường, phòng trong bộ nhớ + ghi Postgres, SSE), API, migration v69 chỉ thêm bảng, giai đoạn 0–5 kèm nghiệm thu, 10 lỗi demo và cách sửa, kiểm thử, rủi ro, câu hỏi Q1–Q5. Soát thêm 3 ảnh demo (phòng chờ, trạng thái, sảnh máy tính) để lập đủ danh sách lỗi.
+
+**Kiểm:** không có thay đổi code. **Việc tiếp:** chờ anh duyệt kế hoạch và trả lời Q1–Q5, rồi làm giai đoạn 0 (demo v2 qua Gemini, kiểm từng phần tử 360/390/1366).
+
+## 2026-10-18 — Bản kế hoạch đầy đủ tab "Đấu" để gửi AI góp ý
+
+**Yêu cầu:** anh Hiếu trả lời Q1–Q5 (không tính khi chưa Chốt; tên gọi + lớp; dùng cả 4 loại TN/ĐS/TLN/GN; làm đủ các chế độ một đợt, phòng chờ mọi người Sẵn sàng thì chủ phòng bấm chạy; có công tắc tắt). Em bắt đầu code thì anh dừng lại, bảo viết kế hoạch đầy đủ (tổng quan, vấn đề, ý tưởng triển khai…) để gửi các AI khác góp ý.
+
+**Thay đổi:** `docs/thiet-ke/KE_HOACH_DAU_TRUONG_V69.md` (21 mục, có bối cảnh hệ thống để người đọc không cần mã nguồn, 20 câu hỏi mở cần góp ý); `task_plan.md` ghi quyết định và trỏ sang tài liệu mới. Nháp đã viết trước khi dừng, CHƯA nối vào app, chưa test: `backend/src/services/battle/engine.js`, `backend/src/db/migration-v69-battle.sql` (chưa thêm vào `upgrade.js`).
+
+**Kiểm:** chưa chạy gì (tài liệu + nháp). **Việc tiếp:** chờ góp ý của các AI, gộp góp ý vào tài liệu rồi mới triển khai.

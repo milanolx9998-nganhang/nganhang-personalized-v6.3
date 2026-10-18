@@ -1,0 +1,3213 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Đấu Trường KHTN 9 — Demo Giao Diện Thi Đấu Kiến Thức</title>
+  <!-- Google Fonts: Lexend & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700;800&family=Lexend:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* ==========================================================================
+       1. HỆ THỐNG BIẾN THIẾT KẾ (DESIGN TOKENS BẮT BUỘC + BỘ MÀU ĐẤU TRƯỜNG)
+       ========================================================================== */
+    :root {
+      --ink: #1C1B17;
+      --muted: #5E5B52;
+      --ground: #F4F3EE;
+      --surface: #FFFFFF;
+      --surface-3: #EDEBE4;
+      --line: #E2DFD6;
+
+      /* Màu nhấn & Khối đấu trường */
+      --accent: #1E5A7A;       /* Xanh mực */
+      --accent-ink: #153F57;   /* Nền tối đấu trường */
+      --accent-soft: #E3EEF3;
+      --amber: #F5B82E;        /* Nút chính hổ phách trên nền tối */
+      --amber-hover: #FFCA4B;
+
+      /* Trạng thái ngữ nghĩa */
+      --ok: #256D43;
+      --ok-soft: #E4F3EA;
+      --warn: #8A4B00;
+      --warn-soft: #FDF1E1;
+      --danger: #A5281B;
+      --danger-soft: #FCEAE8;
+
+      /* Màu phân môn KHTN */
+      --subj-ly: #1E5A7A;
+      --subj-hoa: #B25E09;
+      --subj-sinh: #256D43;
+
+      /* 4 màu đáp án + Hình học phân biệt cho người mù màu */
+      --opt-a: #1E5A7A; /* ▲ Xanh mực */
+      --opt-b: #B25E09; /* ● Cam nâu */
+      --opt-c: #256D43; /* ■ Xanh lá */
+      --opt-d: #6B3FA0; /* ◆ Tím đậm */
+
+      /* Bo góc & Đổ bóng */
+      --r-sm: 8px;
+      --r-md: 12px;
+      --r-lg: 16px;
+      --r-xl: 20px;
+      --shadow-card: 0 4px 14px rgba(28, 27, 23, 0.06), 0 1px 2px rgba(28, 27, 23, 0.05);
+      --shadow-arena: 0 10px 28px rgba(21, 63, 87, 0.22);
+      --font-sans: 'Lexend', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      min-height: 100vh;
+      background-color: var(--ground);
+      color: var(--ink);
+      font-family: var(--font-sans);
+      font-size: 16px;
+      line-height: 1.5;
+      overflow-x: hidden;
+    }
+
+    /* Trợ năng: Focus rõ nét */
+    button:focus-visible,
+    input:focus-visible,
+    [tabindex]:focus-visible {
+      outline: 3px solid var(--amber);
+      outline-offset: 2px;
+    }
+
+    button {
+      font-family: inherit;
+      cursor: pointer;
+      border: none;
+      background: none;
+    }
+
+    /* ==========================================================================
+       2. NÉT NHẬN DIỆN RIÊNG: VẠCH XUẤT PHÁT ĐẤU TRƯỜNG & SỐ ĐẾM MONO CỠ LỚN
+       ========================================================================== */
+    .finish-line-strip {
+      height: 8px;
+      width: 100%;
+      background-image: repeating-linear-gradient(
+        -45deg,
+        var(--accent-ink) 0,
+        var(--accent-ink) 12px,
+        var(--amber) 12px,
+        var(--amber) 24px
+      );
+    }
+
+    .finish-line-subtle {
+      height: 5px;
+      width: 100%;
+      background-image: repeating-linear-gradient(
+        90deg,
+        var(--accent) 0,
+        var(--accent) 16px,
+        var(--amber) 16px,
+        var(--amber) 32px,
+        var(--surface-3) 32px,
+        var(--surface-3) 48px
+      );
+    }
+
+    .mono-num {
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ==========================================================================
+       3. KHUNG BỐ CỤC CHÍNH (ƯU TIÊN 390PX & CO GIÃN Tới 1440PX)
+       ========================================================================== */
+    .app-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 0 0 112px 0; /* Chừa chỗ cho thanh điều hướng demo */
+      transition: all 0.25s ease;
+    }
+
+    /* Khung giả lập 390px khi bật chế độ Khung ĐT trên màn hình lớn */
+    .app-wrapper.force-mobile .app-container {
+      max-width: 394px;
+      border-left: 2px solid var(--line);
+      border-right: 2px solid var(--line);
+      min-height: calc(100vh - 90px);
+      background: var(--ground);
+      box-shadow: 0 16px 48px rgba(28, 27, 23, 0.12);
+    }
+
+    .app-container {
+      width: 100%;
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 0 14px 32px;
+    }
+
+    /* Riêng màn chơi (3) và giải thích (4) giữ độ rộng tập trung như điện thoại */
+    .app-container.narrow-stage {
+      max-width: 500px;
+    }
+
+    /* Riêng màn máy chiếu của cô (6) mở rộng 16:9 tới 1320px */
+    .app-container.projector-stage {
+      max-width: 1280px;
+      padding-top: 12px;
+    }
+
+    /* ==========================================================================
+       4. THANH TAB ĐẦU TRANG CỦA APP (TỰ ÔN | ĐẤU | HỒ SƠ)
+       ========================================================================== */
+    .top-app-bar {
+      width: 100%;
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+      position: sticky;
+      top: 0;
+      z-index: 40;
+    }
+
+    .top-app-bar-inner {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 8px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 800;
+      font-size: 1rem;
+      color: var(--accent-ink);
+      letter-spacing: -0.02em;
+    }
+
+    .brand-badge {
+      background: var(--accent-ink);
+      color: var(--amber);
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      padding: 3px 7px;
+      border-radius: 6px;
+      font-weight: 700;
+    }
+
+    .main-nav-tabs {
+      display: flex;
+      background: var(--surface-3);
+      padding: 4px;
+      border-radius: var(--r-md);
+      gap: 4px;
+    }
+
+    .nav-tab {
+      min-height: 40px;
+      padding: 6px 13px;
+      border-radius: var(--r-sm);
+      font-weight: 600;
+      font-size: 0.875rem;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: 0.15s ease;
+    }
+
+    .nav-tab.active {
+      background: var(--accent-ink);
+      color: #FFFFFF;
+      box-shadow: 0 2px 6px rgba(21, 63, 87, 0.25);
+    }
+
+    .nav-tab.active .tab-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--amber);
+      display: inline-block;
+    }
+
+    /* ==========================================================================
+       5. THÀNH PHẦN DÙNG CHUNG (BUTTONS, PILLS, CARDS)
+       ========================================================================== */
+    .btn {
+      min-height: 46px;
+      padding: 10px 18px;
+      border-radius: var(--r-md);
+      font-weight: 700;
+      font-size: 0.95rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: transform 0.12s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+      user-select: none;
+      text-align: center;
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    /* Nút hành động chính Hổ phách trên nền tối */
+    .btn-amber {
+      background: var(--amber);
+      color: var(--ink);
+      box-shadow: 0 3px 0 #C48B0B;
+    }
+    .btn-amber:hover {
+      background: var(--amber-hover);
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #FFFFFF;
+      box-shadow: 0 3px 0 var(--accent-ink);
+    }
+    .btn-primary:hover {
+      background: var(--accent-ink);
+    }
+
+    .btn-outline {
+      background: var(--surface);
+      color: var(--ink);
+      border: 1.5px solid var(--line);
+    }
+    .btn-outline:hover {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .btn-ghost-dark {
+      background: rgba(255, 255, 255, 0.12);
+      color: #FFFFFF;
+      border: 1px solid rgba(255, 255, 255, 0.24);
+    }
+    .btn-ghost-dark:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
+    .pill-ly { background: #E3EEF3; color: var(--subj-ly); border: 1px solid rgba(30,90,122,0.25); }
+    .pill-hoa { background: #FDF1E1; color: var(--subj-hoa); border: 1px solid rgba(178,94,9,0.25); }
+    .pill-sinh { background: #E4F3EA; color: var(--subj-sinh); border: 1px solid rgba(37,109,67,0.25); }
+
+    /* Chấm sáng nhịp thở (Live pulse) */
+    .live-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #36D36E;
+      box-shadow: 0 0 0 0 rgba(54, 211, 110, 0.7);
+      animation: pulseDot 1.8s infinite;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    @keyframes pulseDot {
+      0% { box-shadow: 0 0 0 0 rgba(54, 211, 110, 0.7); }
+      70% { box-shadow: 0 0 0 8px rgba(54, 211, 110, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(54, 211, 110, 0); }
+    }
+
+    /* ==========================================================================
+       6. MÀN 1: SẢNH ĐẤU (LOBBY)
+       ========================================================================== */
+    .arena-hero {
+      margin-top: 14px;
+      background: var(--accent-ink);
+      color: #FFFFFF;
+      border-radius: var(--r-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-arena);
+      position: relative;
+    }
+
+    .arena-hero-body {
+      padding: 18px 18px 16px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .hero-greeting h1 {
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 4px;
+    }
+
+    .hero-greeting p {
+      font-size: 0.875rem;
+      color: #CBE0EC;
+    }
+
+    .streak-badge {
+      background: rgba(245, 184, 46, 0.16);
+      border: 1.5px solid var(--amber);
+      color: var(--amber);
+      padding: 8px 12px;
+      border-radius: var(--r-md);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 0.88rem;
+    }
+
+    /* Lưới 4 thẻ chế độ lớn */
+    .modes-grid {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+
+    @media (min-width: 680px) {
+      .app-wrapper:not(.force-mobile) .modes-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .app-wrapper:not(.force-mobile) .mode-card.featured-class {
+        grid-column: span 2;
+      }
+    }
+
+    .mode-card {
+      background: var(--surface);
+      border: 1.5px solid var(--line);
+      border-radius: var(--r-lg);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 14px;
+      box-shadow: var(--shadow-card);
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+
+    .mode-card:hover {
+      border-color: var(--accent);
+    }
+
+    /* Thẻ (a) Cả lớp cùng đấu đang mở - nổi bật trên nền tối xanh mực */
+    .mode-card.featured-class {
+      background: linear-gradient(135deg, var(--accent-ink) 0%, #1A4E6B 100%);
+      color: #FFFFFF;
+      border: 2px solid var(--amber);
+      box-shadow: var(--shadow-arena);
+    }
+
+    .mode-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .mode-index {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: var(--surface-3);
+      color: var(--muted);
+    }
+
+    .featured-class .mode-index {
+      background: rgba(255, 255, 255, 0.14);
+      color: var(--amber);
+    }
+
+    .live-class-banner {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(22, 163, 74, 0.22);
+      border: 1px solid #4ADE80;
+      color: #FFFFFF;
+      padding: 5px 11px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+
+    .mode-body {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .mode-svg-wrap {
+      width: 64px;
+      height: 64px;
+      border-radius: var(--r-md);
+      background: var(--accent-soft);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .featured-class .mode-svg-wrap {
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .mode-info h2 {
+      font-size: 1.15rem;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+
+    .mode-info p {
+      font-size: 0.88rem;
+      color: var(--muted);
+    }
+
+    .featured-class .mode-info p {
+      color: #D7E8F2;
+    }
+
+    .mode-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 8px;
+      border-top: 1px dashed var(--line);
+    }
+
+    .featured-class .mode-actions {
+      border-top-color: rgba(255, 255, 255, 0.18);
+    }
+
+    /* Khu vực Vào bằng mã 6 số & Phòng đang chờ */
+    .lobby-bottom-grid {
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+
+    @media (min-width: 720px) {
+      .app-wrapper:not(.force-mobile) .lobby-bottom-grid {
+        grid-template-columns: 1fr 1.3fr;
+      }
+    }
+
+    .panel-card {
+      background: var(--surface);
+      border: 1.5px solid var(--line);
+      border-radius: var(--r-lg);
+      padding: 16px;
+      box-shadow: var(--shadow-card);
+    }
+
+    .section-title {
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .code-input-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .room-code-input {
+      flex: 1;
+      min-width: 0;
+      height: 48px;
+      background: var(--ground);
+      border: 2px solid var(--line);
+      border-radius: var(--r-md);
+      padding: 0 12px;
+      font-family: var(--font-mono);
+      font-size: 1.2rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      color: var(--accent-ink);
+      text-align: center;
+    }
+
+    .room-code-input::placeholder {
+      font-size: 0.9rem;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .waiting-rooms-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .waiting-room-item {
+      background: var(--ground);
+      border: 1px solid var(--line);
+      border-radius: var(--r-md);
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .wr-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .wr-title {
+      font-weight: 700;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .wr-sub {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    /* ==========================================================================
+       7. MÀN 2: PHÒNG CHỜ (WAITING ROOM + CHẾ ĐỘ ĐỘI)
+       ========================================================================== */
+    .waiting-header-card {
+      margin-top: 14px;
+      background: var(--accent-ink);
+      color: #FFFFFF;
+      border-radius: var(--r-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-arena);
+    }
+
+    .waiting-ticket {
+      padding: 18px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 14px;
+      align-items: center;
+    }
+
+    .big-room-code {
+      font-family: var(--font-mono);
+      font-size: 2.1rem;
+      font-weight: 800;
+      color: var(--amber);
+      letter-spacing: 0.08em;
+      line-height: 1.1;
+      margin: 4px 0 10px;
+    }
+
+    .qr-box {
+      background: #FFFFFF;
+      padding: 8px;
+      border-radius: var(--r-md);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      color: var(--ink);
+      font-size: 0.7rem;
+      font-weight: 700;
+    }
+
+    /* Bố cục danh sách học sinh trong phòng */
+    .avatar-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .student-chip {
+      background: var(--surface);
+      border: 1.5px solid var(--line);
+      border-radius: var(--r-md);
+      padding: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      position: relative;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .student-chip.is-me {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .student-chip.newly-joined {
+      animation: popInStudent 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+      border-color: var(--ok);
+    }
+
+    @keyframes popInStudent {
+      0% { opacity: 0; transform: scale(0.85) translateY(8px); }
+      100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .avatar-circle {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 0.85rem;
+      color: #FFFFFF;
+      flex-shrink: 0;
+    }
+
+    .student-meta {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .student-name {
+      font-weight: 700;
+      font-size: 0.85rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .student-class {
+      font-size: 0.75rem;
+      color: var(--muted);
+      font-family: var(--font-mono);
+    }
+
+    /* Hai cột Đấu Đội */
+    .teams-columns {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    @media (min-width: 640px) {
+      .app-wrapper:not(.force-mobile) .teams-columns {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    .team-column {
+      border-radius: var(--r-lg);
+      padding: 14px;
+      border: 2px solid var(--line);
+      background: var(--surface);
+    }
+
+    .team-column.team-alpha {
+      border-color: var(--subj-ly);
+      background: linear-gradient(180deg, #EBF3F7 0%, #FFFFFF 48%);
+    }
+
+    .team-column.team-beta {
+      border-color: var(--subj-hoa);
+      background: linear-gradient(180deg, #FDF3E6 0%, #FFFFFF 48%);
+    }
+
+    .team-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    /* Màn đếm ngược 3-2-1 toàn màn hình */
+    .countdown-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(21, 63, 87, 0.95);
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #FFFFFF;
+      text-align: center;
+      padding: 24px;
+    }
+
+    .countdown-number {
+      font-family: var(--font-mono);
+      font-size: 6.5rem;
+      font-weight: 800;
+      color: var(--amber);
+      line-height: 1;
+      margin: 16px 0;
+      animation: countBeat 0.75s ease infinite;
+    }
+
+    @keyframes countBeat {
+      0% { transform: scale(0.75); opacity: 0.4; }
+      50% { transform: scale(1.08); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    /* ==========================================================================
+       8. MÀN 3 & 4: MÀN CHƠI CHÍNH & SAU MỖI CÂU (LỜI GIẢI)
+       ========================================================================== */
+    .play-hud {
+      margin-top: 12px;
+      background: var(--surface);
+      border: 1.5px solid var(--line);
+      border-radius: var(--r-lg);
+      overflow: hidden;
+      box-shadow: var(--shadow-card);
+    }
+
+    /* Thanh giờ mảnh ở đỉnh */
+    .timer-track {
+      width: 100%;
+      height: 7px;
+      background: var(--surface-3);
+      overflow: hidden;
+    }
+
+    .timer-fill {
+      height: 100%;
+      background: var(--accent);
+      transition: width 0.35s linear, background-color 0.3s ease;
+    }
+
+    .timer-fill.warn { background: var(--amber); }
+    .timer-fill.danger { background: var(--danger); }
+
+    .hud-meta-row {
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    /* Thanh tiến độ kéo co 2 đội khi ở chế độ Đấu Đội */
+    .team-tug-bar {
+      padding: 8px 14px;
+      background: var(--surface-3);
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .tug-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.76rem;
+      font-weight: 700;
+    }
+
+    .tug-track {
+      height: 8px;
+      border-radius: 999px;
+      background: var(--subj-hoa);
+      overflow: hidden;
+      display: flex;
+    }
+
+    .tug-fill-left {
+      background: var(--subj-ly);
+      height: 100%;
+      border-right: 2px solid #FFFFFF;
+      transition: width 0.35s ease;
+    }
+
+    /* Đề bài cỡ chữ >= 18px */
+    .question-box {
+      padding: 16px 16px 18px;
+    }
+
+    .question-stem {
+      font-size: 1.125rem; /* 18px chuẩn theo yêu cầu */
+      font-weight: 600;
+      color: var(--ink);
+      line-height: 1.55;
+    }
+
+    /* 4 Ô đáp án lớn (>= 56px cao) có Chữ cái A/B/C/D + Hình dạng ▲ ● ■ ◆ */
+    .options-stack {
+      margin-top: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .option-btn {
+      width: 100%;
+      min-height: 60px; /* >= 56px theo yêu cầu */
+      background: var(--surface);
+      border: 2px solid var(--line);
+      border-radius: var(--r-md);
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-align: left;
+      transition: transform 0.1s ease, border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+      box-shadow: 0 2px 0 var(--line);
+    }
+
+    .option-btn:hover:not(:disabled) {
+      border-color: var(--accent);
+      background: #FAF9F5;
+    }
+
+    /* Huy hiệu Chữ cái + Hình học cho người mù màu */
+    .opt-shape-badge {
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      color: #FFFFFF;
+      font-family: var(--font-mono);
+      font-weight: 800;
+      font-size: 0.95rem;
+      flex-shrink: 0;
+    }
+
+    .opt-a .opt-shape-badge { background: var(--opt-a); }
+    .opt-b .opt-shape-badge { background: var(--opt-b); }
+    .opt-c .opt-shape-badge { background: var(--opt-c); }
+    .opt-d .opt-shape-badge { background: var(--opt-d); }
+
+    .opt-text {
+      flex: 1;
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--ink);
+      line-height: 1.35;
+    }
+
+    .opt-status-tag {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 4px 8px;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+
+    /* Khi học sinh đang chọn nháp (chưa bấm Chốt) */
+    .option-btn.selected {
+      border-color: var(--accent-ink);
+      background: var(--accent-soft);
+      box-shadow: 0 3px 0 var(--accent-ink);
+      transform: translateY(-1px);
+    }
+
+    /* Trạng thái ở Màn 4 (Sau mỗi câu - Hiện Đúng/Sai) */
+    .option-btn.reveal-correct {
+      border-color: var(--ok);
+      border-width: 2.5px;
+      background: var(--ok-soft);
+      box-shadow: 0 3px 0 var(--ok);
+    }
+
+    .option-btn.reveal-wrong {
+      border-color: var(--danger);
+      border-width: 2.5px;
+      background: var(--danger-soft);
+      box-shadow: 0 3px 0 var(--danger);
+    }
+
+    .option-btn.reveal-muted {
+      opacity: 0.68;
+    }
+
+    /* Khối nút Chốt đáp án */
+    .lock-action-bar {
+      margin-top: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .btn-lock {
+      width: 100%;
+      min-height: 52px;
+      font-size: 1.05rem;
+      border-radius: var(--r-md);
+    }
+
+    .btn-lock:disabled {
+      background: var(--surface-3);
+      color: var(--muted);
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+
+    /* Dải xếp hạng thu nhỏ ở đáy Màn 3 */
+    .mini-rank-strip {
+      margin-top: 14px;
+      background: var(--accent-ink);
+      color: #FFFFFF;
+      border-radius: var(--r-md);
+      overflow: hidden;
+      box-shadow: var(--shadow-card);
+    }
+
+    .mini-rank-toggle {
+      width: 100%;
+      min-height: 46px;
+      padding: 10px 14px;
+      color: #FFFFFF;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.88rem;
+      font-weight: 700;
+    }
+
+    .mini-rank-drawer {
+      background: #103144;
+      padding: 10px 14px 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.14);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .mini-rank-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 0.84rem;
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .mini-rank-row.me {
+      background: rgba(245, 184, 46, 0.22);
+      border: 1px solid var(--amber);
+      color: var(--amber);
+      font-weight: 700;
+    }
+
+    /* Màn 4: Khối biểu đồ cột ngang & Lời giải */
+    .Distribution-card,
+    .explanation-card {
+      margin-top: 14px;
+      background: var(--surface);
+      border: 1.5px solid var(--line);
+      border-radius: var(--r-lg);
+      padding: 14px 16px;
+      box-shadow: var(--shadow-card);
+    }
+
+    .explanation-card {
+      border-left: 5px solid var(--accent);
+      background: #FBFBF8;
+    }
+
+    .dist-row {
+      display: grid;
+      grid-template-columns: 48px 1fr 56px;
+      align-items: center;
+      gap: 10px;
+      margin-top: 8px;
+      font-size: 0.84rem;
+      font-weight: 700;
+    }
+
+    .dist-bar-bg {
+      height: 22px;
+      background: var(--surface-3);
+      border-radius: 6px;
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .dist-bar-fill {
+      height: 100%;
+      border-radius: 6px;
+      transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    /* ==========================================================================
+       9. MÀN 5: KẾT QUẢ & BỤC PODIUM + HUY HIỆU + ÔN CÂU SAI
+       ========================================================================== */
+    .podium-stage {
+      margin-top: 14px;
+      background: var(--accent-ink);
+      color: #FFFFFF;
+      border-radius: var(--r-xl);
+      padding: 20px 14px 0;
+      overflow: hidden;
+      box-shadow: var(--shadow-arena);
+    }
+
+    .podium-bars {
+      display: grid;
+      grid-template-columns: 1fr 1.12fr 1fr;
+      align-items: end;
+      gap: 8px;
+      margin-top: 18px;
+      max-width: 460px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .podium-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .podium-pillar {
+      width: 100%;
+      border-radius: 12px 12px 0 0;
+      padding: 12px 6px 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      font-family: var(--font-mono);
+      font-weight: 800;
+      animation: risePillar 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    @keyframes risePillar {
+      from { transform: translateY(40px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .pillar-1 {
+      height: 118px;
+      background: linear-gradient(180deg, var(--amber) 0%, #D99B16 100%);
+      color: var(--ink);
+    }
+    .pillar-2 {
+      height: 92px;
+      background: linear-gradient(180deg, #DCE6EC 0%, #B4C6D1 100%);
+      color: var(--ink);
+    }
+    .pillar-3 {
+      height: 76px;
+      background: linear-gradient(180deg, #E6B68A 0%, #C48B5A 100%);
+      color: var(--ink);
+    }
+
+    /* Huy hiệu ngoài thắng thua */
+    .badges-scroll {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 10px;
+    }
+
+    .recognition-badge {
+      background: var(--surface);
+      border: 1.5px solid var(--line);
+      border-radius: var(--r-md);
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: var(--shadow-card);
+    }
+
+    .rec-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      background: var(--accent-soft);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.35rem;
+      flex-shrink: 0;
+    }
+
+    /* Bảng xếp hạng đầy đủ */
+    .leaderboard-row {
+      display: grid;
+      grid-template-columns: 34px 1fr auto;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: var(--r-sm);
+      border-bottom: 1px solid var(--line);
+      font-size: 0.9rem;
+    }
+
+    .leaderboard-row.is-me {
+      background: #FFF8E6;
+      border: 2px solid var(--amber);
+      font-weight: 700;
+    }
+
+    /* Câu cả phòng hay sai */
+    .mistake-item {
+      background: var(--ground);
+      border: 1px solid var(--line);
+      border-left: 4px solid var(--danger);
+      border-radius: var(--r-md);
+      padding: 12px;
+      margin-top: 10px;
+    }
+
+    /* ==========================================================================
+       10. MÀN 6: CHẾ ĐỘ CHIẾU CHO CÔ (MÁY CHIẾU 16:9, CHỮ RẤT LỚN)
+       ========================================================================== */
+    .projector-frame {
+      background: var(--accent-ink);
+      color: #FFFFFF;
+      border-radius: var(--r-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-arena);
+      border: 2px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .projector-top {
+      padding: 16px 24px;
+      background: rgba(0, 0, 0, 0.22);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+    }
+
+    .projector-body {
+      padding: 28px 24px;
+    }
+
+    .projector-question {
+      font-size: clamp(1.35rem, 2.5vw, 2rem);
+      font-weight: 800;
+      line-height: 1.4;
+      color: #FFFFFF;
+      background: rgba(255, 255, 255, 0.07);
+      padding: 22px 24px;
+      border-radius: var(--r-lg);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+    }
+
+    .projector-options-grid {
+      margin-top: 20px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+
+    @media (min-width: 720px) {
+      .projector-options-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .proj-opt-card {
+      background: var(--surface);
+      color: var(--ink);
+      border-radius: var(--r-lg);
+      padding: 18px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: clamp(1.1rem, 1.8vw, 1.4rem);
+      font-weight: 700;
+      border: 3px solid transparent;
+    }
+
+    .proj-opt-card.correct-highlight {
+      border-color: #4ADE80;
+      background: #E4F3EA;
+      box-shadow: 0 0 0 4px rgba(74, 222, 128, 0.35);
+    }
+
+    .projector-controls {
+      padding: 16px 24px;
+      background: #0F2F42;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    /* ==========================================================================
+       11. MÀN 7: TỜ GỘP CÁC TRẠNG THÁI ĐẶC BIỆT (EDGE STATES)
+       ========================================================================== */
+    .states-showcase-grid {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    @media (min-width: 760px) {
+      .app-wrapper:not(.force-mobile) .states-showcase-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .state-demo-card {
+      background: var(--surface);
+      border: 1.5px solid var(--line);
+      border-radius: var(--r-lg);
+      overflow: hidden;
+      box-shadow: var(--shadow-card);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .state-demo-header {
+      padding: 10px 14px;
+      background: var(--surface-3);
+      border-bottom: 1px solid var(--line);
+      font-size: 0.8rem;
+      font-weight: 800;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .state-demo-body {
+      padding: 16px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    /* ==========================================================================
+       12. THANH ĐIỀU HƯỚNG DEMO Ở GÓC (DÀNH CHO GIÁO VIÊN CHẤM GIAO DIỆN)
+       ========================================================================== */
+    .demo-dock {
+      position: fixed;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 90;
+      width: calc(100% - 16px);
+      max-width: 940px;
+      background: rgba(28, 27, 23, 0.95);
+      backdrop-filter: blur(8px);
+      color: #FFFFFF;
+      border: 1.5px solid rgba(245, 184, 46, 0.5);
+      border-radius: var(--r-lg);
+      padding: 8px 10px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .demo-dock-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 0.75rem;
+      color: #D0C9BC;
+      padding: 0 4px;
+    }
+
+    .demo-screen-List {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      padding-bottom: 2px;
+    }
+    .demo-screen-List::-webkit-scrollbar { display: none; }
+
+    .demo-jump-btn {
+      min-height: 36px;
+      padding: 5px 10px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      color: #FFFFFF;
+      font-size: 0.78rem;
+      font-weight: 600;
+      white-space: nowrap;
+      transition: 0.15s ease;
+    }
+
+    .demo-jump-btn.active {
+      background: var(--amber);
+      color: var(--ink);
+      font-weight: 800;
+    }
+
+    /* Thông báo Toast nhỏ */
+    .toast-msg {
+      position: fixed;
+      top: 68px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--ink);
+      color: #FFFFFF;
+      border-left: 4px solid var(--amber);
+      padding: 10px 16px;
+      border-radius: var(--r-sm);
+      font-size: 0.88rem;
+      font-weight: 600;
+      z-index: 120;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+    .toast-msg.show {
+      opacity: 1;
+    }
+
+    /* Tôn trọng prefers-reduced-motion */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Thông báo Toast không dùng alert() -->
+  <div id="toast" class="toast-msg" role="status" aria-live="polite"></div>
+
+  <!-- Lớp phủ đếm ngược 3 - 2 - 1 khi bắt đầu trận -->
+  <div id="countdownOverlay" class="countdown-overlay" style="display: none;" aria-live="assertive">
+    <div style="font-size: 0.9rem; font-weight: 700; letter-spacing: 0.08em; color: #CBE0EC; text-transform: uppercase;">
+      Đấu Trường Khoa Học Tự Nhiên 9
+    </div>
+    <div id="countdownNum" class="countdown-number">3</div>
+    <div style="max-width: 280px; width: 100%; border-radius: 99px; overflow: hidden;">
+      <div class="finish-line-strip"></div>
+    </div>
+    <p id="countdownSub" style="margin-top: 12px; color: #E3EEF3; font-weight: 600;">Chuẩn bị vào vạch xuất phát…</p>
+  </div>
+
+  <div id="appWrapper" class="app-wrapper">
+    <!-- Thanh đầu trang của ứng dụng luyện tập -->
+    <header class="top-app-bar">
+      <div class="top-app-bar-inner">
+        <div class="brand-logo">
+          <span class="brand-badge">KHTN 9</span>
+          <span>Luyện Thi Đấu Trường</span>
+        </div>
+        <nav class="main-nav-tabs" aria-label="Điều hướng chính">
+          <button class="nav-tab" onclick="showToast('Đang ở bản Demo riêng cho tab ĐẤU')">
+            <span>📘 Tự ôn</span>
+          </button>
+          <button class="nav-tab active" aria-current="page" onclick="goScreen('lobby')">
+            <span class="tab-dot"></span>
+            <span>⚡ Đấu</span>
+          </button>
+          <button class="nav-tab" onclick="showToast('Hồ sơ: Phạm Bảo Ngọc · Lớp 9A2')">
+            <span>👤 9A2</span>
+          </button>
+        </nav>
+      </div>
+    </header>
+
+    <!-- Vùng chứa nội dung động theo State Machine -->
+    <main id="stageContainer" class="app-container" aria-live="polite"></main>
+  </div>
+
+  <!-- Thanh điều hướng Demo ở góc dưới cho Giáo viên chấm giao diện -->
+  <aside class="demo-dock" aria-label="Thanh điều khiển chấm Demo">
+    <div class="demo-dock-top">
+      <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+        <strong style="color: var(--amber);">🎛️ CHẤM DEMO (7 MÀN):</strong>
+        <span id="demoCurrentModeLabel">Chế độ: Cả lớp (Cô mở)</span>
+      </div>
+      <div style="display: flex; gap: 6px;">
+        <button class="demo-jump-btn" id="btnToggleTeamMode" onclick="togglePlayMode()" title="Đổi giữa Cả lớp / Đấu đội / Cá nhân">
+          🔄 Đổi kiểu đấu
+        </button>
+        <button class="demo-jump-btn" id="btnToggleViewport" onclick="toggleMobileFrame()" title="Thu gọn chuẩn khung 390px hoặc mở rộng">
+          📱 Khung 390px: Tắt
+        </button>
+      </div>
+    </div>
+    <div class="demo-screen-List" role="tablist">
+      <button class="demo-jump-btn active" data-screen="lobby" onclick="goScreen('lobby')">
+        (1) Sảnh Đấu
+      </button>
+      <button class="demo-jump-btn" data-screen="waiting" onclick="goScreen('waiting')">
+        (2) Phòng chờ
+      </button>
+      <button class="demo-jump-btn" data-screen="play" onclick="goScreen('play')">
+        (3) Màn chơi
+      </button>
+      <button class="demo-jump-btn" data-screen="explain" onclick="goScreen('explain')">
+        (4) Sau mỗi câu
+      </button>
+      <button class="demo-jump-btn" data-screen="result" onclick="goScreen('result')">
+        (5) Kết quả
+      </button>
+      <button class="demo-jump-btn" data-screen="projector" onclick="goScreen('projector')">
+        (6) Chiếu 16:9 (Cô)
+      </button>
+      <button class="demo-jump-btn" data-screen="states" onclick="goScreen('states')">
+        (7) Tờ trạng thái
+      </button>
+    </div>
+  </aside>
+
+  <script>
+    /* ==========================================================================
+       DỮ LIỆU GIẢ KHTN LỚP 9 THẬT (LÝ, HOÁ, SINH) & DANH SÁCH HỌC SINH 9A2, 9B3
+       ========================================================================== */
+    const QUESTIONS = [
+      {
+        id: 1,
+        subject: 'Lý',
+        topic: 'Điện học · Định luật Ôm',
+        stem: 'Mắc một điện trở R = 15 Ω vào hai đầu mạch có hiệu điện thế không đổi U = 12 V. Cường độ dòng điện chạy qua điện trở đó là bao nhiêu?',
+        options: [
+          { key: 'A', shape: '▲', text: '0,8 A' },
+          { key: 'B', shape: '●', text: '1,25 A' },
+          { key: 'C', shape: '■', text: '0,6 A' },
+          { key: 'D', shape: '◆', text: '1,8 A' }
+        ],
+        correct: 'A',
+        dist: { A: 15, B: 5, C: 2, D: 1 }, // Cả phòng 23 bạn chọn gì
+        explanation: 'Áp dụng hệ thức định luật Ôm: I = U / R = 12 / 15 = 0,8 (A). Nhiều bạn nhầm công thức lấy R chia U nên chọn nhầm 1,25 A.'
+      },
+      {
+        id: 2,
+        subject: 'Hoá',
+        topic: 'Axit – Bazơ · Chỉ thị màu',
+        stem: 'Nhỏ 2 giọt dung dịch phenolphtalein không màu vào ống nghiệm đựng dung dịch NaOH loãng. Hiện tượng quan sát được là gì?',
+        options: [
+          { key: 'A', shape: '▲', text: 'Dung dịch chuyển sang màu xanh lam' },
+          { key: 'B', shape: '●', text: 'Dung dịch chuyển sang màu hồng' },
+          { key: 'C', shape: '■', text: 'Xuất hiện kết tủa trắng dưới đáy ống' },
+          { key: 'D', shape: '◆', text: 'Sủi bọt khí không màu, không mùi' }
+        ],
+        correct: 'B',
+        dist: { A: 4, B: 17, C: 1, D: 1 },
+        explanation: 'NaOH là một bazơ mạnh (kiềm). Dung dịch bazơ làm đổi màu chất chỉ thị phenolphtalein từ không màu sang màu hồng đặc trưng (quỳ tím mới hóa xanh).'
+      },
+      {
+        id: 3,
+        subject: 'Sinh',
+        topic: 'Quang hợp ở thực vật',
+        stem: 'Trong quá trình quang hợp ở cây xanh, khí oxygen (O₂) thoát ra ngoài khí quyển có nguồn gốc trực tiếp từ đâu?',
+        options: [
+          { key: 'A', shape: '▲', text: 'Sự phân giải phân tử CO₂ ở pha tối' },
+          { key: 'B', shape: '●', text: 'Quá trình quang phân li nước (H₂O) ở pha sáng' },
+          { key: 'C', shape: '■', text: 'Quá trình hô hấp tế bào ở ti thể' },
+          { key: 'D', shape: '◆', text: 'Sự tổng hợp tinh bột tại chất nền lục lạp' }
+        ],
+        correct: 'B',
+        dist: { A: 7, B: 14, C: 1, D: 1 },
+        explanation: 'Ở pha sáng quang hợp, năng lượng ánh sáng mặt trời được diệp lục hấp thụ để thực hiện quang phân li nước (2H₂O → 4H⁺ + 4e⁻ + O₂↑).'
+      },
+      {
+        id: 4,
+        subject: 'Lý',
+        topic: 'Cơ học · Lực và công cơ học',
+        stem: 'Một lực kéo F = 40 N tác dụng lên xe lăn theo phương ngang làm xe dịch chuyển quãng đường s = 5 m. Công của lực kéo là:',
+        options: [
+          { key: 'A', shape: '▲', text: '8 J' },
+          { key: 'B', shape: '●', text: '45 J' },
+          { key: 'C', shape: '■', text: '200 J' },
+          { key: 'D', shape: '◆', text: '100 J' }
+        ],
+        correct: 'C',
+        dist: { A: 2, B: 1, C: 19, D: 1 },
+        explanation: 'Công cơ học của lực F khi vật dịch chuyển theo phương của lực được tính bằng A = F · s = 40 · 5 = 200 (J).'
+      },
+      {
+        id: 5,
+        subject: 'Hoá',
+        topic: 'Tính chất kim loại & Axit',
+        stem: 'Dãy các kim loại nào dưới đây đều phản ứng được với dung dịch H₂SO₄ loãng để giải phóng khí H₂?',
+        options: [
+          { key: 'A', shape: '▲', text: 'Fe, Zn, Cu' },
+          { key: 'B', shape: '●', text: 'Mg, Al, Zn' },
+          { key: 'C', shape: '■', text: 'Ag, Fe, Mg' },
+          { key: 'D', shape: '◆', text: 'Cu, Ag, Al' }
+        ],
+        correct: 'B',
+        dist: { A: 6, B: 15, C: 1, D: 1 },
+        explanation: 'Chỉ những kim loại đứng trước H trong dãy hoạt động hóa học (như Mg, Al, Zn, Fe) mới đẩy được H₂ ra khỏi dung dịch HCl, H₂SO₄ loãng. Cu và Ag đứng sau H nên không phản ứng.'
+      },
+      {
+        id: 6,
+        subject: 'Lý',
+        topic: 'Công suất điện & Điện năng',
+        stem: 'Một bóng đèn dây tóc có ghi 220V – 100W. Khi đèn hoạt động bình thường trong 2 giờ thì điện năng tiêu thụ là bao nhiêu kWh (số điện)?',
+        options: [
+          { key: 'A', shape: '▲', text: '0,2 kWh' },
+          { key: 'B', shape: '●', text: '200 kWh' },
+          { key: 'C', shape: '■', text: '2,2 kWh' },
+          { key: 'D', shape: '◆', text: '0,44 kWh' }
+        ],
+        correct: 'A',
+        dist: { A: 13, B: 8, C: 1, D: 1 },
+        explanation: 'Đổi công suất P = 100 W = 0,1 kW. Điện năng tiêu thụ A = P · t = 0,1 kW × 2 h = 0,2 kWh. Rất nhiều bạn quên đổi W sang kW nên chọn nhầm 200 kWh!'
+      },
+      {
+        id: 7,
+        subject: 'Hoá',
+        topic: 'Thang pH & Môi trường dung dịch',
+        stem: 'Một mẫu nước dịch vị dạ dày có độ pH ≈ 2,0. Mẫu dung dịch này mang tính chất gì và làm quỳ tím đổi màu như thế nào?',
+        options: [
+          { key: 'A', shape: '▲', text: 'Tính bazơ mạnh, quỳ tím hóa xanh' },
+          { key: 'B', shape: '●', text: 'Tính axit mạnh, quỳ tím hóa đỏ' },
+          { key: 'C', shape: '■', text: 'Môi trường trung tính, quỳ không đổi màu' },
+          { key: 'D', shape: '◆', text: 'Tính kiềm yếu, quỳ tím hóa hồng nhạt' }
+        ],
+        correct: 'B',
+        dist: { A: 2, B: 19, C: 1, D: 1 },
+        explanation: 'Dung dịch có pH < 7 mang tính axit (pH = 2 là axit mạnh, chứa HCl trong dịch vị) nên làm giấy quỳ tím chuyển sang màu đỏ.'
+      }
+    ];
+
+    const INITIAL_STUDENTS = [
+      { id: 's1', name: 'Phạm Bảo Ngọc (Em)', cls: '9A2', color: '#1E5A7A', team: 'A', score: 2140, rank: 4, isMe: true },
+      { id: 's2', name: 'Nguyễn Minh Khôi', cls: '9A2', color: '#256D43', team: 'A', score: 2490, rank: 1 },
+      { id: 's3', name: 'Trần Hà My', cls: '9B3', color: '#B25E09', team: 'B', score: 2360, rank: 2 },
+      { id: 's4', name: 'Lê Hoàng Nam', cls: '9B3', color: '#6B3FA0', team: 'B', score: 2250, rank: 3 },
+      { id: 's5', name: 'Vũ Đức Duy', cls: '9A2', color: '#153F57', team: 'A', score: 1980, rank: 5 },
+      { id: 's6', name: 'Đặng Thảo Tiên', cls: '9A2', color: '#8A4B00', team: 'B', score: 1890, rank: 6 },
+      { id: 's7', name: 'Hoàng Gia Bách', cls: '9B3', color: '#A5281B', team: 'A', score: 1760, rank: 7 },
+      { id: 's8', name: 'Ngô Khánh Linh', cls: '9B3', color: '#1E5A7A', team: 'B', score: 1650, rank: 8 }
+    ];
+
+    const EXTRA_STUDENTS_POOL = [
+      { name: 'Bùi Tuấn Kiệt', cls: '9B3', color: '#256D43' },
+      { name: 'Đỗ Phương Anh', cls: '9A2', color: '#6B3FA0' },
+      { name: 'Trịnh Quốc Khánh', cls: '9A2', color: '#B25E09' },
+      { name: 'Lý Thanh Trúc', cls: '9B3', color: '#1E5A7A' }
+    ];
+
+    /* ==========================================================================
+       STATE MACHINE QUẢN LÝ TOÀN BỘ 7 MÀN HÌNH
+       ========================================================================== */
+    const state = {
+      screen: 'lobby',          // lobby | waiting | play | explain | result | projector | states
+      playMode: 'class',        // 'class' (Cả lớp) | 'team' (Đấu đội) | 'solo' (Đấu đôi/Tự do)
+      roomCode: '482 910',
+      isReady: true,
+      students: [...INITIAL_STUDENTS],
+      extraIdx: 0,
+      newStudentId: null,
+
+      // Trạng thái trong trận đấu (Màn 3 & 4)
+      qIndex: 0,                // Đang ở câu thứ mấy (0 -> QUESTIONS.length - 1)
+      selectedOption: 'A',      // Đáp án đang chọn nháp (được đổi ý trước khi bấm Chốt)
+      lockedOption: null,       // Đáp án đã bấm Chốt
+      timeLeft: 18,
+      maxTime: 20,
+      timerInterval: null,
+      myScore: 2140,
+      myStreak: 3,
+      miniRankOpen: false,
+      teamAScore: 5420,
+      teamBScore: 4980,
+
+      // Trạng thái Màn 6 (Chế độ chiếu cho cô)
+      projTimeOver: false,
+      projPaused: false,
+      projAnsweredCount: 18,
+
+      // Trạng thái khung 390px
+      forceMobile: false
+    };
+
+    /* ==========================================================================
+       TIỆN ÍCH CHUNG (TOAST, COPY, BÀN PHÍM A/B/C/D + ENTER)
+       ========================================================================== */
+    let toastTimer = null;
+    function showToast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+    }
+
+    function copyRoomCode() {
+      const raw = state.roomCode.replace(/\s+/g, '');
+      const temp = document.createElement('textarea');
+      temp.value = raw;
+      document.body.appendChild(temp);
+      temp.select();
+      try {
+        document.execCommand('copy');
+        showToast('✓ Đã sao chép mã phòng: ' + state.roomCode);
+      } catch (e) {
+        showToast('Mã phòng: ' + state.roomCode);
+      }
+      document.body.removeChild(temp);
+    }
+
+    function getSubjectPillClass(subj) {
+      if (subj === 'Lý') return 'pill-ly';
+      if (subj === 'Hoá') return 'pill-hoa';
+      return 'pill-sinh';
+    }
+
+    function getInitials(fullName) {
+      const clean = fullName.replace(' (Em)', '').trim().split(' ');
+      if (clean.length >= 2) {
+        return (clean[clean.length - 2][0] + clean[clean.length - 1][0]).toUpperCase();
+      }
+      return fullName.slice(0, 2).toUpperCase();
+    }
+
+    /* Chuyển màn hình chính */
+    function goScreen(targetScreen, customMode) {
+      if (customMode) {
+        state.playMode = customMode;
+        updateModeBadgeInDock();
+      }
+      state.screen = targetScreen;
+
+      // Quản lý bộ đếm giờ cho Màn 3
+      clearInterval(state.timerInterval);
+      if (targetScreen === 'play') {
+        startQuestionTimer();
+      }
+
+      // Cập nhật độ rộng khung chứa tùy theo màn
+      const stage = document.getElementById('stageContainer');
+      stage.className = 'app-container';
+      if (targetScreen === 'play' || targetScreen === 'explain') {
+        stage.classList.add('narrow-stage');
+      } else if (targetScreen === 'projector') {
+        stage.classList.add('projector-stage');
+      }
+
+      // Cập nhật nút active trên thanh chấm Demo
+      document.querySelectorAll('.demo-jump-btn[data-screen]').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.screen === targetScreen);
+      });
+
+      render();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function togglePlayMode() {
+      const order = ['class', 'team', 'solo'];
+      const next = order[(order.indexOf(state.playMode) + 1) % order.length];
+      state.playMode = next;
+      updateModeBadgeInDock();
+      showToast(
+        next === 'class'
+          ? 'Đã chuyển sang: Cả lớp cùng đấu (Cô điều khiển)'
+          : next === 'team'
+          ? 'Đã chuyển sang: Đấu đội (Chia 2 đội xanh & cam)'
+          : 'Đã chuyển sang: Đấu tự do / Đấu đôi (Tự chuyển câu)'
+      );
+      render();
+    }
+
+    function updateModeBadgeInDock() {
+      const label = document.getElementById('demoCurrentModeLabel');
+      if (!label) return;
+      if (state.playMode === 'class') label.textContent = 'Chế độ: Cả lớp (Cô mở)';
+      else if (state.playMode === 'team') label.textContent = 'Chế độ: Đấu đội (2 đội)';
+      else label.textContent = 'Chế độ: Cá nhân / Đấu đôi';
+    }
+
+    function toggleMobileFrame() {
+      state.forceMobile = !state.forceMobile;
+      const wrapper = document.getElementById('appWrapper');
+      wrapper.classList.toggle('force-mobile', state.forceMobile);
+      const btn = document.getElementById('btnToggleViewport');
+      btn.textContent = state.forceMobile ? '📱 Khung 390px: Bật' : '📱 Khung 390px: Tắt';
+      btn.classList.toggle('active', state.forceMobile);
+    }
+
+    /* Bộ đếm ngược câu hỏi ở Màn 3 */
+    function startQuestionTimer() {
+      state.timeLeft = 18;
+      clearInterval(state.timerInterval);
+      state.timerInterval = setInterval(() => {
+        if (state.screen !== 'play') {
+          clearInterval(state.timerInterval);
+          return;
+        }
+        if (state.timeLeft > 0) {
+          state.timeLeft--;
+          const timerText = document.getElementById('liveTimerText');
+          const timerBar = document.getElementById('liveTimerFill');
+          if (timerText && timerBar) {
+            timerText.textContent = state.timeLeft + 's';
+            const pct = (state.timeLeft / state.maxTime) * 100;
+            timerBar.style.width = pct + '%';
+            timerBar.className = 'timer-fill' + (state.timeLeft <= 5 ? ' danger' : state.timeLeft <= 10 ? ' warn' : '');
+          }
+        } else {
+          clearInterval(state.timerInterval);
+          showToast('⏰ Hết giờ! Hệ thống tự ghi nhận phương án đang chọn.');
+          lockInAnswer();
+        }
+      }, 1000);
+    }
+
+    /* Hỗ trợ bàn phím A/B/C/D + Enter ở Màn chơi (3) và Màn sau mỗi câu (4) */
+    window.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      const key = e.key.toUpperCase();
+      if (state.screen === 'play') {
+        if (['A', 'B', 'C', 'D'].includes(key)) {
+          e.preventDefault();
+          selectOptionDraft(key);
+        } else if (['1', '2', '3', '4'].includes(key)) {
+          e.preventDefault();
+          const map = { '1': 'A', '2': 'B', '3': 'C', '4': 'D' };
+          selectOptionDraft(map[key]);
+        } else if (e.key === 'Enter' && state.selectedOption) {
+          e.preventDefault();
+          lockInAnswer();
+        }
+      } else if (state.screen === 'explain' && e.key === 'Enter') {
+        e.preventDefault();
+        nextQuestionOrFinish();
+      }
+    });
+
+    /* ==========================================================================
+       HÀNH ĐỘNG TƯƠNG TÁC TRONG CÁC MÀN
+       ========================================================================== */
+    function triggerStartCountdown() {
+      const overlay = document.getElementById('countdownOverlay');
+      const numEl = document.getElementById('countdownNum');
+      const subEl = document.getElementById('countdownSub');
+      overlay.style.display = 'flex';
+      let count = 3;
+      numEl.textContent = count;
+      subEl.textContent = 'Chuẩn bị vào vạch xuất phát…';
+
+      const iv = setInterval(() => {
+        count--;
+        if (count > 0) {
+          numEl.textContent = count;
+          if (count === 1) subEl.textContent = 'Sẵn sàng chốt đáp án!';
+        } else if (count === 0) {
+          numEl.textContent = 'ĐẤU!';
+          subEl.textContent = 'Chúc Bảo Ngọc bứt phá!';
+        } else {
+          clearInterval(iv);
+          overlay.style.display = 'none';
+          goScreen('play');
+        }
+      }, 650);
+    }
+
+    function simulateNewStudentJoin() {
+      const candidate = EXTRA_STUDENTS_POOL[state.extraIdx % EXTRA_STUDENTS_POOL.length];
+      state.extraIdx++;
+      const newId = 'extra_' + Date.now();
+      const assignedTeam = state.students.filter(s => s.team === 'A').length <= state.students.filter(s => s.team === 'B').length ? 'A' : 'B';
+      state.students.unshift({
+        id: newId,
+        name: candidate.name,
+        cls: candidate.cls,
+        color: candidate.color,
+        team: assignedTeam,
+        score: 1600,
+        rank: state.students.length + 1
+      });
+      state.newStudentId = newId;
+      showToast(`👋 ${candidate.name} (${candidate.cls}) vừa vào phòng!`);
+      render();
+    }
+
+    function switchMyTeam(targetTeam) {
+      const me = state.students.find(s => s.isMe);
+      if (me) {
+        me.team = targetTeam;
+        showToast(targetTeam === 'A' ? '⚡ Em đã chuyển sang Đội Tia Chớp' : '⚛️ Em đã chuyển sang Đội Nguyên Tử');
+        render();
+      }
+    }
+
+    function selectOptionDraft(optKey) {
+      state.selectedOption = optKey;
+      render();
+    }
+
+    function lockInAnswer() {
+      if (!state.selectedOption) {
+        showToast('Hãy chọn 1 trong 4 đáp án A, B, C, D trước khi Chốt!');
+        return;
+      }
+      state.lockedOption = state.selectedOption;
+      const q = QUESTIONS[state.qIndex];
+      if (state.lockedOption === q.correct) {
+        state.myScore += 155;
+        state.myStreak += 1;
+        state.teamAScore += 155;
+      } else {
+        state.myStreak = 0;
+        state.teamBScore += 120;
+      }
+      goScreen('explain');
+    }
+
+    function nextQuestionOrFinish() {
+      if (state.qIndex < QUESTIONS.length - 1) {
+        state.qIndex++;
+        state.selectedOption = 'B'; // Để sẵn 1 lựa chọn nháp giúp giáo viên bấm thử nhanh
+        state.lockedOption = null;
+        goScreen('play');
+      } else {
+        state.qIndex = 0;
+        goScreen('result');
+      }
+    }
+
+    /* ==========================================================================
+       HÀM RENDER 7 MÀN HÌNH CHI TIẾT
+       ========================================================================== */
+    function render() {
+      const stage = document.getElementById('stageContainer');
+      switch (state.screen) {
+        case 'lobby':
+          stage.innerHTML = renderLobbyScreen();
+          break;
+        case 'waiting':
+          stage.innerHTML = renderWaitingScreen();
+          break;
+        case 'play':
+          stage.innerHTML = renderPlayScreen();
+          break;
+        case 'explain':
+          stage.innerHTML = renderExplainScreen();
+          break;
+        case 'result':
+          stage.innerHTML = renderResultScreen();
+          break;
+        case 'projector':
+          stage.innerHTML = renderProjectorScreen();
+          break;
+        case 'states':
+          stage.innerHTML = renderStatesScreen();
+          break;
+      }
+    }
+
+    /* --------------------------------------------------------------------------
+       MÀN (1): SẢNH ĐẤU (LOBBY)
+       -------------------------------------------------------------------------- */
+    function renderLobbyScreen() {
+      return `
+        <!-- Banner Đấu trường có vạch xuất phát đặc trưng -->
+        <section class="arena-hero" aria-label="Chào mừng vào sảnh đấu">
+          <div class="finish-line-strip"></div>
+          <div class="arena-hero-body">
+            <div class="hero-greeting">
+              <h1>Chào Bảo Ngọc · Lớp 9A2! 🏁</h1>
+              <p>Vào vạch xuất phát KHTN 9 — Rèn phản xạ nhanh, nhớ sâu kiến thức.</p>
+            </div>
+            <div class="streak-badge" title="Chuỗi ngày tham gia thi đấu liên tiếp">
+              <span style="font-size: 1.2rem;">🔥</span>
+              <div>
+                <div style="line-height: 1.1;">Chuỗi 7 ngày</div>
+                <div style="font-size: 0.72rem; font-weight: 500; color: #FDE68A;">Đã đấu 3 ván tuần này</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 4 Thẻ chế độ lớn với hình minh hoạ SVG riêng -->
+        <section class="modes-grid" aria-label="Chọn chế độ thi đấu">
+          
+          <!-- (a) Cả lớp cùng đấu — Nổi bật khi cô đang mở phòng -->
+          <article class="mode-card featured-class">
+            <div class="mode-top">
+              <span class="mode-index">01 · TRỰC TIẾP TRÊN LỚP</span>
+              <span class="live-class-banner">
+                <span class="live-dot"></span>
+                <span>Đang mở · 23 bạn đã vào</span>
+              </span>
+            </div>
+            <div class="mode-body">
+              <div class="mode-svg-wrap" aria-hidden="true">
+                <!-- SVG Minh hoạ Bảng lớp & Tia chớp KHTN -->
+                <svg width="42" height="42" viewBox="0 0 48 48" fill="none">
+                  <rect x="6" y="8" width="36" height="24" rx="4" fill="#1E5A7A" stroke="#F5B82E" stroke-width="2.5"/>
+                  <path d="M25 13L19 21H25L23 27L30 19H24L25 13Z" fill="#F5B82E"/>
+                  <circle cx="14" cy="39" r="3.5" fill="#E3EEF3"/>
+                  <circle cx="24" cy="39" r="3.5" fill="#F5B82E"/>
+                  <circle cx="34" cy="39" r="3.5" fill="#E3EEF3"/>
+                </svg>
+              </div>
+              <div class="mode-info">
+                <h2>Cả lớp cùng đấu</h2>
+                <p>Cô Lan Anh đang mở phòng ôn <strong>Tổng hợp Lý – Hoá – Sinh 9</strong> (Mã: <span class="mono-num" style="color: var(--amber); font-weight:700;">482 910</span>).</p>
+              </div>
+            </div>
+            <div class="mode-actions">
+              <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                <span class="pill pill-ly">⚡ Điện học</span>
+                <span class="pill pill-hoa">🧪 Axit–Bazơ</span>
+                <span class="pill pill-sinh">🌿 Quang hợp</span>
+              </div>
+              <button class="btn btn-amber" onclick="goScreen('waiting', 'class')">
+                <span>Vào ngay</span>
+                <span aria-hidden="true">→</span>
+              </button>
+            </div>
+          </article>
+
+          <!-- (b) Đấu đôi (1v1) -->
+          <article class="mode-card">
+            <div class="mode-top">
+              <span class="mode-index">02 · ĐỐI KHÁNG 1v1</span>
+              <span class="pill pill-ly">Cùng khối 9</span>
+            </div>
+            <div class="mode-body">
+              <div class="mode-svg-wrap" aria-hidden="true">
+                <!-- SVG Hai tia chớp giao nhau -->
+                <svg width="40" height="40" viewBox="0 0 48 48" fill="none">
+                  <circle cx="16" cy="24" r="11" fill="#1E5A7A" fill-opacity="0.15" stroke="#1E5A7A" stroke-width="2.5"/>
+                  <circle cx="32" cy="24" r="11" fill="#B25E09" fill-opacity="0.15" stroke="#B25E09" stroke-width="2.5"/>
+                  <path d="M24 12L20 24H27L23 36" stroke="#153F57" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <div class="mode-info">
+                <h2>Đấu đôi</h2>
+                <p>So tài 5 câu tốc độ cùng bạn bè qua mã 6 số hoặc ghép tự do.</p>
+              </div>
+            </div>
+            <div class="mode-actions">
+              <button class="btn btn-outline" style="flex:1;" onclick="goScreen('waiting', 'solo')">
+                🔢 Mã 6 số
+              </button>
+              <button class="btn btn-primary" style="flex:1.2;" onclick="goScreen('states')">
+                🔍 Tìm đối thủ
+              </button>
+            </div>
+          </article>
+
+          <!-- (c) Đấu đội (2-4 bạn mỗi đội) -->
+          <article class="mode-card">
+            <div class="mode-top">
+              <span class="mode-index">03 · PHỐI HỢP NHÓM</span>
+              <span class="pill pill-hoa">2–4 bạn / đội</span>
+            </div>
+            <div class="mode-body">
+              <div class="mode-svg-wrap" style="background: #FDF1E1;" aria-hidden="true">
+                <!-- SVG Hai khiên đội -->
+                <svg width="40" height="40" viewBox="0 0 48 48" fill="none">
+                  <path d="M16 10L26 14V23C26 29.5 21.5 34.5 16 37C10.5 34.5 6 29.5 6 23V14L16 10Z" fill="#1E5A7A"/>
+                  <path d="M32 12L41 15.5V23.5C41 29.2 37 33.6 32 36C27 33.6 23 29.2 23 23.5V15.5L32 12Z" fill="#B25E09" stroke="#FFFFFF" stroke-width="2"/>
+                </svg>
+              </div>
+              <div class="mode-info">
+                <h2>Đấu đội</h2>
+                <p>Chia 2 chiến tuyến (2–4 bạn mỗi đội), cộng điểm chung giữ chuỗi thắng.</p>
+              </div>
+            </div>
+            <div class="mode-actions">
+              <span style="font-size: 0.8rem; color: var(--muted); font-weight: 600;">⚡ Đội Tia Chớp vs ⚛️ Nguyên Tử</span>
+              <button class="btn btn-primary" onclick="goScreen('waiting', 'team')">
+                Chọn đội →
+              </button>
+            </div>
+          </article>
+
+          <!-- (d) Nhiều người chơi (4-20 bạn) -->
+          <article class="mode-card">
+            <div class="mode-top">
+              <span class="mode-index">04 · ĐẤU TRƯỜNG MỞ</span>
+              <span class="pill pill-sinh">4–20 bạn</span>
+            </div>
+            <div class="mode-body">
+              <div class="mode-svg-wrap" style="background: #E4F3EA;" aria-hidden="true">
+                <!-- SVG Cúp vô địch & Cờ đích -->
+                <svg width="40" height="40" viewBox="0 0 48 48" fill="none">
+                  <path d="M15 12H33V21C33 26 29 30 24 30C19 30 15 26 15 21V12Z" fill="#256D43"/>
+                  <path d="M19 36H29M24 30V36" stroke="#256D43" stroke-width="3" stroke-linecap="round"/>
+                  <circle cx="24" cy="19" r="3.5" fill="#F5B82E"/>
+                </svg>
+              </div>
+              <div class="mode-info">
+                <h2>Nhiều người chơi</h2>
+                <p>Ghép tự do 4–20 bạn cùng khối 9, đua bục Podium Top 3 sôi động.</p>
+              </div>
+            </div>
+            <div class="mode-actions">
+              <span style="font-size: 0.8rem; color: var(--ok); font-weight: 700;">● 14 bạn đang tìm trận</span>
+              <button class="btn btn-outline" onclick="goScreen('waiting', 'solo')">
+                Ghép tự do →
+              </button>
+            </div>
+          </article>
+
+        </section>
+
+        <!-- Khu vực dưới: Nhập mã 6 số & Danh sách phòng đang chờ -->
+        <section class="lobby-bottom-grid" aria-label="Phòng đang chờ và nhập mã">
+          
+          <!-- Ô nhập mã phòng 6 số -->
+          <div class="panel-card">
+            <div class="section-title">
+              <span>🔑 Vào bằng mã phòng</span>
+              <span class="mono-num" style="font-size: 0.75rem; color: var(--muted);">6 CHỮ SỐ</span>
+            </div>
+            <p style="font-size: 0.84rem; color: var(--muted); margin-bottom: 12px;">
+              Nhập mã trên màn chiếu của cô hoặc mã bạn bè gửi:
+            </p>
+            <div class="code-input-group">
+              <input
+                id="lobbyCodeInput"
+                type="text"
+                inputmode="numeric"
+                maxlength="7"
+                class="room-code-input"
+                placeholder="VD: 482910"
+                value="482910"
+                aria-label="Nhập mã phòng 6 chữ số"
+              />
+              <button class="btn btn-primary" onclick="handleJoinByCode()">
+                Vào
+              </button>
+            </div>
+            <div style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; color: var(--muted);">
+              <span>Bạn là giáo viên?</span>
+              <button
+                style="color: var(--accent); font-weight: 700; text-decoration: underline; min-height: 32px;"
+                onclick="goScreen('projector')"
+              >
+                Mở màn hình chiếu 16:9 →
+              </button>
+            </div>
+          </div>
+
+          <!-- Danh sách Phòng đang chờ (Vào 1 chạm) -->
+          <div class="panel-card">
+            <div class="section-title">
+              <span>📡 Phòng đang chờ quanh em</span>
+              <span style="font-size: 0.78rem; color: var(--ok); font-weight: 700;">Chạm để vào ngay</span>
+            </div>
+            <div class="waiting-rooms-list">
+              
+              <div class="waiting-room-item">
+                <div class="wr-meta">
+                  <div class="wr-title">
+                    <span class="pill pill-ly">Lý 9</span>
+                    <span>Ôn Định luật Ôm & Công suất</span>
+                  </div>
+                  <div class="wr-sub">Chủ phòng: Minh Khôi (9A2) · <strong class="mono-num">6/8 bạn</strong> · Mã #519204</div>
+                </div>
+                <button class="btn btn-outline" style="min-height: 40px; padding: 6px 14px;" onclick="goScreen('waiting', 'solo')">
+                  Vào
+                </button>
+              </div>
+
+              <div class="waiting-room-item">
+                <div class="wr-meta">
+                  <div class="wr-title">
+                    <span class="pill pill-hoa">Hoá 9</span>
+                    <span>Đấu Đội: Nhận biết Axit – Bazơ</span>
+                  </div>
+                  <div class="wr-sub">Chủ phòng: Hà My (9B3) · <strong class="mono-num">5/6 bạn</strong> · Mã #773812</div>
+                </div>
+                <button class="btn btn-outline" style="min-height: 40px; padding: 6px 14px;" onclick="goScreen('waiting', 'team')">
+                  Vào đội
+                </button>
+              </div>
+
+            </div>
+          </div>
+
+        </section>
+      `;
+    }
+
+    function handleJoinByCode() {
+      const inp = document.getElementById('lobbyCodeInput');
+      const val = inp ? inp.value.trim() : '482910';
+      if (!val) {
+        showToast('Vui lòng nhập mã phòng 6 chữ số!');
+        return;
+      }
+      state.roomCode = val.length === 6 ? val.slice(0, 3) + ' ' + val.slice(3) : val;
+      goScreen('waiting');
+    }
+
+    /* --------------------------------------------------------------------------
+       MÀN (2): PHÒNG CHỜ (WAITING ROOM - HỖ TRỢ CẢ LỚP & ĐẤU ĐỘI)
+       -------------------------------------------------------------------------- */
+    function renderWaitingScreen() {
+      const isTeam = state.playMode === 'team';
+      const teamA = state.students.filter(s => s.team === 'A');
+      const teamB = state.students.filter(s => s.team === 'B');
+      const me = state.students.find(s => s.isMe);
+
+      return `
+        <!-- Thanh điều hướng phụ quay lại Sảnh + Đổi chế độ xem thử -->
+        <div style="margin-top: 12px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;">
+          <button class="btn btn-outline" style="min-height: 40px; padding: 6px 12px;" onclick="goScreen('lobby')">
+            ← Rời phòng
+          </button>
+          <div style="display: flex; gap: 6px;">
+            <button
+              class="btn ${!isTeam ? 'btn-primary' : 'btn-outline'}"
+              style="min-height: 40px; padding: 6px 12px; font-size: 0.82rem;"
+              onclick="goScreen('waiting', 'class')"
+            >
+              👥 Xem kiểu Cả lớp (${state.students.length} bạn)
+            </button>
+            <button
+              class="btn ${isTeam ? 'btn-primary' : 'btn-outline'}"
+              style="min-height: 40px; padding: 6px 12px; font-size: 0.82rem;"
+              onclick="goScreen('waiting', 'team')"
+            >
+              🛡️ Xem kiểu Đấu đội (2 cột)
+            </button>
+          </div>
+        </div>
+
+        <!-- Thẻ vé Đấu trường: Mã phòng lớn + QR SVG + Sao chép -->
+        <section class="waiting-header-card" aria-label="Thông tin mã phòng chờ">
+          <div class="finish-line-strip"></div>
+          <div class="waiting-ticket">
+            <div>
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <span class="live-dot"></span>
+                <span style="font-size: 0.82rem; font-weight: 700; color: #CBE0EC;">
+                  ${isTeam ? 'PHÒNG ĐẤU ĐỘI KHTN 9' : 'PHÒNG CẢ LỚP · CÔ LAN ANH CHỦ TRÌ'}
+                </span>
+              </div>
+              <div class="big-room-code" aria-label="Mã phòng ${state.roomCode}">${state.roomCode}</div>
+              <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                <button class="btn btn-ghost-dark" style="min-height: 40px; padding: 6px 12px; font-size: 0.84rem;" onclick="copyRoomCode()">
+                  📋 Sao chép mã
+                </button>
+                <button class="btn btn-ghost-dark" style="min-height: 40px; padding: 6px 12px; font-size: 0.84rem;" onclick="simulateNewStudentJoin()">
+                  + Giả lập bạn mới vào
+                </button>
+              </div>
+            </div>
+
+            <!-- Mã QR giả bằng SVG sắc nét -->
+            <div class="qr-box" title="Quét QR để vào nhanh trên điện thoại">
+              <svg width="72" height="72" viewBox="0 0 72 72" fill="none" aria-label="Mã QR vào phòng">
+                <rect width="72" height="72" rx="6" fill="#FFFFFF"/>
+                <!-- 3 góc định vị QR -->
+                <rect x="6" y="6" width="20" height="20" stroke="#1C1B17" stroke-width="4"/>
+                <rect x="12" y="12" width="8" height="8" fill="#1C1B17"/>
+                <rect x="46" y="6" width="20" height="20" stroke="#1C1B17" stroke-width="4"/>
+                <rect x="52" y="12" width="8" height="8" fill="#1C1B17"/>
+                <rect x="6" y="46" width="20" height="20" stroke="#1C1B17" stroke-width="4"/>
+                <rect x="12" y="52" width="8" height="8" fill="#1C1B17"/>
+                <!-- Các hạt dữ liệu giả lập -->
+                <rect x="32" y="8" width="6" height="6" fill="#1E5A7A"/>
+                <rect x="32" y="20" width="6" height="12" fill="#1C1B17"/>
+                <rect x="10" y="32" width="14" height="6" fill="#1C1B17"/>
+                <rect x="30" y="34" width="12" height="12" rx="2" fill="#F5B82E"/>
+                <rect x="48" y="32" width="6" height="14" fill="#1C1B17"/>
+                <rect x="58" y="36" width="8" height="8" fill="#1E5A7A"/>
+                <rect x="32" y="52" width="12" height="6" fill="#1C1B17"/>
+                <rect x="50" y="52" width="14" height="14" fill="#1C1B17"/>
+                <rect x="55" y="57" width="4" height="4" fill="#FFFFFF"/>
+              </svg>
+              <span>QUÉT VÀO NGAY</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Nội dung danh sách người chơi: Hoặc Lưới Avatar Cả Lớp, hoặc 2 Cột Đấu Đội -->
+        ${
+          !isTeam
+            ? `
+          <section class="panel-card" style="margin-top: 14px;" aria-label="Danh sách các bạn đã vào phòng">
+            <div class="section-title">
+              <span>👩‍🎓 Các bạn đã vào phòng (<span class="mono-num">${state.students.length}</span>)</span>
+              <span style="font-size: 0.8rem; color: var(--muted);">Lớp 9A2 & 9B3</span>
+            </div>
+            <div class="avatar-grid">
+              ${state.students
+                .map(
+                  st => `
+                <div class="student-chip ${st.isMe ? 'is-me' : ''} ${st.id === state.newStudentId ? 'newly-joined' : ''}">
+                  <div class="avatar-circle" style="background: ${st.color};">
+                    ${getInitials(st.name)}
+                  </div>
+                  <div class="student-meta">
+                    <div class="student-name">${st.name}</div>
+                    <div class="student-class">Lớp ${st.cls} ${st.isMe ? '· Đã sẵn sàng' : ''}</div>
+                  </div>
+                </div>
+              `
+                )
+                .join('')}
+            </div>
+          </section>
+        `
+            : `
+          <!-- Hai cột Đấu Đội màu riêng, cho phép chọn đổi đội -->
+          <section class="teams-columns" aria-label="Chọn đội thi đấu">
+            
+            <!-- Đội A: Xanh mực -->
+            <div class="team-column team-alpha">
+              <div class="team-header">
+                <div>
+                  <h3 style="color: var(--subj-ly); font-size: 1.05rem; font-weight: 800;">⚡ Đội Tia Chớp (${teamA.length})</h3>
+                  <p style="font-size: 0.78rem; color: var(--muted);">Chuyên tốc độ Điện & Cơ học</p>
+                </div>
+                ${
+                  me && me.team !== 'A'
+                    ? `<button class="btn btn-primary" style="min-height: 38px; padding: 6px 12px; font-size: 0.8rem;" onclick="switchMyTeam('A')">Sang đội này</button>`
+                    : `<span class="pill pill-ly">Đội của em ✓</span>`
+                }
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                ${teamA
+                  .map(
+                    st => `
+                  <div class="student-chip ${st.isMe ? 'is-me' : ''}">
+                    <div class="avatar-circle" style="background: ${st.color};">${getInitials(st.name)}</div>
+                    <div class="student-meta">
+                      <div class="student-name">${st.name}</div>
+                      <div class="student-class">Lớp ${st.cls}</div>
+                    </div>
+                  </div>
+                `
+                  )
+                  .join('')}
+              </div>
+            </div>
+
+            <!-- Đội B: Cam nâu -->
+            <div class="team-column team-beta">
+              <div class="team-header">
+                <div>
+                  <h3 style="color: var(--subj-hoa); font-size: 1.05rem; font-weight: 800;">⚛️ Đội Nguyên Tử (${teamB.length})</h3>
+                  <p style="font-size: 0.78rem; color: var(--muted);">Chuyên phản ứng Hoá & Sinh</p>
+                </div>
+                ${
+                  me && me.team !== 'B'
+                    ? `<button class="btn btn-outline" style="min-height: 38px; padding: 6px 12px; font-size: 0.8rem; border-color: var(--subj-hoa); color: var(--subj-hoa);" onclick="switchMyTeam('B')">Sang đội này</button>`
+                    : `<span class="pill pill-hoa">Đội của em ✓</span>`
+                }
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                ${teamB
+                  .map(
+                    st => `
+                  <div class="student-chip ${st.isMe ? 'is-me' : ''}">
+                    <div class="avatar-circle" style="background: ${st.color};">${getInitials(st.name)}</div>
+                    <div class="student-meta">
+                      <div class="student-name">${st.name}</div>
+                      <div class="student-class">Lớp ${st.cls}</div>
+                    </div>
+                  </div>
+                `
+                  )
+                  .join('')}
+              </div>
+            </div>
+
+          </section>
+        `
+        }
+
+        <!-- Thanh nút Sẵn sàng (Học sinh) & Bắt đầu (Chủ phòng) -->
+        <section class="panel-card" style="margin-top: 14px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <button
+              class="btn ${state.isReady ? 'btn-primary' : 'btn-outline'}"
+              onclick="state.isReady = !state.isReady; render();"
+            >
+              ${state.isReady ? '✓ Em đã sẵn sàng' : 'Bấm để Sẵn sàng'}
+            </button>
+            <span style="font-size: 0.84rem; color: var(--muted);">
+              ${state.isReady ? 'Đang chờ hiệu lệnh xuất phát…' : 'Hãy bấm Sẵn sàng để chủ phòng bắt đầu'}
+            </span>
+          </div>
+
+          <button class="btn btn-amber" onclick="triggerStartCountdown()">
+            <span>🏁 Bắt đầu ván đấu (Đếm 3-2-1)</span>
+          </button>
+        </section>
+      `;
+    }
+
+    /* --------------------------------------------------------------------------
+       MÀN (3): MÀN CHƠI CHÍNH (ĐIỆN THOẠI LÀ CHÍNH, 4 Ô A▲ B● C■ D◆ + NÚT CHỐT)
+       -------------------------------------------------------------------------- */
+    function renderPlayScreen() {
+      const q = QUESTIONS[state.qIndex];
+      const totalQ = QUESTIONS.length;
+      const pctTime = (state.timeLeft / state.maxTime) * 100;
+      const isTeam = state.playMode === 'team';
+      const totalTeamPts = state.teamAScore + state.teamBScore;
+      const teamAPct = Math.round((state.teamAScore / totalTeamPts) * 100);
+
+      return `
+        <!-- Khối HUD đầu màn chơi: Thanh giờ mảnh + Số câu + Phân môn + Điểm -->
+        <section class="play-hud" aria-label="Thông tin câu hỏi đang làm">
+          <div class="timer-track" role="progressbar" aria-valuenow="${state.timeLeft}" aria-valuemin="0" aria-valuemax="${state.maxTime}">
+            <div id="liveTimerFill" class="timer-fill ${state.timeLeft <= 5 ? 'danger' : state.timeLeft <= 10 ? 'warn' : ''}" style="width: ${pctTime}%;"></div>
+          </div>
+
+          <div class="hud-meta-row">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="mono-num" style="font-weight: 800; font-size: 0.92rem; color: var(--accent-ink);">
+                Câu ${state.qIndex + 1}/${totalQ}
+              </span>
+              <span class="pill ${getSubjectPillClass(q.subject)}">${q.subject} 9</span>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 0.82rem; font-weight: 700; color: var(--warn);">
+                🔥 Chuỗi ${state.myStreak}
+              </span>
+              <span class="mono-num" style="background: var(--accent-ink); color: var(--amber); padding: 4px 9px; border-radius: 8px; font-weight: 800; font-size: 0.88rem;">
+                ⏱ <span id="liveTimerText">${state.timeLeft}s</span>
+              </span>
+            </div>
+          </div>
+
+          <!-- Nếu ở chế độ Đấu Đội: Hiện thanh tiến độ kéo co 2 đội -->
+          ${
+            isTeam
+              ? `
+            <div class="team-tug-bar" aria-label="Tỉ số hai đội">
+              <div class="tug-labels">
+                <span style="color: var(--subj-ly);">⚡ Đội Tia Chớp (Em): <span class="mono-num">${state.teamAScore}đ</span></span>
+                <span style="color: var(--subj-hoa);">⚛️ Đội Nguyên Tử: <span class="mono-num">${state.teamBScore}đ</span></span>
+              </div>
+              <div class="tug-track">
+                <div class="tug-fill-left" style="width: ${teamAPct}%;"></div>
+              </div>
+            </div>
+          `
+              : ''
+          }
+
+          <!-- Nội dung đề bài cỡ chữ 18px -->
+          <div class="question-box">
+            <div style="font-size: 0.78rem; color: var(--muted); font-weight: 600; margin-bottom: 6px;">
+              Chủ đề: ${q.topic}
+            </div>
+            <h1 class="question-stem">${q.stem}</h1>
+          </div>
+        </section>
+
+        <!-- 4 Ô đáp án lớn (>= 56px cao) có Chữ cái A/B/C/D + Hình dạng ▲ ● ■ ◆ -->
+        <section class="options-stack" role="radiogroup" aria-label="Các phương án trả lời">
+          ${q.options
+            .map(opt => {
+              const isSelected = state.selectedOption === opt.key;
+              const optClass = 'opt-' + opt.key.toLowerCase();
+              return `
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked="${isSelected}"
+                  class="option-btn ${optClass} ${isSelected ? 'selected' : ''}"
+                  onclick="selectOptionDraft('${opt.key}')"
+                >
+                  <span class="opt-shape-badge" aria-hidden="true">
+                    <span>${opt.key}</span>
+                    <span style="font-size: 0.8rem;">${opt.shape}</span>
+                  </span>
+                  <span class="opt-text">${opt.text}</span>
+                  ${
+                    isSelected
+                      ? `<span class="opt-status-tag" style="background: var(--accent-ink); color: var(--amber);">Đang chọn</span>`
+                      : `<span class="mono-num" style="font-size: 0.75rem; color: var(--muted);">Phím ${opt.key}</span>`
+                  }
+                </button>
+              `;
+            })
+            .join('')}
+        </section>
+
+        <!-- Nút CHỐT đáp án (Được đổi ý thoải mái trước khi bấm Chốt) -->
+        <div class="lock-action-bar">
+          <button
+            type="button"
+            class="btn btn-amber btn-lock"
+            ${!state.selectedOption ? 'disabled' : ''}
+            onclick="lockInAnswer()"
+          >
+            ${
+              state.selectedOption
+                ? `🔒 CHỐT ĐÁP ÁN ${state.selectedOption} (Phím Enter)`
+                : 'Chọn 1 đáp án A, B, C, D để Chốt'
+            }
+          </button>
+          <p style="text-align: center; font-size: 0.78rem; color: var(--muted);">
+            💡 Em được đổi ý thoải mái trước khi bấm <strong>Chốt đáp án</strong>. Hỗ trợ phím <strong>A/B/C/D + Enter</strong>.
+          </p>
+        </div>
+
+        <!-- Dải xếp hạng thu nhỏ ở đáy: "Top 3 · Em hạng 4" bấm mở rộng -->
+        <section class="mini-rank-strip" aria-label="Xếp hạng trực tiếp">
+          <button
+            type="button"
+            class="mini-rank-toggle"
+            aria-expanded="${state.miniRankOpen}"
+            onclick="state.miniRankOpen = !state.miniRankOpen; render();"
+          >
+            <span>🏆 Top 3: Minh Khôi, Hà My, Hoàng Nam</span>
+            <span style="color: var(--amber);" class="mono-num">
+              Em hạng 4 (${state.myScore}đ) ${state.miniRankOpen ? '▼' : '▲'}
+            </span>
+          </button>
+          ${
+            state.miniRankOpen
+              ? `
+            <div class="mini-rank-drawer">
+              <div class="mini-rank-row">
+                <span>🥇 #1 Nguyễn Minh Khôi (9A2)</span>
+                <span class="mono-num">2.490đ</span>
+              </div>
+              <div class="mini-rank-row">
+                <span>🥈 #2 Trần Hà My (9B3)</span>
+                <span class="mono-num">2.360đ</span>
+              </div>
+              <div class="mini-rank-row">
+                <span>🥉 #3 Lê Hoàng Nam (9B3)</span>
+                <span class="mono-num">2.250đ</span>
+              </div>
+              <div class="mini-rank-row me">
+                <span>⭐ #4 Phạm Bảo Ngọc · Em (9A2)</span>
+                <span class="mono-num">${state.myScore}đ</span>
+              </div>
+            </div>
+          `
+              : ''
+          }
+        </section>
+      `;
+    }
+
+    /* --------------------------------------------------------------------------
+       MÀN (4): SAU MỖI CÂU (LỜI GIẢI + BIỂU ĐỒ CẢ PHÒNG CHỌN GÌ, KHÔNG TỰ CHUYỂN)
+       -------------------------------------------------------------------------- */
+    function renderExplainScreen() {
+      const q = QUESTIONS[state.qIndex];
+      const userPick = state.lockedOption || state.selectedOption || 'A';
+      const isCorrect = userPick === q.correct;
+      const totalVotes = Object.values(q.dist).reduce((a, b) => a + b, 0);
+
+      return `
+        <!-- Banner trạng thái Đúng / Sai rõ ràng bằng cả chữ + biểu tượng + màu -->
+        <section
+          class="panel-card"
+          style="margin-top: 12px; background: ${isCorrect ? 'var(--ok)' : 'var(--danger)'}; color: #FFFFFF; border: none;"
+          aria-label="Kết quả câu vừa làm"
+        >
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 1.5rem;">${isCorrect ? '✅' : '❌'}</span>
+              <div>
+                <div style="font-weight: 800; font-size: 1.1rem;">
+                  ${isCorrect ? 'CHÍNH XÁC! PHẢN XẠ RẤT TỐT' : 'CHƯA ĐÚNG RỒI · XEM LỜI GIẢI NHÉ'}
+                </div>
+                <div style="font-size: 0.82rem; opacity: 0.92;">
+                  Câu ${state.qIndex + 1}/${QUESTIONS.length} · ${q.subject} 9 (${q.topic})
+                </div>
+              </div>
+            </div>
+
+            <div class="mono-num" style="background: rgba(0,0,0,0.22); padding: 6px 12px; border-radius: 10px; font-weight: 800; font-size: 0.9rem;">
+              ${isCorrect ? '+120đ gốc  ⚡ +35đ tốc độ' : '+0đ · Giữ bình tĩnh câu sau!'}
+            </div>
+          </div>
+        </section>
+
+        <!-- Đề bài & 4 ô đáp án đã tô rõ Đúng/Sai + Biểu tượng -->
+        <section class="panel-card" style="margin-top: 12px;">
+          <p style="font-weight: 600; font-size: 1.02rem; margin-bottom: 12px;">${q.stem}</p>
+          <div class="options-stack" style="margin-top: 0;">
+            ${q.options
+              .map(opt => {
+                const isRightOpt = opt.key === q.correct;
+                const isUserOpt = opt.key === userPick;
+                let stateClass = 'reveal-muted';
+                let statusBadge = '';
+
+                if (isRightOpt) {
+                  stateClass = 'reveal-correct';
+                  statusBadge = `<span class="opt-status-tag" style="background: var(--ok); color: #FFF;">✓ ĐÁP ÁN ĐÚNG ${isUserOpt ? '(Em chọn)' : ''}</span>`;
+                } else if (isUserOpt && !isRightOpt) {
+                  stateClass = 'reveal-wrong';
+                  statusBadge = `<span class="opt-status-tag" style="background: var(--danger); color: #FFF;">✕ EM CHỌN SAI</span>`;
+                }
+
+                return `
+                  <div class="option-btn opt-${opt.key.toLowerCase()} ${stateClass}" style="cursor: default;">
+                    <span class="opt-shape-badge">
+                      <span>${opt.key}</span>
+                      <span style="font-size: 0.8rem;">${opt.shape}</span>
+                    </span>
+                    <span class="opt-text">${opt.text}</span>
+                    ${statusBadge}
+                  </div>
+                `;
+              })
+              .join('')}
+          </div>
+        </section>
+
+        <!-- Lời giải ngắn 2-3 dòng súc tích -->
+        <section class="explanation-card" aria-label="Lời giải chi tiết">
+          <div style="font-weight: 800; font-size: 0.92rem; color: var(--accent-ink); margin-bottom: 4px;">
+            💡 Giải thích ngắn gọn:
+          </div>
+          <p style="font-size: 0.92rem; color: var(--ink); line-height: 1.5;">
+            ${q.explanation}
+          </p>
+        </section>
+
+        <!-- Biểu đồ cột ngang: Cả phòng chọn gì -->
+        <section class="Distribution-card" aria-label="Thống kê cả phòng chọn gì">
+          <div class="section-title" style="margin-bottom: 6px;">
+            <span>📊 Cả phòng chọn gì (${totalVotes} bạn)</span>
+            <span style="font-size: 0.78rem; color: var(--muted);">Kèm hình dạng phân biệt</span>
+          </div>
+
+          ${q.options
+            .map(opt => {
+              const count = q.dist[opt.key] || 0;
+              const pct = Math.round((count / totalVotes) * 100);
+              const isRight = opt.key === q.correct;
+              const isMine = opt.key === userPick;
+              const fillColors = { A: 'var(--opt-a)', B: 'var(--opt-b)', C: 'var(--opt-c)', D: 'var(--opt-d)' };
+              return `
+                <div class="dist-row">
+                  <div class="mono-num" style="display: flex; align-items: center; gap: 4px; color: ${isRight ? 'var(--ok)' : 'var(--ink)'};">
+                    <span>${opt.key}${opt.shape}</span>
+                    ${isRight ? '✓' : ''}
+                  </div>
+                  <div class="dist-bar-bg">
+                    <div class="dist-bar-fill" style="width: ${Math.max(pct, 6)}%; background: ${fillColors[opt.key]};"></div>
+                    ${
+                      isMine
+                        ? `<span style="position: absolute; right: 8px; font-size: 0.72rem; background: rgba(255,255,255,0.9); padding: 1px 6px; border-radius: 4px; color: var(--ink);">Em chọn</span>`
+                        : ''
+                    }
+                  </div>
+                  <div class="mono-num" style="text-align: right; font-size: 0.8rem;">
+                    ${count} (${pct}%)
+                  </div>
+                </div>
+              `;
+            })
+            .join('')}
+        </section>
+
+        <!-- KHÔNG TỰ CHUYỂN — Nút "Câu tiếp" (hoặc "Chờ cô chuyển câu" khi đấu cả lớp) -->
+        <section style="margin-top: 16px; display: flex; flex-direction: column; gap: 10px;">
+          ${
+            state.playMode === 'class'
+              ? `
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button class="btn btn-outline" style="flex: 1; background: var(--surface-3);" disabled>
+                ⏳ Chờ cô Lan Anh chuyển câu…
+              </button>
+              <button class="btn btn-amber" onclick="nextQuestionOrFinish()" title="Nút giả lập cô giáo bấm chuyển câu trong bản Demo">
+                👩‍🏫 (Demo) Cô bấm Câu tiếp →
+              </button>
+            </div>
+          `
+              : `
+            <button class="btn btn-amber btn-lock" onclick="nextQuestionOrFinish()">
+              <span>Câu tiếp theo (${state.qIndex + 2 <= QUESTIONS.length ? 'Câu ' + (state.qIndex + 2) : 'Xem kết quả'}) →</span>
+            </button>
+          `
+          }
+          <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--muted);">
+            <span>Không tự động chuyển trang để em kịp đọc kỹ lời giải.</span>
+            <button style="color: var(--accent); font-weight: 700; text-decoration: underline;" onclick="goScreen('result')">
+              Nhảy tới Kết quả chung cuộc →
+            </button>
+          </div>
+        </section>
+      `;
+    }
+
+    /* --------------------------------------------------------------------------
+       MÀN (5): KẾT QUẢ CHUNG CUỘC (PODIUM TOP 3, HUY HIỆU, CÂU HAY SAI, ÔN LẠI)
+       -------------------------------------------------------------------------- */
+    function renderResultScreen() {
+      return `
+        <!-- Bục Podium Top 3 có hoạt hình nhẹ -->
+        <section class="podium-stage" aria-label="Bục vinh danh Top 3">
+          <div style="text-align: center;">
+            <span class="pill" style="background: rgba(245,184,46,0.2); color: var(--amber); border: 1px solid var(--amber);">
+              🏁 HOÀN THÀNH VÁN ĐẤU KHTN 9
+            </span>
+            <h1 style="font-size: 1.35rem; font-weight: 800; margin-top: 6px;">Bảng Vinh Danh Đấu Trường</h1>
+            <p style="font-size: 0.85rem; color: #CBE0EC;">Em đạt hạng <strong>#4 / 23 bạn</strong> · Đúng 6/7 câu (86%)</p>
+          </div>
+
+          <div class="podium-bars">
+            <!-- Hạng 2 -->
+            <div class="podium-col">
+              <div style="font-size: 0.82rem; font-weight: 700;">Trần Hà My</div>
+              <div class="mono-num" style="font-size: 0.72rem; color: #CBE0EC; margin-bottom: 6px;">9B3 · 2.360đ</div>
+              <div class="podium-pillar pillar-2">
+                <div style="font-size: 1.35rem;">🥈</div>
+                <div>HẠNG 2</div>
+              </div>
+            </div>
+
+            <!-- Hạng 1 -->
+            <div class="podium-col">
+              <div style="font-size: 0.88rem; font-weight: 800; color: var(--amber);">👑 Minh Khôi</div>
+              <div class="mono-num" style="font-size: 0.74rem; color: #FDE68A; margin-bottom: 6px;">9A2 · 2.490đ</div>
+              <div class="podium-pillar pillar-1">
+                <div style="font-size: 1.6rem;">🥇</div>
+                <div style="font-size: 1.05rem;">HẠNG 1</div>
+              </div>
+            </div>
+
+            <!-- Hạng 3 -->
+            <div class="podium-col">
+              <div style="font-size: 0.82rem; font-weight: 700;">Hoàng Nam</div>
+              <div class="mono-num" style="font-size: 0.72rem; color: #CBE0EC; margin-bottom: 6px;">9B3 · 2.250đ</div>
+              <div class="podium-pillar pillar-3">
+                <div style="font-size: 1.35rem;">🥉</div>
+                <div>HẠNG 3</div>
+              </div>
+            </div>
+          </div>
+          <div class="finish-line-strip"></div>
+        </section>
+
+        <!-- Huy hiệu ghi nhận ngoài thắng thua (Khích lệ tinh thần học tập) -->
+        <section class="badges-scroll" aria-label="Huy hiệu ghi nhận">
+          <div class="recognition-badge">
+            <div class="rec-icon">🎯</div>
+            <div>
+              <div style="font-weight: 800; font-size: 0.9rem; color: var(--ok);">Chính xác nhất</div>
+              <div style="font-size: 0.8rem; color: var(--muted);">Nguyễn Minh Khôi · Đúng 100%</div>
+            </div>
+          </div>
+
+          <div class="recognition-badge" style="border-color: var(--amber); background: #FFFDF7;">
+            <div class="rec-icon" style="background: #FEF3C7;">🚀</div>
+            <div>
+              <div style="font-weight: 800; font-size: 0.9rem; color: var(--warn);">Tiến bộ nhất (Em!)</div>
+              <div style="font-size: 0.8rem; color: var(--muted);">Bảo Ngọc (9A2) · Tăng +5 bậc</div>
+            </div>
+          </div>
+
+          <div class="recognition-badge">
+            <div class="rec-icon">⚡</div>
+            <div>
+              <div style="font-weight: 800; font-size: 0.9rem; color: var(--accent-ink);">Nhanh mà chắc</div>
+              <div style="font-size: 0.8rem; color: var(--muted);">Trần Hà My · TB 3,6 giây/câu</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Bảng xếp hạng đầy đủ có dòng "Em" nổi bật -->
+        <section class="panel-card" style="margin-top: 14px;" aria-label="Bảng xếp hạng chi tiết">
+          <div class="section-title">
+            <span>📋 Bảng xếp hạng phòng đấu</span>
+            <span style="font-size: 0.78rem; color: var(--muted);">23 học sinh</span>
+          </div>
+          <div>
+            ${state.students
+              .slice()
+              .sort((a, b) => a.rank - b.rank)
+              .map(
+                st => `
+              <div class="leaderboard-row ${st.isMe ? 'is-me' : ''}">
+                <span class="mono-num" style="font-weight: 800; color: ${st.rank <= 3 ? 'var(--warn)' : 'var(--muted)'};">
+                  #${st.rank}
+                </span>
+                <div>
+                  <span>${st.name}</span>
+                  <span class="mono-num" style="font-size: 0.76rem; color: var(--muted); margin-left: 6px;">(${st.cls})</span>
+                </div>
+                <span class="mono-num" style="font-weight: 800; color: var(--accent-ink);">
+                  ${st.isMe ? state.myScore : st.score}đ
+                </span>
+              </div>
+            `
+              )
+              .join('')}
+          </div>
+        </section>
+
+        <!-- Khối "Câu cả phòng hay sai" (2-3 câu kèm % sai) -->
+        <section class="panel-card" style="margin-top: 14px;" aria-label="Các câu cả phòng hay sai">
+          <div class="section-title">
+            <span>⚠️ Câu cả phòng hay sai nhất</span>
+            <span style="font-size: 0.78rem; color: var(--danger); font-weight: 700;">Cần lưu ý khi ôn thi</span>
+          </div>
+
+          <div class="mistake-item">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 4px;">
+              <span class="pill pill-ly">Lý 9 · Điện năng</span>
+              <span class="mono-num" style="font-size: 0.78rem; font-weight: 800; color: var(--danger);">43% phòng chọn sai</span>
+            </div>
+            <p style="font-weight: 700; font-size: 0.9rem;">
+              Đèn 220V – 100W sáng bình thường trong 2 giờ tiêu thụ bao nhiêu kWh?
+            </p>
+            <p style="font-size: 0.82rem; color: var(--muted); margin-top: 4px;">
+              Bẫy hay gặp: Quên đổi 100W = 0,1kW nên chọn nhầm 200 kWh. Đáp án đúng: <strong>A ▲ (0,2 kWh)</strong>.
+            </p>
+          </div>
+
+          <div class="mistake-item">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 4px;">
+              <span class="pill pill-sinh">Sinh 9 · Quang hợp</span>
+              <span class="mono-num" style="font-size: 0.78rem; font-weight: 800; color: var(--danger);">39% phòng chọn sai</span>
+            </div>
+            <p style="font-weight: 700; font-size: 0.9rem;">
+              Khí O₂ giải phóng trong quang hợp có nguồn gốc trực tiếp từ đâu?
+            </p>
+            <p style="font-size: 0.82rem; color: var(--muted); margin-top: 4px;">
+              Bẫy hay gặp: Nhầm từ phân tử CO₂. Đáp án đúng: <strong>B ● (Quang phân li nước H₂O ở pha sáng)</strong>.
+            </p>
+          </div>
+
+          <div class="mistake-item">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 4px;">
+              <span class="pill pill-hoa">Hoá 9 · Kim loại</span>
+              <span class="mono-num" style="font-size: 0.78rem; font-weight: 800; color: var(--danger);">35% phòng chọn sai</span>
+            </div>
+            <p style="font-weight: 700; font-size: 0.9rem;">
+              Dãy kim loại nào đều tác dụng với dung dịch H₂SO₄ loãng giải phóng H₂?
+            </p>
+            <p style="font-size: 0.82rem; color: var(--muted); margin-top: 4px;">
+              Bẫy hay gặp: Chọn dãy có Cu hoặc Ag. Đáp án đúng: <strong>B ● (Mg, Al, Zn)</strong>.
+            </p>
+          </div>
+        </section>
+
+        <!-- Cụm nút hành động chính & Ghi chú không ảnh hưởng điểm thành thạo -->
+        <section style="margin-top: 16px; display: flex; flex-direction: column; gap: 10px;">
+          <button
+            class="btn btn-amber btn-lock"
+            onclick="state.qIndex = 5; goScreen('play'); showToast('Đang mở chế độ luyện lại 3 câu hay sai!');"
+          >
+            🎯 Luyện lại 3 câu em vừa sai
+          </button>
+
+          <div style="display: flex; gap: 10px;">
+            <button class="btn btn-primary" style="flex: 1;" onclick="goScreen('waiting')">
+              🔄 Đấu ván nữa
+            </button>
+            <button class="btn btn-outline" style="flex: 1;" onclick="goScreen('lobby')">
+              🏠 Về sảnh Đấu
+            </button>
+          </div>
+
+          <p style="text-align: center; font-size: 0.82rem; color: var(--muted); margin-top: 4px; padding: 8px; background: var(--surface-3); border-radius: var(--r-sm);">
+            🛡️ <strong>Ghi chú:</strong> Kết quả ván đấu không ảnh hưởng điểm thành thạo.
+          </p>
+        </section>
+      `;
+    }
+
+    /* --------------------------------------------------------------------------
+       MÀN (6): CHẾ ĐỘ CHIẾU CHO CÔ (MÁY CHIẾU 16:9, CHỮ RẤT LỚN)
+       -------------------------------------------------------------------------- */
+    function renderProjectorScreen() {
+      const q = QUESTIONS[state.qIndex];
+      const totalVotes = 23;
+
+      return `
+        <div style="margin: 8px 0 10px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;">
+          <div style="font-size: 0.88rem; font-weight: 700; color: var(--accent-ink);">
+            📽️ Chế độ Máy chiếu 16:9 dành cho Giáo viên trên lớp (Chữ cỡ lớn nhìn rõ từ cuối lớp)
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button
+              class="btn ${!state.projTimeOver ? 'btn-primary' : 'btn-outline'}"
+              style="min-height: 38px; padding: 6px 12px; font-size: 0.82rem;"
+              onclick="state.projTimeOver = false; render();"
+            >
+              ⏱ Lúc đang làm bài (18/23 bạn)
+            </button>
+            <button
+              class="btn ${state.projTimeOver ? 'btn-primary' : 'btn-outline'}"
+              style="min-height: 38px; padding: 6px 12px; font-size: 0.82rem;"
+              onclick="state.projTimeOver = true; render();"
+            >
+              📊 Lúc hết giờ (Hiện biểu đồ + Top 5)
+            </button>
+          </div>
+        </div>
+
+        <section class="projector-frame" aria-label="Màn hình máy chiếu của giáo viên">
+          <div class="finish-line-strip"></div>
+
+          <!-- Thanh đỉnh máy chiếu -->
+          <div class="projector-top">
+            <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+              <span class="mono-num" style="background: var(--amber); color: var(--ink); font-weight: 800; padding: 6px 12px; border-radius: 8px; font-size: 1.05rem;">
+                MÃ PHÒNG: ${state.roomCode}
+              </span>
+              <span style="font-size: 1.15rem; font-weight: 800;">
+                Câu ${state.qIndex + 1}/${QUESTIONS.length} · Môn ${q.subject} 9 (${q.topic})
+              </span>
+            </div>
+
+            <!-- Bộ đếm số học sinh đã trả lời & Đồng hồ tròn SVG -->
+            <div style="display: flex; align-items: center; gap: 16px;">
+              <div style="background: rgba(255,255,255,0.12); padding: 8px 16px; border-radius: 99px; font-size: 1.1rem; font-weight: 800;">
+                🙋‍♂️ <span class="mono-num" style="color: var(--amber);">${state.projTimeOver ? '23/23' : state.projAnsweredCount + '/23'}</span> bạn đã trả lời
+              </div>
+
+              <!-- Đồng hồ tròn SVG -->
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <svg width="54" height="54" viewBox="0 0 54 54" aria-label="Đồng hồ đếm ngược">
+                  <circle cx="27" cy="27" r="22" stroke="rgba(255,255,255,0.2)" stroke-width="5" fill="none"/>
+                  <circle
+                    cx="27"
+                    cy="27"
+                    r="22"
+                    stroke="${state.projTimeOver ? '#EF4444' : '#F5B82E'}"
+                    stroke-width="5"
+                    fill="none"
+                    stroke-dasharray="138"
+                    stroke-dashoffset="${state.projTimeOver ? '138' : '38'}"
+                    stroke-linecap="round"
+                    transform="rotate(-90 27 27)"
+                  />
+                  <text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle" fill="#FFFFFF" font-family="JetBrains Mono" font-weight="800" font-size="14">
+                    ${state.projTimeOver ? '0s' : state.projPaused ? '⏸' : '14s'}
+                  </text>
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- Phần thân máy chiếu: Đề bài chữ rất lớn ở giữa -->
+          <div class="projector-body">
+            <div class="projector-question">
+              ${q.stem}
+            </div>
+
+            ${
+              !state.projTimeOver
+                ? `
+              <!-- Khi đang trong giờ làm bài: 4 ô đáp án lớn 2x2 -->
+              <div class="projector-options-grid">
+                ${q.options
+                  .map(
+                    opt => `
+                  <div class="proj-opt-card opt-${opt.key.toLowerCase()}">
+                    <span class="opt-shape-badge" style="width: 54px; height: 54px; font-size: 1.25rem;">
+                      <span>${opt.key}</span>
+                      <span>${opt.shape}</span>
+                    </span>
+                    <span>${opt.text}</span>
+                  </div>
+                `
+                  )
+                  .join('')}
+              </div>
+            `
+                : `
+              <!-- Khi hết giờ: Hiện biểu đồ phân bố đáp án + Top 5 chạy trực tiếp -->
+              <div style="margin-top: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                
+                <!-- Khối trái: Biểu đồ phân bố đáp án của cả lớp -->
+                <div style="background: rgba(255,255,255,0.96); color: var(--ink); border-radius: var(--r-lg); padding: 18px;">
+                  <div style="font-weight: 800; font-size: 1.1rem; margin-bottom: 12px; display: flex; justify-content: space-between;">
+                    <span>📊 Phân bố đáp án cả lớp (23/23 bạn)</span>
+                    <span style="color: var(--ok);">Đúng: ${q.correct}</span>
+                  </div>
+                  ${q.options
+                    .map(opt => {
+                      const cnt = q.dist[opt.key] || 0;
+                      const pct = Math.round((cnt / totalVotes) * 100);
+                      const isRight = opt.key === q.correct;
+                      const colors = { A: 'var(--opt-a)', B: 'var(--opt-b)', C: 'var(--opt-c)', D: 'var(--opt-d)' };
+                      return `
+                        <div style="margin-bottom: 12px;">
+                          <div style="display: flex; justify-content: space-between; font-weight: 700; font-size: 0.95rem; margin-bottom: 4px;">
+                            <span>${opt.key} ${opt.shape} · ${opt.text} ${isRight ? '✅' : ''}</span>
+                            <span class="mono-num">${cnt} bạn (${pct}%)</span>
+                          </div>
+                          <div class="dist-bar-bg" style="height: 24px;">
+                            <div class="dist-bar-fill" style="width: ${Math.max(pct, 6)}%; background: ${colors[opt.key]};"></div>
+                          </div>
+                        </div>
+                      `;
+                    })
+                    .join('')}
+                  <div style="margin-top: 10px; padding: 10px; background: var(--accent-soft); border-radius: 8px; font-size: 0.92rem;">
+                    <strong>💡 Chốt kiến thức:</strong> ${q.explanation}
+                  </div>
+                </div>
+
+                <!-- Khối phải: Top 5 chạy trực tiếp trên lớp -->
+                <div style="background: rgba(0,0,0,0.28); border: 1px solid rgba(255,255,255,0.18); border-radius: var(--r-lg); padding: 18px;">
+                  <div style="font-weight: 800; font-size: 1.1rem; color: var(--amber); margin-bottom: 12px;">
+                    🏆 Top 5 dẫn đầu trực tiếp
+                  </div>
+                  <div style="display: flex; flex-direction: column; gap: 10px;">
+                    ${state.students
+                      .slice()
+                      .sort((a, b) => a.rank - b.rank)
+                      .slice(0, 5)
+                      .map(
+                        (st, idx) => `
+                      <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.1); padding: 10px 14px; border-radius: 10px; font-size: 1rem; font-weight: 700;">
+                        <span>${idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '#' + (idx + 1)} ${st.name.replace(' (Em)', '')} (${st.cls})</span>
+                        <span class="mono-num" style="color: var(--amber);">${st.score}đ</span>
+                      </div>
+                    `
+                      )
+                      .join('')}
+                  </div>
+                </div>
+
+              </div>
+            `
+            }
+          </div>
+
+          <!-- Thanh điều khiển của Cô ở đáy máy chiếu -->
+          <div class="projector-controls">
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <button
+                class="btn btn-ghost-dark"
+                onclick="state.projPaused = !state.projPaused; showToast(state.projPaused ? '⏸ Đã tạm dừng đồng hồ' : '▶ Tiếp tục tính giờ'); render();"
+              >
+                ${state.projPaused ? '▶ Tiếp tục' : '⏸ Tạm dừng'}
+              </button>
+              <button
+                class="btn btn-ghost-dark"
+                onclick="state.projTimeOver = !state.projTimeOver; render();"
+              >
+                ${state.projTimeOver ? '🙈 Ẩn biểu đồ' : '📊 Hiện phân bố & Đáp án'}
+              </button>
+            </div>
+
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <button
+                class="btn btn-amber"
+                onclick="state.qIndex = (state.qIndex + 1) % QUESTIONS.length; state.projTimeOver = false; render(); showToast('Đã chuyển sang câu tiếp theo trên máy chiếu');"
+              >
+                Câu tiếp theo →
+              </button>
+              <button
+                class="btn"
+                style="background: var(--danger); color: #FFFFFF;"
+                onclick="goScreen('result')"
+              >
+                ⏹ Kết thúc ván
+              </button>
+            </div>
+          </div>
+        </section>
+      `;
+    }
+
+    /* --------------------------------------------------------------------------
+       MÀN (7): TỜ GỘP CÁC TRẠNG THÁI (MẤT MẠNG, PHÒNG ĐẦY, HẾT GIỜ, CHỜ ĐỐI THỦ)
+       -------------------------------------------------------------------------- */
+    function renderStatesScreen() {
+      return `
+        <div style="margin-top: 14px;">
+          <h1 style="font-size: 1.25rem; font-weight: 800; color: var(--accent-ink);">
+            🛠️ Tờ Gộp 4 Trạng Thái Hệ Thống & Xử Lý Sự Cố
+          </h1>
+          <p style="font-size: 0.88rem; color: var(--muted);">
+            Thiết kế đảm bảo học sinh không bị mất bài làm khi rớt mạng và luôn có hướng xử lý rõ ràng.
+          </p>
+        </div>
+
+        <section class="states-showcase-grid" aria-label="4 trạng thái đặc biệt">
+          
+          <!-- Trạng thái 1: Mất mạng "Đang nối lại..." (Giữ nguyên câu đang làm) -->
+          <article class="state-demo-card">
+            <div class="state-demo-header">
+              <span>TRẠNG THÁI 7A · MẤT KẾT NỐI MẠNG</span>
+              <span class="pill" style="background: var(--warn-soft); color: var(--warn);">Bảo toàn đáp án</span>
+            </div>
+            <div class="state-demo-body">
+              <!-- Banner báo đang nối lại -->
+              <div style="background: var(--warn-soft); border: 1.5px solid var(--warn); border-radius: var(--r-md); padding: 10px 12px; display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 1.3rem;">📡</span>
+                <div style="font-size: 0.84rem;">
+                  <strong style="color: var(--warn); display: block;">Đang nối lại… (Lần thử 2/5)</strong>
+                  <span>Câu đang làm và phương án <strong>B ●</strong> em chọn vẫn được giữ nguyên.</span>
+                </div>
+              </div>
+
+              <!-- Bản thu nhỏ câu hỏi đang được giữ nguyên -->
+              <div style="background: var(--ground); border: 1px dashed var(--line); border-radius: var(--r-md); padding: 12px; opacity: 0.92;">
+                <div style="font-size: 0.76rem; color: var(--muted); font-weight: 700;">Câu 3/7 · Đang lưu tạm trên máy</div>
+                <div style="font-weight: 700; font-size: 0.9rem; margin: 4px 0 8px;">
+                  Nhỏ phenolphtalein vào dung dịch NaOH loãng thì có hiện tượng gì?
+                </div>
+                <div style="background: var(--accent-soft); border: 2px solid var(--accent-ink); border-radius: 8px; padding: 8px 10px; font-size: 0.85rem; font-weight: 700; display: flex; justify-content: space-between;">
+                  <span>B ● Dung dịch chuyển màu hồng</span>
+                  <span style="color: var(--accent-ink);">✓ Đã lưu nháp</span>
+                </div>
+              </div>
+
+              <button class="btn btn-outline" onclick="showToast('✓ Đã kết nối lại thành công! Tiếp tục làm bài.')">
+                🔄 Thử kết nối lại ngay
+              </button>
+            </div>
+          </article>
+
+          <!-- Trạng thái 2: Phòng đầy -->
+          <article class="state-demo-card">
+            <div class="state-demo-header">
+              <span>TRẠNG THÁI 7B · PHÒNG ĐÃ ĐẦY</span>
+              <span class="pill" style="background: var(--danger-soft); color: var(--danger);">20 / 20 bạn</span>
+            </div>
+            <div class="state-demo-body">
+              <div style="text-align: center; padding: 8px 4px;">
+                <div style="width: 56px; height: 56px; border-radius: 50%; background: var(--danger-soft); color: var(--danger); display: inline-flex; align-items: center; justify-content: center; font-size: 1.6rem; margin-bottom: 8px;">
+                  🚪
+                </div>
+                <h3 style="font-size: 1.05rem; font-weight: 800;">Phòng #519 204 đã đủ 20/20 bạn</h3>
+                <p style="font-size: 0.85rem; color: var(--muted); margin-top: 4px;">
+                  Ván đấu của bạn Minh Khôi vừa đủ người. Em có thể vào ngay phòng cùng chủ đề KHTN 9 bên dưới nhé!
+                </p>
+              </div>
+
+              <div style="display: flex; gap: 8px;">
+                <button class="btn btn-primary" style="flex: 1.2;" onclick="goScreen('waiting', 'solo')">
+                  ⚡ Vào phòng khác cùng chủ đề
+                </button>
+                <button class="btn btn-outline" style="flex: 1;" onclick="goScreen('lobby')">
+                  Về sảnh
+                </button>
+              </div>
+            </div>
+          </article>
+
+          <!-- Trạng thái 3: Hết giờ -->
+          <article class="state-demo-card">
+            <div class="state-demo-header">
+              <span>TRẠNG THÁI 7C · HẾT GIỜ LÀM CÂU HỎI</span>
+              <span class="pill" style="background: var(--surface-3); color: var(--ink);">00:00</span>
+            </div>
+            <div class="state-demo-body">
+              <div style="background: #FFF8EB; border: 1.5px solid var(--amber); border-radius: var(--r-md); padding: 12px; display: flex; align-items: flex-start; gap: 10px;">
+                <span style="font-size: 1.5rem;">⏰</span>
+                <div>
+                  <h3 style="font-size: 0.98rem; font-weight: 800; color: var(--ink);">Đã hết 20 giây suy nghĩ!</h3>
+                  <p style="font-size: 0.84rem; color: var(--muted); margin-top: 3px;">
+                    Em đã chọn nháp <strong>A ▲ (0,8 A)</strong> nhưng chưa kịp bấm Chốt — hệ thống đã tự động ghi nhận phương án A cho em!
+                  </p>
+                </div>
+              </div>
+
+              <button class="btn btn-amber" onclick="goScreen('explain')">
+                Xem lời giải & Điểm câu này →
+              </button>
+            </div>
+          </article>
+
+          <!-- Trạng thái 4: Chờ đối thủ (Ghép cặp Đấu đôi / Đấu đội) -->
+          <article class="state-demo-card">
+            <div class="state-demo-header">
+              <span>TRẠNG THÁI 7D · ĐANG TÌM ĐỐI THỦ CÙNG KHỐI</span>
+              <span class="pill pill-ly">Khối 9 · KHTN</span>
+            </div>
+            <div class="state-demo-body">
+              <div style="background: var(--accent-ink); color: #FFFFFF; border-radius: var(--r-md); padding: 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <div class="avatar-circle" style="background: var(--amber); color: var(--ink);">BN</div>
+                  <div>
+                    <div style="font-weight: 800; font-size: 0.88rem;">Bảo Ngọc (9A2)</div>
+                    <div style="font-size: 0.74rem; color: #CBE0EC;">Sẵn sàng</div>
+                  </div>
+                </div>
+
+                <div class="mono-num" style="font-weight: 800; color: var(--amber); font-size: 0.95rem;">VS</div>
+
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <div class="avatar-circle" style="background: rgba(255,255,255,0.16); border: 1.5px dashed var(--amber);">
+                    🔍
+                  </div>
+                  <div>
+                    <div style="font-weight: 700; font-size: 0.85rem; color: var(--amber);">Đang ghép...</div>
+                    <div style="font-size: 0.74rem; color: #CBE0EC;">Cùng khối 9 (04s)</div>
+                  </div>
+                </div>
+              </div>
+
+              <div style="display: flex; gap: 8px;">
+                <button class="btn btn-primary" style="flex: 1;" onclick="triggerStartCountdown()">
+                  ⚡ Giả lập ghép thành công (Vào trận)
+                </button>
+                <button class="btn btn-outline" onclick="goScreen('lobby')">
+                  Huỷ
+                </button>
+              </div>
+            </div>
+          </article>
+
+        </section>
+      `;
+    }
+
+    // Khởi chạy ứng dụng ở Màn 1 (Sảnh Đấu)
+    render();
+  </script>
+</body>
+</html>
