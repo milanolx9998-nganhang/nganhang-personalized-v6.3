@@ -993,3 +993,9 @@ Kết quả chạy toàn bộ: xem mục kế tiếp.
 **Kiểm:** `npm test` 186/186 (matrixBalancer cũng đạt); security 27/27; integration toàn bộ 177/177 (171 cũ + 6 V6.9, bao gồm kiểm B0 trước khi migrate clone); trước đó V6.9 + V6.8 riêng 10/10; smoke 6/6 trên DB trắng dùng một lần; migration-safety additive=true; diff --check đạt. PostgreSQL chỉ ghi clone/DB smoke và dọn sau test. Đã rebuild chỉ mục CodeGraph local và repo-map. Không đổi frontend; không cần build.
 
 **Việc tiếp:** Claude review mã và hợp đồng DTO, giao frontend; kiểm Caddy adapt/validate trên máy có binary và đo tải §23.9 (300 học sinh/phòng 50/reconnect); sau khi được chủ dự án cho phép commit/push, phải có CI đúng commit xanh trước up main. Chưa deploy/bật cờ thật, chưa đo tải và chưa chạy Caddy thực tế. Không có commit/push trong phiên này.
+
+## 2026-10-18 tối — V6.9 "Đấu": backend v69 xong, UI lượt 1–3, ghép trận linh hoạt + rank đã chốt; chờ hạn mức AI
+
+**Đã làm:** backend v69 (Codex viết, Claude review 2 vòng, sửa B0–B3 + Q1–Q8) — unit 186, security 27, integration 177 xanh; commit `936b9a6`, đẩy nhánh `feat-v69-battle`. Giao diện React do Gemini 4 Argon viết theo hợp đồng API thật, lượt 1–3 (20 tệp, mới kiểm cú pháp, chưa nối route) — commit WIP `0b16e3b`. Ghép trận linh hoạt: đề xuất → phản biện Codex + Gemini → chốt (`docs/thiet-ke/GHEP_TRAN_CHOT_V69.md` §1–§11): ghép hai chiều rộng↔hẹp, nới có trần "đã học tới", đối thủ máy, giờ vàng, rank kiểu ĐTCL/LMHT đã sửa theo phản biện Gemini (§10.4), 3 kiểu phòng tự tạo (§11).
+
+**Đang chờ:** Codex hết hạn mức tới 23:13, Gemini Argon tới 21:21 (anh Hiếu: "chờ hồi rồi bắt chúng nó làm tiếp"). Hẹn giờ trong phiên: 21:26 Gemini lượt UI 4a (màn chiếu giáo viên); 23:16 Codex làm backend ghép trận linh hoạt + máy + giờ vàng + rank + kiểu phòng (prompt `scratchpad/codex-mm-impl-prompt.md` + §10–§11). Sau đó: Claude review + test, Gemini lượt UI 4b (sảnh, tạo phòng, tìm đối thủ, quản trị), nối route, chạy thử trình duyệt, báo anh.
