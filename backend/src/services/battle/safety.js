@@ -14,7 +14,7 @@ export async function purgeExpired(db=pool){return battleTx(async c=>{
  if(expired.length){
   await c.query('UPDATE attempts SET battle_room_id=NULL WHERE battle_room_id=ANY($1::uuid[])',[expired]);
   await c.query('UPDATE battle_rooms SET rematch_of=NULL WHERE rematch_of=ANY($1::uuid[])',[expired]);
-  for(const table of ['battle_answers','battle_questions','battle_players'])await c.query(`DELETE FROM ${table} WHERE room_id=ANY($1::uuid[])`,[expired]);
+  for(const table of ['battle_rating_events','battle_bot_answers','battle_bot_players','battle_answers','battle_questions','battle_players'])await c.query(`DELETE FROM ${table} WHERE room_id=ANY($1::uuid[])`,[expired]);
   await c.query('DELETE FROM battle_rooms WHERE id=ANY($1::uuid[])',[expired]);
  }
  return {events:events.rowCount,reports:reports.rowCount,rooms:expired.length};

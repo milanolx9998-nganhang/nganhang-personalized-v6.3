@@ -160,9 +160,9 @@ Nếu thiếu migration hoặc khởi tạo Đấu thất bại, app và `/api/h
 | GET | `/lobby`, `/lobby/stream` | Học sinh; sảnh công khai cần `lobby`. Khi chỉ bật `class`, chỉ thấy phòng ghim của lớp; luồng còn phục vụ ghép trận |
 | POST | `/rooms` | Học sinh tạo `duel`, `team`, `ffa`; giáo viên / quản trị tạo `class`. Trả 201 và ảnh chụp phòng |
 | POST | `/rooms/join` | Học sinh, `{code:"123456"}` |
-| POST | `/rooms/:id/join` | Học sinh, `{}`; phòng công khai từ sảnh hoặc phòng lớp ghim. Phòng lớp không cần cờ `lobby` |
+| POST | `/rooms/:id/join` | Học sinh, `{}`; phòng công khai, phòng mã có `open_slots:true` từ sảnh hoặc phòng lớp ghim. Phòng lớp không cần cờ `lobby` |
 | POST | `/rooms/:id/leave` | Thành viên đang hoạt động / giáo viên chủ phòng, `{}` |
-| POST | `/rooms/:id/ready` | Người chơi trong phòng chờ, `{ready:true}` |
+| POST | `/rooms/:id/ready` | Người chơi trong phòng chờ, `{ready:true,ranked?:false}`; `ranked` chỉ đổi lựa chọn của chính mình nếu chính sách cho phép phòng tự tạo tính hạng |
 | POST | `/rooms/:id/team` | Người chơi phòng đội, `{team:1}` hoặc `{team:2}` |
 | POST | `/rooms/:id/vote` | Người trong danh sách cử tri đóng đầu vòng, `{option_id:"…",force:false}`; `force:true` chỉ chủ phòng, cần quá nửa |
 | POST | `/rooms/:id/nominate` | Người chơi phòng chờ, `{scope:{…}}`; tối đa 3 đề cử. Nhãn được máy chủ suy ra, không nhận chữ tự do. Sau hết hai lượt không phiếu, chủ phòng chọn phạm vi bằng route này |
@@ -177,8 +177,8 @@ Nếu thiếu migration hoặc khởi tạo Đấu thất bại, app và `/api/h
 | GET | `/rooms/:id/stream` | Người chơi chưa rời hoặc giáo viên chủ phòng lớp |
 | GET | `/rooms/:id/result` | Người từng chơi / giáo viên chủ phòng lớp; ván đã kết thúc |
 | GET | `/history` | 10 ván đã kết thúc của chính người dùng; cùng DTO kết quả, không lộ câu chưa phát |
-| POST | `/match` | Học sinh, `{kind:"duel",scope:{…}}`; `kind` là `duel`/`ffa`, scope rỗng nghĩa là bất kỳ |
-| PATCH | `/match` | Học sinh đang chờ, `{accept:true}`: đồng ý đúng lời mời nới do máy chủ đưa ra |
+| POST | `/match` | Học sinh, vé linh hoạt `{kinds,choices,lengths,flex,ranked?,bot_fill?}`; hợp đồng V6.9.1 bên dưới |
+| PATCH | `/match` | API cũ: `{accept:true}` trả **410**; chọn `flex:"gradual"` khi tạo vé mới |
 | DELETE | `/match` | Học sinh rời hàng chờ |
 | POST | `/reports` | Học sinh, `{room_id,target_id,reason,note?}`; lý do `bullying`, `name`, `cheating`, `other`; note tối đa 500 ký tự |
 | GET / POST | `/blocks` | Xem danh sách mình chặn / `{user_id}`; chỉ người đã cùng phòng |
@@ -235,10 +235,83 @@ Client dùng **fetch + ReadableStream**, không dùng EventSource. Headers: `Con
 
 ### Cấu hình, lỗi và tích hợp tự luyện
 
-`battle_enabled=false` mặc định: ngừng tạo/vào/bắt đầu ván mới, ván đang chạy chơi nốt. `battle_emergency_stop=true`: chặn chơi, gián đoạn ván, đóng luồng. `battle_modes` phải gửi đủ `{class,duel_code,lobby,matchmaking,vote,ffa,team}`; tất cả mặc định false. Phòng lớp/thẻ ghim không phụ thuộc `lobby`. `battle_limits` gửi đủ các khóa như GET settings; cho phép hạ trần từ mặc định, không nâng quá mức chưa nghiệm thu tải.
+`battle_enabled=false` mặc định: ngừng tạo/vào/bắt đầu ván mới, ván đang chạy chơi nốt. `battle_emergency_stop=true`: chặn chơi, gián đoạn ván, đóng luồng. `battle_modes` có `{class,duel_code,lobby,matchmaking,vote,ffa,team,bot,golden_hour,ranked,leaderboard}`; tất cả mặc định false. API quản trị Đấu nhận cập nhật từng cờ và giữ các cờ còn lại. Phòng lớp/thẻ ghim không phụ thuộc `lobby`. `battle_limits` gửi đủ các khóa như GET settings; cho phép hạ trần từ mặc định, không nâng quá mức chưa nghiệm thu tải.
 
 HTTP: 400 sai dữ liệu; 403 sai quyền / khác khối / bị khóa; **403 `BATTLE_FEATURE_OFF`** khi khả năng tắt; 404 phòng/mã không tồn tại; 409 sai pha, chốt lặp với UUID khác, thiếu câu; 413 body quá lớn; 429 giới hạn; 503 hàng lệnh/DB bận hoặc **`BATTLE_UNAVAILABLE`** khi chưa khởi tạo.
 
 `retry-wrong` không có câu sai trả 409 “Em không sai câu nào trong ván này”. Có câu sai nhưng tất cả bị thu hồi/cách ly trả 409 “Không còn câu sai dùng được để luyện lại”, kèm `details.excluded_questions`. Nếu chỉ bỏ một phần, số câu bỏ nằm trong `attempt.config.excluded_questions`. Nguồn `battle_retry` và `battle_room_id` giữ qua luyện lại tiếp; không ghi `mastery_events` hoặc tính lại `mastery_states` khi nộp. Huy hiệu Sửa sai đếm nguồn này; hồ sơ có `battle_retry_attempts`, nhãn “Luyện lại sau ván đấu”.
 
 `GET /api/practice/review-questions` trả `{items}` cho chính học sinh, tối đa 100 mục từ lượt luyện và ván đã kết thúc. Mục ván có `room_id`, `index`, `question_id`, `topic_id`, `source:"battle"`, `source_label:"Ván đấu"`; không chứa đáp án. Database chưa có battle vẫn trả các câu tự luyện.
+
+### Bổ sung V6.9.1–V6.9.2: vé linh hoạt, máy, giờ vàng, xếp hạng
+
+Nguồn quyết định: `GHEP_TRAN_CHOT_V69.md` §1–§11, **§10.4 thay thế các điểm xung đột của §10.2–§10.3**. Cần cả hai migration mới `migration-v691-battle-flex.sql`, `migration-v692-battle-rank.sql` (đã đăng ký trong `upgrade.js`). Không thay migration V69. Phải triển khai migration bằng quy trình vận hành đã duyệt; các bài test chỉ dùng database tạm.
+
+Vé mẫu:
+
+```json
+{"kinds":["duel","ffa"],"choices":[{"subject_id":1,"chapter":"Chương I"},{"subject_id":2,"topic_ids":[201]}],"lengths":[10,7],"flex":"gradual","ranked":true,"bot_fill":false}
+```
+
+- `kinds`: 1–2 giá trị `duel`, `ffa`. `choices`: tối đa 3 scope; mặc định `[]` = môn nào cũng được. Tất cả lựa chọn nội dung được xét ngay.
+- `lengths`: mảng 1–3 số trong 7/10/15 hoặc `"any"` (mặc định). Mảng có thứ tự: ban đầu nhận độ dài đầu tiên; sau `length_ms` nhận mọi độ dài đã chọn. Nếu nhiều độ dài chung, lấy số nhỏ nhất đủ câu.
+- `flex`: `strict` hoặc `gradual` (mặc định). Nới Chương/môn không vượt Bài xa nhất đã luyện theo `order_index,id`; các phần chủ động chọn ban đầu luôn được giữ. Chưa có lịch sử luyện thì không nới ngoài lựa chọn đó. Môn giờ vàng chỉ tăng tốc phạm vi của môn tương ứng; phần đã nới không bị thu hẹp khi hết giờ vàng.
+- `ranked` mặc định true, là lựa chọn riêng của người gửi. Máy chủ chỉ tính khi khả năng bật và phạm vi/độ dài đủ điều kiện. Người bật/tắt vẫn dùng **một hàng chờ**. `bot_fill` mặc định false; chỉ lấp thêm máy vào nhóm FFA sau mốc khi tất cả người trong nhóm đã đồng ý.
+- Body cũ `{kind,scope}` còn nhận, tương đương vé `strict`, 7 câu, không hạng. **Không còn bước PATCH đồng ý nới**; cần hủy vé rồi tạo vé mới để đổi lựa chọn. PATCH cũ trả 410, không âm thầm mở rộng.
+
+`POST /match` trả `{current_room_id,queue}`; `queue:null` khi đã ghép. Vé và phòng không tồn tại đồng thời sau khi giao dịch thành công. Snapshot sảnh dùng trường `match` cho vé của chính người xem (cùng cấu trúc `queue` trả từ POST `/match`):
+
+```json
+{"kinds":["duel","ffa"],"choices":[{"subject_id":1}],"lengths":"any","accepted_kinds":["duel","ffa"],"accepted_lengths":[7,10,15],"flex":"gradual","ranked":true,"bot_fill":false,"joined_at":1792300000000,"elapsed_ms":12000,"current_scope_label":"Mở tới Chương trong phần em đã học","widened":"chapter","scope":{"subject_id":1,"topic_ids":[101,102]},"suggestion_room":null,"exits_available":false,"bot_available":false,"waiting":null,"school_practicing":12,"quick_question":{"type":"multiple_choice","stem":"…","options":[]}}
+```
+
+`waiting` là null khi chưa đạt ngưỡng 5; không suy ETA. `school_practicing` đếm học sinh hoạt động toàn trường trong cửa sổ mặc định 15 phút, hợp với người đang chờ/đang ở phòng, không cộng trùng; dữ liệu DB được làm mới tối đa mỗi 10 giây khi có vé. `quick_question` lấy từ lựa chọn ban đầu, không điểm, không đáp án/lời giải. `suggestion_room` là thẻ phòng phù hợp, **chưa tự đưa người vào**. Máy chủ kiểm lại phạm vi, kiểu, thời lượng, số câu, chỗ trống và chặn toàn bộ thành viên khi xác nhận.
+
+| Method | Đường dẫn sau `/api/battle` | Hợp đồng |
+|---|---|---|
+| POST | `/match/accept-room` | `{room_id}`; cần vé còn hiệu lực. Trả `{current_room_id,queue:null}` sau commit; sai điều kiện mới trả 409. Phòng vừa rời bị loại khỏi gợi ý 5 phút |
+| POST | `/match/exit` | `{to:"bot"\|"public_room"\|"practice",difficulty?:"easy"\|"medium"\|"hard"}`. Máy từ giây 15, hai lối ra kia từ mốc cuối. Practice trả `{to,scope,choices,current_room_id:null}` để client mở Luyện ngay; chưa tạo lượt luyện |
+| POST | `/bot` | `{choices?:[scope],lengths?:"any"\|[7,10,15],difficulty?}` từ sảnh, trả 201 `{to:"bot",current_room_id,queue:null}`; không hạng và không cần chờ. Nếu đã có vé, dùng `/match/exit` |
+| POST | `/rooms/:id/visibility` | Chủ phòng ở lobby: `{visibility:"code"\|"public",open_slots:boolean}`; trả snapshot |
+| GET | `/rank` | Học sinh xem `{season,rating,history}` của mình; lịch sử tối đa 20 ván; không xuất MMR |
+| PATCH | `/rank` | `{hidden:boolean}`; chỉ được hiện khi từ `visible_tier` trở lên, ẩn bất cứ lúc nào; trả `{ok:true}` |
+| GET | `/leaderboard` | Tối đa 20 người cùng khối đã đồng ý hiện; 403 nếu cờ `leaderboard` tắt |
+| GET / POST | `/golden-hours` | Quản trị hoặc giáo viên có quyền: danh sách được quản lý / tạo khung (201) |
+| PUT / DELETE | `/golden-hours/:id` | Thay toàn bộ cấu hình khung / xóa; kiểm quyền cả phạm vi cũ và mới |
+| PUT | `/admin/golden-hour-grants` | Chỉ quản trị: `{user_id,grade,subject_id:number\|null,enabled:boolean}`; null cấp/gỡ quyền toàn khối, số cấp/gỡ quyền môn đó trong khối |
+
+Tạo phòng nhận thêm `open_slots:false`, `ranked:false`. Phòng `code` cần mã; `public` hiện ở sảnh; `code` + `open_slots:true` hiện khi còn chỗ và nhận người xác nhận gợi ý. Nhãn thẻ phòng mở chỗ: “Nhóm bạn đang tìm thêm người”. Phòng tự tạo mặc định không hạng. Nếu quản trị chủ động bật `battle_rank.self_created`, chỉ duel/FFA đủ phạm vi mới có thể tính: chủ phòng chọn `ranked:true` khi tạo, mỗi người khác tự chọn `ready.ranked:true`; không tự đổi lựa chọn của bạn cùng phòng.
+
+Phòng ghép tự đánh dấu sẵn sàng, đếm ngược mặc định 5 giây. Sau countdown không nhận người mới. Phòng công khai/mở chỗ tự bắt đầu sau 60 giây liên tục đủ điều kiện, mọi người sẵn sàng; đổi trạng thái không đủ điều kiện hủy timer cũ. Chủ phòng vẫn bắt đầu sớm được. DTO thêm `auto_match`, `auto_start_at`, `open_slots`, `has_bots`, `label`, `ranked` theo người xem; người ảo có `is_bot:true`, `id:"bot:1"`, tên “Đối thủ máy”. ID này không phải tài khoản và không hợp lệ cho chặn/báo cáo. Thẻ/kết quả phòng có nhãn “Đấu với máy”; không cấp huy hiệu so sánh người thật cho ván có máy. Bot không có lịch sử cá nhân.
+
+Kết quả riêng thêm `rank_result:{delta_lp,lp_after,reason}` nếu có sự kiện tính hạng. `reason` có độ rộng, cờ máy, lý do giảm/trần/khiên, `tier_before`, `tier_after`, `visibility_offer` để client hiện lời chúc và nút lựa chọn khi đạt Tinh anh. Huy hiệu công khai chỉ có tên bậc/cấp; MMR, kế hoạch đáp án máy, dữ liệu tổng hợp đầu vào máy và lựa chọn hạng riêng không được phát cho người khác. Các quy tắc DTO theo pha, ACK sau commit, chống UUID trùng của V69 tiếp tục áp dụng.
+
+Ví dụ khung giờ vàng, giờ ISO có offset, `repeat_weekdays:null` = một lần; mảng 0–6 = Chủ nhật–Thứ bảy theo UTC+7:
+
+```json
+{"grade":8,"subject_id":1,"starts_at":"2026-10-20T20:00:00+07:00","minutes":15,"repeat_weekdays":[2,4],"active":true}
+```
+
+Snapshot sảnh thêm `golden_hours:[{id,grade,subject_id,starts_at,ends_at,active,countdown_ms,participants}]`, thời điểm DTO tính bằng epoch mili giây. Banner từ trước 30 phút, cập nhật tại mốc kể cả không có vé. `participants` đếm vé và người thật đang chơi đúng khối/môn; không có thưởng riêng, không ảnh hưởng thành thạo.
+
+### Tham số V6.9.1–V6.9.2
+
+`GET /admin/settings` trả đầy đủ giá trị. `POST /admin/settings` nhận từng phần của `battle_modes`, `battle_flex`, `battle_rank`, gộp với hiện tại rồi kiểm tra; khóa lạ bị từ chối. Đơn vị `_ms` là mili giây. Nguồn đầy đủ, gồm giới hạn validation: `backend/src/services/battle/settings.js`.
+
+| Nhóm | Khóa và mặc định |
+|---|---|
+| Nới / ghép | `chapter_ms:10000`, `subject_ms:20000`, `exit_ms:30000`, `length_ms:10000`, `kind_ms:0`, `round_ms:2000`, `batch_size:50` (trần 50), `min_group:3`, `max_group:20`, `pair_ms:20000`, `seconds:30` |
+| Phòng / hiển thị | `countdown_ms:5000`, `public_start_ms:60000`, `exclude_ms:300000`, `waiting_visible_min:5`, `activity_ms:900000` |
+| Giờ vàng | `golden_chapter_ms:5000`, `golden_subject_ms:10000`, `golden_exit_ms:15000`, `golden_banner_ms:1800000` |
+| Máy | `bot_ms:15000`, `bot_default:"medium"`, `bot_easy:0.85`, `bot_medium:1`, `bot_hard:1.15`, `bot_min_samples:10`, `bot_nb:0.8`, `bot_th:0.65`, `bot_vd:0.45`, xác suất `bot_probability_min:0.05`–`bot_probability_max:0.95`, thời gian `bot_time_min:0.35`–`bot_time_max:0.85` |
+| Mùa / MMR (`battle_rank`) | `season:"2026-HK1"`, `base_mmr:1000`, `reset_factor:0.5`, `lp_reset_factor:0.5`, `mmr_window:250`, `mmr_window_ms:8000`, `mmr_k:24`, `mmr_scale:400` |
+| LP | `duel_win:25`, `duel_loss:-10`, `underdog_gap:150`, `underdog_win:35`, `underdog_loss:-5`, `tie:10`, `lp_three:[30,10,-8]`, `lp_four:[35,18,-5,-10]`, `chapter_factor:1`, `subject_factor:1.1`, `multi_subject_factor:1.2` |
+| Máy có hạng | `bot_wait_ms:25000`, `bot_win_cap:12`, `bot_loss:-5`, `bot_daily:3` |
+| Chống cày / mạng | `pair_daily:10`, `streak_wins:3`, `streak_factor:0.5`, `abnormal_ms:2000`, `abnormal_factor:0.5`, `shield_daily:1` |
+| Bậc / phạm vi | `max_players:4`, `division_lp:100`, `divisions:3`, `placement_games:3`, `placement_bonus:5`, `visible_tier:2`, `narrow_ratio:0.5`, `ranked_lengths:[7,10]`, `self_created:false`; `tiers` có 6 tên học thuật |
+
+Phạm vi tính hạng tối thiểu cả Chương. Người chọn một Bài ở giai đoạn chưa nới không tính hạng. Rộng gặp hẹp: chia câu hẹp/rộng trong trần chung, số câu hẹp làm tròn lên (7 câu → 4+3); không đủ phần rộng thì không tự lấy ngoài trần. Người không tính hạng không nhận/thay đổi LP hoặc MMR; dữ liệu nền có thể được khởi tạo để so sánh MMR công bằng.
+
+LP cập nhật cùng giao dịch kết thúc ván và khóa duy nhất `(room_id,user_id)`. Đồng hạng FFA lấy trung bình vị trí bị chiếm rồi làm tròn. Hệ số độ rộng và thưởng định vị áp dụng trước trần máy. Chuỗi thắng xét đúng cặp và phạm vi; dấu hiệu bất thường giảm LP dương; giới hạn ngày xét UTC+7, xuyên mã mùa, chặn cả LP/MMR sau trần. Văng luồng không tự rời phòng; giữ điểm đã tích lũy và khiên lần đầu nếu bị âm LP. Chủ động rời tính hạng chót, không dùng khiên. Restart/dừng khẩn cấp gián đoạn không chốt LP.
+
+Mùa = mã học kỳ do quản trị đặt; reset mềm khi người chơi có ván hạng đầu ở mã mùa mới, không xóa sự kiện mùa cũ. MMR riêng từng môn, ghép nhiều môn dùng trung bình; sau 8 giây chờ của mọi thành viên bỏ cửa sổ. Bậc chung Tập sự → Khám phá → Tinh anh → Thông thái → Bậc thầy → Thách đấu, mỗi bậc III–I ×100 LP; không tụt bậc lớn trong mùa. Bậc mặc định ẩn, từ Tinh anh có thể chủ động hiện; bảng cao thủ tắt mặc định. Rank tách biệt mastery và điểm học tập.

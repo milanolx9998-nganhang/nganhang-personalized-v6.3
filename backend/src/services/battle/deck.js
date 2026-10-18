@@ -21,6 +21,11 @@ export function eligibleQuestion(raw){
  return gradeQuestion(raw,response).score===1;
 }
 export async function normalizeScope(grade,scope={},client=pool){
+ if(scope.subject_ids?.length>1){
+  const ids=[...new Set(scope.topic_ids||[])],subjects=[...new Set(scope.subject_ids)];
+  const valid=(await client.query("SELECT id FROM topics WHERE id=ANY($1::int[]) AND subject_id=ANY($2::int[]) AND grade=$3 AND status='ACTIVE'",[ids,subjects,grade])).rows;
+  if(!ids.length||valid.length!==ids.length)fail('Bài ngoài các môn / khối');return {subject_id:null,subject_ids:subjects,branch_id:null,topic_ids:ids};
+ }
  const out={subject_id:scope.subject_id??null,branch_id:scope.branch_id??null,topic_ids:scope.topic_ids??null};
  if(!out.subject_id){if(out.branch_id||out.topic_ids||scope.chapter)fail('Cần chọn môn trước phạm vi');return out;}
  if(!(await client.query('SELECT 1 FROM subjects WHERE id=$1',[out.subject_id])).rowCount)fail('Không tìm thấy môn');
@@ -60,6 +65,11 @@ export function createDeck({client=pool,now=Date.now,random=()=>randomInt(0,0x10
   const needs=[Math.round(room.question_count*.4),Math.round(room.question_count*.4)];needs.push(room.question_count-needs[0]-needs[1]);
   const selected=[];for(let level=1;level<=3;level++)selected.push(...ordered.filter(q=>q.cognitive_level===level).slice(0,needs[level-1]));
   selected.push(...ordered.filter(q=>!selected.includes(q)).slice(0,room.question_count-selected.length));
+  if(room.match_meta?.mix){
+   const {narrow,narrow_count}=room.match_meta.mix,inside=ordered.filter(q=>narrow.includes(q.topic_id)),outside=ordered.filter(q=>!narrow.includes(q.topic_id));
+   if(inside.length<narrow_count||outside.length<room.question_count-narrow_count)fail('Kho không còn đủ câu cho bộ hẹp/rộng',409);
+   selected.splice(0,selected.length,...inside.slice(0,narrow_count),...outside.slice(0,room.question_count-narrow_count));
+  }
   return selected.map(q=>({q,r:random()})).sort((a,b)=>a.r-b.r).map(({q},idx)=>({...q,idx,question_version_id:q.id,seconds:room.seconds*room.time_factors[normalizeQuestion(q).type]}));
  }
  return {candidates,available,count,draw,clear:()=>cache.clear()};

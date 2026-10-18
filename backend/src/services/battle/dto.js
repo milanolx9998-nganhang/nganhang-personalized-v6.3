@@ -16,20 +16,22 @@ export function questionDto(raw,reveal=false){
  }
  return out;
 }
-const publicRank=p=>({id:p.user_id,name:p.name,class_name:p.class_name,points:p.points,correct:p.correct,rank:p.rank});
+const publicRank=p=>({id:p.user_id,is_bot:Boolean(p.is_bot),name:p.name,class_name:p.class_name,points:p.points,correct:p.correct,rank:p.rank});
 export function roomDto(room,viewer,now){
  const ended=terminal(room),revealed=room.phase==='reveal'||ended,through=revealed?room.asked_count:Math.max(0,room.asked_count-1);
  const rows=standings(room,through),own=room.players.find(p=>p.user_id===viewer.id),isTeacher=room.kind==='class'&&room.host_id===viewer.id;
- const out={id:room.id,run_id:room.run_id,version:room.version,status:room.status,phase:room.phase,server_now:now,kind:room.kind,asked_count:room.asked_count,question_count:room.question_count,capacity:room.capacity,seconds:room.seconds,scope:{subject_id:room.scope.subject_id??null,branch_id:room.scope.branch_id??null,topic_ids:room.scope.topic_ids??null},end_reason:room.end_reason??null};
+ const out={id:room.id,run_id:room.run_id,version:room.version,status:room.status,phase:room.phase,server_now:now,kind:room.kind,asked_count:room.asked_count,question_count:room.question_count,capacity:room.capacity,seconds:room.seconds,scope:{subject_id:room.scope.subject_id??null,subject_ids:room.scope.subject_ids,branch_id:room.scope.branch_id??null,topic_ids:room.scope.topic_ids??null},end_reason:room.end_reason??null};
+ Object.assign(out,{visibility:room.visibility,open_slots:Boolean(room.open_slots),auto_match:Boolean(room.auto_match),countdown_at:room.countdown_at??null,auto_start_at:room.auto_start_at??null,label:room.has_bots?'Đấu với máy':room.open_slots?'Nhóm bạn đang tìm thêm người':null,ranked:Boolean(room.match_meta?.ranked?.[viewer.id])});
+ if(room.phase==='lobby')out.rank_requested=Boolean(own?.rank_requested);
  if(room.phase==='lobby'){
   out.code=room.code;out.host_id=room.host_id;out.start_reasons=startReasons(room,now);
-  out.players=room.players.filter(p=>!p.left_at).map(p=>({id:p.user_id,name:p.display_name,class_name:p.class_name,ready:p.ready,team:p.team}));
+  out.players=room.players.filter(p=>!p.left_at).map(p=>({id:p.user_id,is_bot:Boolean(p.is_bot),name:p.display_name,class_name:p.class_name,ready:p.ready,team:p.team}));
   if(room.vote)out.vote={stage:room.vote.stage,deadline:room.vote.deadline,options:room.vote.options.map(o=>({id:o.id,label:o.label})),counts:voteDecision(room.vote,now).counts,mine:room.vote.ballots[viewer.id]??null,eligible:room.vote.voters.includes(viewer.id)};
   if(room.vote_result)out.vote_result={tied:room.vote_result.tied,label:room.vote_result.label};
  }else if(!ended){
   out.deadline=room.deadline??null;out.remaining=room.phase==='paused'?room.remaining:null;
   out.answered_count=room.answers.filter(a=>a.idx===room.index).length;out.player_count=activePlayers(room).length;
-  if(!isTeacher)out.players=rows.map(p=>({id:p.user_id,name:p.name,class_name:p.class_name,points:p.points,correct:p.correct,answered:room.answers.some(a=>a.idx===room.index&&a.user_id===p.user_id)}));
+  if(!isTeacher)out.players=rows.map(p=>({id:p.user_id,is_bot:Boolean(p.is_bot),name:p.name,class_name:p.class_name,points:p.points,correct:p.correct,answered:room.answers.some(a=>a.idx===room.index&&a.user_id===p.user_id)}));
  }
  // Đếm ngược chưa phát câu: tuyệt đối không gửi nội dung tương lai trong ảnh chụp.
  if(room.index>=0&&room.index<room.asked_count&&!ended){
@@ -44,9 +46,11 @@ export function roomDto(room,viewer,now){
   const rank=rows.find(p=>p.user_id===viewer.id);out.me=rank?{...publicRank(rank),total:rows.length}:null;
   out.questions=room.questions.slice(0,room.asked_count).map((q,idx)=>{const a=room.answers.find(a=>a.idx===idx&&a.user_id===viewer.id);return {index:idx,...questionDto(q,true),...(own?{response:a?.response??null,score:Number(a?.score||0),skipped:!a||a.skipped}:{})};});
   out.review=own?out.questions.filter(q=>q.score<1).map(q=>({index:q.index,topic_id:q.topic_id,source:'battle',source_label:'Ván đấu'})):[];
-  const b=badges(room);out.badges=own?{accurate:b.accurate.includes(viewer.id),quick_and_sure:b.quick_and_sure.includes(viewer.id)}:{};
+  const b=badges(room);out.badges=own&&!room.has_bots?{accurate:b.accurate.includes(viewer.id),quick_and_sure:b.quick_and_sure.includes(viewer.id)}:{};
  }
  if(room.emote&&['lobby','reveal'].includes(room.phase))out.emote={kind:room.emote.kind,at:room.emote.at};
+ if(out.players)for(const p of out.players)p.badge=room.public_badges?.[p.id]||null;
+ if(ended&&own)out.rank_result=room.rating_results?.[viewer.id]||null;
  return out;
 }
-export function lobbyCard(room){return {id:room.id,kind:room.kind,host_name:room.players.find(p=>p.user_id===room.host_id)?.display_name||'Giáo viên',scope:{subject_id:room.scope.subject_id??null,branch_id:room.scope.branch_id??null,topic_ids:room.scope.topic_ids??null},players:activePlayers(room).length,capacity:room.capacity,question_count:room.question_count,seconds:room.seconds,class_id:room.class_id};}
+export function lobbyCard(room){return {id:room.id,label:room.has_bots?'Đấu với máy':room.open_slots?'Nhóm bạn đang tìm thêm người':null,kind:room.kind,visibility:room.visibility,open_slots:Boolean(room.open_slots),auto_match:Boolean(room.auto_match),host_name:room.players.find(p=>p.user_id===room.host_id)?.display_name||'Giáo viên',scope:{subject_id:room.scope.subject_id??null,subject_ids:room.scope.subject_ids,branch_id:room.scope.branch_id??null,topic_ids:room.scope.topic_ids??null},players:activePlayers(room).length,capacity:room.capacity,question_count:room.question_count,seconds:room.seconds,class_id:room.class_id};}

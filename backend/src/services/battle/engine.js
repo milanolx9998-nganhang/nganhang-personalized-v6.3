@@ -6,7 +6,7 @@ export const answerKey = (index,userId) => `${index}:${userId}`;
 export function standings(room, through=room.asked_count) {
  const rows=room.players.filter(p=>!room.scope?.roster_ids||room.scope.roster_ids.includes(p.user_id)).map(p=>{
   const answers=room.answers.filter(a=>a.user_id===p.user_id&&a.idx<through);
-  return {user_id:p.user_id,name:p.display_name,class_name:p.class_name,team:p.team,points:answers.reduce((s,a)=>s+Number(a.score)*100,0),correct:answers.filter(a=>Number(a.score)===1).length,ms:answers.reduce((s,a)=>s+a.ms,0)};
+  return {user_id:p.user_id,is_bot:Boolean(p.is_bot),name:p.display_name,class_name:p.class_name,team:p.team,points:answers.reduce((s,a)=>s+Number(a.score)*100,0),correct:answers.filter(a=>Number(a.score)===1).length,ms:answers.reduce((s,a)=>s+a.ms,0)};
  });
  return rows.map(p=>({...p,rank:1+rows.filter(x=>x.points>p.points+1e-8).length})).sort((a,b)=>b.points-a.points);
 }
@@ -17,7 +17,7 @@ export function teamStandings(room,through=room.asked_count){
 export function startReasons(room,now){
  const players=activePlayers(room),reasons=[];
  if(room.phase!=='lobby'||room.vote)reasons.push('Chờ chọn xong nội dung');
- if(!room.scope.subject_id)reasons.push('Chưa chọn nội dung');
+ if(!room.scope.subject_id&&!room.scope.subject_ids?.length)reasons.push('Chưa chọn nội dung');
  if(players.length<(room.kind==='class'?1:2)||players.length>room.capacity)reasons.push('Chưa đủ người hoặc vượt sức chứa');
  if(room.kind!=='class'&&players.some(p=>!p.ready))reasons.push('Chờ mọi người Sẵn sàng');
  if(room.kind==='team'&&([1,2].some(t=>{const n=players.filter(p=>p.team===t).length;return n<1||n>4;})||players.some(p=>![1,2].includes(p.team))))reasons.push('Cần đúng hai đội, mỗi đội 1–4 bạn');

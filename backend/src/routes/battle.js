@@ -15,11 +15,15 @@ import {streams} from '../services/battle/stream.js';
 import {roomDto} from '../services/battle/dto.js';
 import {terminal} from '../services/battle/engine.js';
 import {createAvailability} from '../services/battle/availability.js';
+import {createLearningCatalog} from '../services/battle/flex.js';
+import {createGoldenHours} from '../services/battle/goldenHours.js';
+import {createRatings} from '../services/battle/ratings.js';
+import {flexPatchSchema,rankSchema} from '../services/battle/settings.js';
 const r=Router(),wrap=fn=>async(req,res,next)=>{try{await fn(req,res);}catch(e){next(e);}};
 const uid=req=>String(req.user.id),idSchema=z.string().uuid(),empty=z.object({}).strict();
 const scopeSchema=z.object({subject_id:z.number().int().positive().nullable().optional(),branch_id:z.number().int().positive().nullable().optional(),topic_ids:z.array(z.number().int().positive()).min(1).max(100).nullable().optional(),chapter:z.string().max(200).optional()}).strict();
-const createSchema=z.object({kind:z.enum(['duel','team','ffa','class']),visibility:z.enum(['public','code']).default('code'),class_id:z.number().int().positive().optional(),scope:scopeSchema.default({}),content_mode:z.enum(['fixed','vote']).default('fixed'),capacity:z.number().int().positive().optional(),question_count:z.union([z.literal(7),z.literal(10),z.literal(15)]).default(7),seconds:z.number().int().min(20).max(180).default(30)}).strict().superRefine((v,c)=>{const max={duel:2,team:8,ffa:20,class:50}[v.kind];if(v.capacity&&(v.capacity>max||v.capacity<(v.kind==='class'?1:2)||v.kind==='duel'&&v.capacity!==2))c.addIssue({code:'custom',message:'Sức chứa không hợp lệ'});if(v.kind==='class'?!v.class_id||!v.scope.subject_id||v.content_mode!=='fixed':v.class_id!=null||![20,30,45].includes(v.seconds))c.addIssue({code:'custom',message:'Cấu hình phòng không hợp lệ'});}).transform(v=>({...v,capacity:v.capacity||{duel:2,team:8,ffa:20,class:50}[v.kind]}));
-const actionSchemas={start:z.object({show_top3:z.boolean().optional()}).strict(),ready:z.object({ready:z.boolean()}).strict(),team:z.object({team:z.union([z.literal(1),z.literal(2)])}).strict(),vote:z.object({option_id:z.string().max(80),force:z.boolean().default(false)}).strict(),nominate:z.object({scope:scopeSchema}).strict(),answer:z.object({index:z.number().int().min(0).max(14),client_id:z.string().uuid(),response:z.unknown().optional(),skip:z.boolean().optional()}).strict().refine(v=>v.skip===true?v.response===undefined:v.response!==undefined,'Gửi đáp án hoặc bỏ qua'),emote:z.object({kind:z.enum(['hello','cheer','thanks','well_done'])}).strict()};
+const createSchema=z.object({kind:z.enum(['duel','team','ffa','class']),visibility:z.enum(['public','code']).default('code'),open_slots:z.boolean().default(false),ranked:z.boolean().default(false),class_id:z.number().int().positive().optional(),scope:scopeSchema.default({}),content_mode:z.enum(['fixed','vote']).default('fixed'),capacity:z.number().int().positive().optional(),question_count:z.union([z.literal(7),z.literal(10),z.literal(15)]).default(7),seconds:z.number().int().min(20).max(180).default(30)}).strict().superRefine((v,c)=>{const max={duel:2,team:8,ffa:20,class:50}[v.kind];if(v.capacity&&(v.capacity>max||v.capacity<(v.kind==='class'?1:2)||v.kind==='duel'&&v.capacity!==2))c.addIssue({code:'custom',message:'Sức chứa không hợp lệ'});if(v.kind==='class'?!v.class_id||!v.scope.subject_id||v.content_mode!=='fixed':v.class_id!=null||![20,30,45].includes(v.seconds))c.addIssue({code:'custom',message:'Cấu hình phòng không hợp lệ'});}).transform(v=>({...v,capacity:v.capacity||{duel:2,team:8,ffa:20,class:50}[v.kind]}));
+const actionSchemas={visibility:z.object({visibility:z.enum(['code','public']),open_slots:z.boolean().default(false)}).strict(),start:z.object({show_top3:z.boolean().optional()}).strict(),ready:z.object({ready:z.boolean(),ranked:z.boolean().optional()}).strict(),team:z.object({team:z.union([z.literal(1),z.literal(2)])}).strict(),vote:z.object({option_id:z.string().max(80),force:z.boolean().default(false)}).strict(),nominate:z.object({scope:scopeSchema}).strict(),answer:z.object({index:z.number().int().min(0).max(14),client_id:z.string().uuid(),response:z.unknown().optional(),skip:z.boolean().optional()}).strict().refine(v=>v.skip===true?v.response===undefined:v.response!==undefined,'Gửi đáp án hoặc bỏ qua'),emote:z.object({kind:z.enum(['hello','cheer','thanks','well_done'])}).strict()};
 export async function battleIdentity(user,classId=null,subjectId=null){
  if(user.role==='student'){
   const rows=(await pool.query(`SELECT c.id AS class_id,c.name AS class_name,c.grade FROM class_memberships m JOIN classes c ON c.id=m.class_id JOIN school_years y ON y.id=c.school_year_id
@@ -32,15 +36,9 @@ export async function battleIdentity(user,classId=null,subjectId=null){
  if(user.role!=='admin'&&!(await pool.query('SELECT 1 FROM teacher_class_assignments WHERE teacher_id=$1 AND class_id=$2 AND subject_id=$3',[user.id,classId,subjectId])).rowCount)fail('Cần được phân công đúng lớp và môn',403);
  return row;
 }
-const safety=createSafety(),store=createStorage();
-export const battleRooms=createRooms({store,deck,safety,streams,identity:battleIdentity,normalizeScope,options:contentOptions});
-const matchmaking=createMatchmaking({rooms:battleRooms,deck,safety,identity:battleIdentity,normalizeScope,streams,broaden:async(grade,scope)=>{
- if(!scope.subject_id)return null;let next={...scope};
- if(scope.topic_ids){const rows=(await pool.query('SELECT DISTINCT chapter FROM topics WHERE id=ANY($1::int[])',[scope.topic_ids])).rows;
-  if(rows.length===1&&rows[0].chapter){const chapter=await normalizeScope(grade,{subject_id:scope.subject_id,branch_id:scope.branch_id,chapter:rows[0].chapter});next=chapter.topic_ids.length>scope.topic_ids.length?chapter:{...scope,topic_ids:null};}else next.topic_ids=null;
- }else if(scope.branch_id)next.branch_id=null;else return null;
- return {scope:next,label:next.topic_ids?'Mở rộng ra cả Chương?':next.branch_id?'Mở rộng ra cả phân môn?':'Mở rộng ra cả môn?'};
-}});
+const safety=createSafety(),store=createStorage(),goldenHours=createGoldenHours(),ratings=createRatings();
+export const battleRooms=createRooms({store,deck,safety,streams,identity:battleIdentity,normalizeScope,options:contentOptions,goldenHours,ratings,learning:createLearningCatalog()});
+const matchmaking=createMatchmaking({rooms:battleRooms,deck,safety,identity:battleIdentity,normalizeScope,streams,learning:createLearningCatalog(),goldenHours,ratings});
 battleRooms.setMatchmaking(matchmaking);
 export const battleAvailability=createAvailability({initialize:async()=>battleRooms.start(await settings()),cleanup:()=>{battleRooms.dispose();streams.closeAll('unavailable');}});
 onSettingsChanged(cfg=>battleAvailability.ready?battleRooms.configure(cfg):undefined);
@@ -58,7 +56,7 @@ r.get('/lobby',wrap(async(req,res)=>{student(req);const cfg=await settings();if(
 async function openStream(req,res,key,snapshot,allowed){
  if((await settings()).battle_emergency_stop)fail('Đấu đang dừng khẩn cấp',403);
  const token=cookies(req)[SESSION_COOKIE]||(req.headers.authorization||'').slice(7),claims=jwt.decode(token);
- await streams.open({req,res,key,user:req.user,snapshot,expiresAt:claims?.exp*1000,authorized:async()=>{
+ await streams.open({req,res,key,user:req.user,snapshot,expiresAt:claims?.exp*1000,onDisconnect:key==='lobby'?undefined:()=>battleRooms.disconnected(req.user,key),authorized:async()=>{
   if(claims?.exp&&Date.now()>=claims.exp*1000)return false;
   const row=(await pool.query('SELECT token_version FROM users WHERE id=$1 AND is_active=true AND NOT must_change_password',[req.user.id])).rows[0];
   return Boolean(row&&row.token_version===req.user.token_version&&!await safety.suspension(req.user.id)&&await allowed());
@@ -67,9 +65,9 @@ async function openStream(req,res,key,snapshot,allowed){
 r.get('/lobby/stream',wrap(async(req,res)=>{student(req);const cfg=await settings();if(!cfg.battle_modes.class&&!cfg.battle_modes.matchmaking)battleRooms.feature('lobby');await battleIdentity(req.user);await openStream(req,res,'lobby',()=>battleRooms.lobby(req.user),async()=>!(await settings()).battle_emergency_stop);}));
 r.post('/rooms',createLimit,wrap(async(req,res)=>{const d=createSchema.parse(req.body);if(d.kind==='class'?req.user.role==='student':req.user.role!=='student')fail('Vai trò không được tạo kiểu phòng này',403);res.status(201).json(roomDto(await battleRooms.create(req.user,d),req.user,Date.now()));}));
 r.post('/rooms/join',codeLimit,wrap(async(req,res)=>{student(req);const {code}=z.object({code:z.string().regex(/^\d{6}$/)}).strict().parse(req.body),id=battleRooms.byCode(code);if(!id)fail('Mã phòng không hợp lệ',404);res.json(roomDto(await battleRooms.join(req.user,id),req.user,Date.now()));}));
-r.post('/rooms/:id/join',wrap(async(req,res)=>{student(req);const id=idSchema.parse(req.params.id),room=await battleRooms.get(id);if(room.kind!=='class')battleRooms.feature('lobby');if(room.visibility!=='public'&&room.kind!=='class')fail('Phòng này cần mã',403);res.json(roomDto(await battleRooms.join(req.user,id),req.user,Date.now()));}));
+r.post('/rooms/:id/join',wrap(async(req,res)=>{student(req);const id=idSchema.parse(req.params.id),room=await battleRooms.get(id);if(room.kind!=='class')battleRooms.feature('lobby');if(room.visibility!=='public'&&!room.open_slots&&room.kind!=='class')fail('Phòng này cần mã',403);res.json(roomDto(await battleRooms.join(req.user,id),req.user,Date.now()));}));
 r.post('/rooms/:id/leave',wrap(async(req,res)=>{empty.parse(req.body);res.json(roomDto(await battleRooms.leave(req.user,idSchema.parse(req.params.id)),req.user,Date.now()));}));
-for(const action of ['ready','team','vote','nominate','start','next','pause','resume','end','answer','emote'])r.post('/rooms/:id/'+action,wrap(async(req,res)=>res.json(await battleRooms.command(req.user,idSchema.parse(req.params.id),action,(actionSchemas[action]||empty).parse(req.body),req.battleReceivedAt))));
+for(const action of ['visibility','ready','team','vote','nominate','start','next','pause','resume','end','answer','emote'])r.post('/rooms/:id/'+action,wrap(async(req,res)=>res.json(await battleRooms.command(req.user,idSchema.parse(req.params.id),action,(actionSchemas[action]||empty).parse(req.body),req.battleReceivedAt))));
 r.get('/rooms/:id/stream',wrap(async(req,res)=>{const id=idSchema.parse(req.params.id);await battleRooms.snapshot(req.user,id);await openStream(req,res,id,()=>battleRooms.snapshot(req.user,id),async()=>{try{const room=await battleRooms.get(id);battleRooms.access(room,req.user);return true;}catch{return false;}});}));
 r.get('/rooms/:id/result',wrap(async(req,res)=>res.json(await battleRooms.snapshot(req.user,idSchema.parse(req.params.id),true))));
 r.get('/history',wrap(async(req,res)=>res.json(await battleRooms.history(req.user))));
@@ -84,9 +82,29 @@ r.post('/rooms/:id/retry-wrong',wrap(async(req,res)=>{
  const versions=room.questions.slice(0,room.asked_count).filter(q=>Number(room.answers.find(a=>a.idx===q.idx&&a.user_id===req.user.id)?.score||0)<1).map(q=>q.question_version_id);
  res.json(await createAttempt(req.user,{}, {battleRetry:{roomId:room.id,versionIds:versions}}));
 }));
-r.post('/match',wrap(async(req,res)=>{student(req);res.json(await matchmaking.join(req.user,z.object({kind:z.enum(['duel','ffa']),scope:scopeSchema.default({})}).strict().parse(req.body)));}));
+const lengthsSchema=z.union([z.literal('any'),z.array(z.union([z.literal(7),z.literal(10),z.literal(15)])).min(1).max(3)]);
+const ticketSchema=z.object({kinds:z.array(z.enum(['duel','ffa'])).min(1).max(2),choices:z.array(scopeSchema).max(3).default([]),lengths:lengthsSchema.default('any'),flex:z.enum(['strict','gradual']).default('gradual'),ranked:z.boolean().default(true),bot_fill:z.boolean().default(false)}).strict();
+const legacyTicket=z.object({kind:z.enum(['duel','ffa']),scope:scopeSchema.default({})}).strict().transform(v=>({kinds:[v.kind],choices:[v.scope],lengths:[7],flex:'strict',ranked:false}));
+r.post('/match',wrap(async(req,res)=>{student(req);res.json(await matchmaking.join(req.user,z.union([ticketSchema,legacyTicket]).parse(req.body)));}));
 r.patch('/match',wrap(async(req,res)=>{student(req);z.object({accept:z.literal(true)}).strict().parse(req.body);res.json(await matchmaking.expand(req.user));}));
 r.delete('/match',wrap(async(req,res)=>{student(req);res.json(await matchmaking.leave(req.user));}));
+r.post('/match/accept-room',wrap(async(req,res)=>{student(req);const d=z.object({room_id:idSchema}).strict().parse(req.body);res.json(await matchmaking.acceptRoom(req.user,d.room_id));}));
+r.post('/match/exit',wrap(async(req,res)=>{student(req);res.json(await matchmaking.exit(req.user,z.object({to:z.enum(['bot','public_room','practice']),difficulty:z.enum(['easy','medium','hard']).optional()}).strict().parse(req.body)));}));
+r.post('/bot',createLimit,wrap(async(req,res)=>{student(req);const d=z.object({choices:z.array(scopeSchema).max(3).default([]),lengths:lengthsSchema.default('any'),difficulty:z.enum(['easy','medium','hard']).optional()}).strict().parse(req.body);res.status(201).json(await matchmaking.exit(req.user,{to:'bot',difficulty:d.difficulty},d));}));
+r.get('/rank',wrap(async(req,res)=>{student(req);battleRooms.feature('ranked');const info=await battleIdentity(req.user);res.json(await ratings.profile(req.user.id,info.grade,await settings()));}));
+r.patch('/rank',wrap(async(req,res)=>{student(req);battleRooms.feature('ranked');const {hidden}=z.object({hidden:z.boolean()}).strict().parse(req.body),info=await battleIdentity(req.user);const result=await ratings.visibility(req.user.id,info.grade,hidden,await settings());await battleRooms.refreshBadges(req.user.id);res.json(result);}));
+r.get('/leaderboard',wrap(async(req,res)=>{student(req);battleRooms.feature('ranked');const info=await battleIdentity(req.user);res.json(await ratings.leaderboard(info.grade,await settings()));}));
+const goldenSchema=z.object({grade:z.number().int().min(1).max(12),subject_id:z.number().int().positive().nullable().default(null),starts_at:z.string().datetime({offset:true}),minutes:z.number().int().min(10).max(60),repeat_weekdays:z.array(z.number().int().min(0).max(6)).min(1).max(7).nullable().default(null),active:z.boolean().default(true)}).strict();
+r.get('/golden-hours',wrap(async(req,res)=>{if(req.user.role==='student')fail('Trang dành cho người quản lý',403);res.json(await goldenHours.list(req.user));}));
+r.post('/golden-hours',wrap(async(req,res)=>{res.status(201).json(await goldenHours.save(req.user,goldenSchema.parse(req.body)));streams.publish('lobby');}));
+r.put('/golden-hours/:id',wrap(async(req,res)=>{res.json(await goldenHours.save(req.user,goldenSchema.parse(req.body),idSchema.parse(req.params.id)));streams.publish('lobby');}));
+r.delete('/golden-hours/:id',wrap(async(req,res)=>{res.json(await goldenHours.remove(req.user,idSchema.parse(req.params.id)));streams.publish('lobby');}));
+r.put('/admin/golden-hour-grants',wrap(async(req,res)=>{
+ admin(req);const d=z.object({user_id:z.number().int().positive(),grade:z.number().int().min(1).max(12),subject_id:z.number().int().positive().nullable(),enabled:z.boolean()}).strict().parse(req.body);
+ if(!(await pool.query("SELECT 1 FROM users WHERE id=$1 AND role<>'student' AND is_active",[d.user_id])).rowCount)fail('Cần tài khoản giáo viên đang hoạt động');
+ if(d.subject_id===null)await pool.query(d.enabled?'INSERT INTO battle_golden_hour_grade_grants(user_id,grade) VALUES($1,$2) ON CONFLICT DO NOTHING':'DELETE FROM battle_golden_hour_grade_grants WHERE user_id=$1 AND grade=$2',[d.user_id,d.grade]);
+ else await pool.query(d.enabled?'INSERT INTO battle_golden_hour_grants(user_id,grade,subject_id) VALUES($1,$2,$3) ON CONFLICT DO NOTHING':'DELETE FROM battle_golden_hour_grants WHERE user_id=$1 AND grade=$2 AND subject_id=$3',[d.user_id,d.grade,d.subject_id]);res.json({ok:true});
+}));
 r.post('/reports',wrap(async(req,res)=>{student(req);res.status(201).json(await safety.report(req.user,z.object({room_id:idSchema,target_id:z.number().int().positive(),reason:z.enum(['bullying','name','cheating','other']),note:z.string().trim().max(500).default('')}).strict().parse(req.body)));}));
 r.get('/blocks',wrap(async(req,res)=>{student(req);res.json(await safety.blocks(req.user));}));
 r.post('/blocks',wrap(async(req,res)=>{
@@ -106,7 +124,7 @@ r.get('/admin/suspensions',wrap(async(req,res)=>{admin(req);res.json(await safet
 r.post('/admin/suspensions',wrap(async(req,res)=>{admin(req);const data=z.object({user_id:z.number().int().positive(),days:z.union([z.literal(1),z.literal(3),z.literal(7)]),reason:z.string().trim().min(1).max(300)}).strict().parse(req.body);await safety.suspend(req.user,data);await battleRooms.suspend(data.user_id);res.json({ok:true});}));
 r.get('/admin/settings',wrap(async(req,res)=>{admin(req);res.json(Object.fromEntries(Object.entries(await settings()).filter(([k])=>k.startsWith('battle_'))));}));
 r.post('/admin/settings',wrap(async(req,res)=>{
- admin(req);const changes=z.object({battle_enabled:z.boolean().optional(),battle_emergency_stop:z.boolean().optional(),battle_modes:z.record(z.boolean()).optional(),battle_limits:z.record(z.number()).optional()}).strict().parse(req.body);
- await tx(async c=>{validateSettings(await settings(c),changes);for(const [key,value] of Object.entries(changes))await c.query('INSERT INTO system_settings(key,value,updated_by) VALUES($1,$2,$3) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value,updated_by=EXCLUDED.updated_by,updated_at=now()',[key,JSON.stringify(value),req.user.id]);await log(c,req.user,'BATTLE_SETTINGS','settings',{keys:Object.keys(changes)});});await notifySettingsChanged();res.json({ok:true});
+ admin(req);const changes=z.object({battle_enabled:z.boolean().optional(),battle_emergency_stop:z.boolean().optional(),battle_modes:z.record(z.boolean()).optional(),battle_limits:z.record(z.number()).optional(),battle_flex:flexPatchSchema.optional(),battle_rank:rankSchema.optional()}).strict().parse(req.body);
+ await tx(async c=>{const current=await settings(c);for(const key of ['battle_modes','battle_flex','battle_rank'])if(changes[key])changes[key]={...current[key],...changes[key]};validateSettings(current,changes);for(const [key,value] of Object.entries(changes))await c.query('INSERT INTO system_settings(key,value,updated_by) VALUES($1,$2,$3) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value,updated_by=EXCLUDED.updated_by,updated_at=now()',[key,JSON.stringify(value),req.user.id]);await log(c,req.user,'BATTLE_SETTINGS','settings',{keys:Object.keys(changes)});});await notifySettingsChanged();res.json({ok:true});
 }));
 export default r;

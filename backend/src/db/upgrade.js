@@ -20,6 +20,7 @@ files.push('migration-v6673-curriculum-template.sql');
 files.push('migration-v6674-subject-code-letter.sql');
 files.push('migration-v681-competency-defaults.sql');
 files.push('migration-v69-battle.sql');
+files.push('migration-v691-battle-flex.sql','migration-v692-battle-rank.sql');
 const client=await pool.connect();
 try {
  await client.query('SELECT pg_advisory_lock(9182741)');
