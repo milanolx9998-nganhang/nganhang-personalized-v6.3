@@ -2924,3 +2924,163 @@
   height: 46px;
   border-radius: 50%;
   background-color: var(--arena-amber
+
+
+/* ===== Trang Quản trị Đấu Trường (AdminBattle) ===== */
+.arena-admin-container {
+  max-width: 1280px;
+}
+
+.arena-admin-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+  flex-wrap: wrap;
+}
+
+.arena-admin-tab {
+  min-height: 44px;
+  padding: 8px 16px;
+  border-radius: var(--arena-radius-sm);
+  border: 1.5px solid rgba(255, 255, 255, 0.24);
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #FFFFFF;
+  font-family: var(--font-sans, 'Lexend', sans-serif);
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.arena-admin-tab:hover {
+  background-color: rgba(255, 255, 255, 0.16);
+}
+
+.arena-admin-tab--active {
+  background-color: var(--arena-amber);
+  color: var(--arena-amber-ink);
+  border-color: var(--arena-amber);
+}
+
+.arena-admin-section-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.arena-admin-modes-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+@media (min-width: 680px) {
+  .arena-admin-modes-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .arena-admin-modes-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.arena-admin-mode-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  border-radius: var(--arena-radius-md);
+  border: 2px solid var(--line, #E2DFD6);
+  background-color: var(--surface-2, #FAF9F6);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.arena-admin-mode-card--on {
+  border-color: var(--ok, #256D43);
+  background-color: #E6F4EC;
+}
+
+.arena-admin-mode-card input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--ok, #256D43);
+}
+
+.arena-admin-mode-card__title {
+  font-weight: 800;
+  font-size: 0.96rem;
+  color: var(--ink, #1C1B17);
+}
+
+.arena-admin-mode-card__desc {
+  font-size: 0.84rem;
+  color: var(--muted, #5E5B52);
+  line-height: 1.4;
+}
+
+.arena-admin-param-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.arena-admin-param-box {
+  padding: 16px;
+  border-radius: var(--arena-radius-md);
+  background-color: var(--surface-2, #FAF9F6);
+  border: 1.5px solid var(--line, #E2DFD6);
+}
+
+.arena-admin-fields-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+@media (min-width: 640px) {
+  .arena-admin-fields-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .arena-admin-fields-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.arena-admin-field {
+  min-width: 0;
+}
+
+.arena-admin-key-hint {
+  font-weight: 500;
+  font-size: 0.78rem;
+  color: var(--muted, #5E5B52);
+}
+
+.arena-field-error {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--danger, #A5281B);
+}
+
+.arena-admin-json-view {
+  max-height: 280px;
+  overflow: auto;
+  padding: 12px;
+  border-radius: var(--arena-radius-sm);
+  background-color: #15232D;
+  color: #E3EEF3;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  margin: 0;
+}

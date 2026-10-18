@@ -11,6 +11,10 @@ const StudentPortfolio=lazy(()=>import('./pages/practice/portfolio/StudentPortfo
 const AttemptReview=lazy(()=>import('./pages/practice/portfolio/AttemptReview.jsx'));
 const Students=lazy(()=>import('./pages/practice/Students.jsx'));
 const Player=lazy(()=>import('./pages/practice/Player.jsx'));
+const ArenaLobby=lazy(()=>import('./pages/battle/ArenaLobby.jsx'));
+const BattleRoom=lazy(()=>import('./pages/battle/RoomPage.jsx'));
+const BattleProjector=lazy(()=>import('./pages/battle/ProjectorPage.jsx'));
+const AdminBattle=lazy(()=>import('./pages/battle/AdminBattle.jsx'));
 const Assignments=lazy(()=>import('./pages/practice/Assignments.jsx'));
 const SharedAssignment=lazy(()=>import('./pages/practice/Assignments.jsx').then(m=>({default:m.SharedAssignment})));
 const TeacherDashboard=lazy(()=>import('./pages/practice/Teacher.jsx').then(m=>({default:m.TeacherDashboard})));
@@ -62,6 +66,9 @@ export default function App() {
           <Route path="practice/flagged" element={<FlaggedReview/>}/>
           <Route path="practice/new" element={<PracticeBuilder/>}/>
           <Route path="practice/attempts/:id" element={<Player/>}/>
+          <Route path="practice/battle" element={<ArenaLobby/>}/>
+          <Route path="practice/battle/rooms/:id" element={<BattleRoom/>}/>
+          <Route path="practice/battle/rooms/:id/projector" element={<BattleProjector/>}/>
           <Route path="practice/assignments" element={<Assignments/>}/>
           <Route path="practice/shared/:token" element={<SharedAssignment/>}/>
           <Route path="practice/banks" element={<Banks/>}/>
@@ -75,6 +82,7 @@ export default function App() {
           <Route path="practice/curriculum" element={<CurriculumAdmin/>}/>
           <Route path="curriculum" element={<CurriculumPage/>}/>
           <Route path="practice/admin" element={<Navigate to="/admin/school" replace/>}/>
+          <Route path="admin/battle" element={<AdminBattle/>}/>
           <Route path="admin/:section" element={<AdminHub/>}/>
           <Route path="practice/password" element={<Password/>}/>
           <Route index element={<WorkspaceHome />} />
