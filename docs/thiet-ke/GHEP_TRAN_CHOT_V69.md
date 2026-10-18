@@ -127,3 +127,18 @@ Ghép nối tiếp với ván sắp kết thúc (gom người vừa chơi xong);
 10. **Cửa sổ MMR:** 0–8 giây ±250; sau 8 giây bỏ giới hạn trình độ (ưu tiên cùng Bài / Chương hơn cùng trình độ).
 11. **Ẩn / hiện bậc:** **Tập sự và Khám phá mặc định ẩn** với người khác (người khác chỉ thấy khung trung tính, em vẫn thấy LP của mình); khi lên **Tinh anh** hiện màn chúc mừng với nút "Hiện huy hiệu ở sảnh" (em tự chọn). Ẩn được bất cứ lúc nào.
 12. Mọi con số trên là **tham số cấu hình** (quản trị chỉnh theo số đo thật), đúng quyết định "không cố định một hướng".
+
+## 11. Tạo phòng — hai kiểu + kết hợp (chủ dự án, 18/10)
+> "Cả chế độ tạo phòng có mã phòng để rủ người quen vào chơi, kiểu tạo này là người trong phòng chơi với nhau. Cả chức năng tạo phòng chơi với người khác."
+
+| Kiểu | Ai vào được | Hiện ở sảnh | Bộ ghép tự đưa người vào | Tính rank |
+|---|---|---|---|---|
+| **Phòng riêng (rủ bạn)** — `visibility:'code'` | Chỉ người có mã 6 số (chia sẻ bằng nút Sao chép / mã QR) | Không | Không | Không |
+| **Phòng mở (chơi với người khác)** — `visibility:'public'` | Mọi bạn cùng khối | Có | Có (phòng phù hợp được gợi ý cho vé ghép, §3.1) | Không |
+| **Phòng riêng + mở chỗ trống** — `visibility:'code'`, `open_slots:true` | Người có mã; chỗ còn trống cho bạn khác cùng khối | Có, khi còn chỗ (nhãn "Nhóm bạn đang tìm thêm người") | Có | Không |
+
+- Cả ba kiểu hỗ trợ: Đấu đôi, Đấu đội (2v2–4v4), Nhiều người (2–20); nội dung chọn ngay hoặc cả phòng cùng chọn; Sẵn sàng → chủ phòng Bắt đầu (phòng mở: tự bắt đầu sau 60 s khi mọi người đã Sẵn sàng).
+- Chủ phòng đổi được giữa riêng / mở / mở chỗ trống khi còn ở phòng chờ.
+- Phòng tự tạo **không tính rank** (chống rủ bạn cày điểm); rank chỉ tính ở ván ghép tự động (§10.4). Cấu hình được nếu nhà trường muốn khác.
+- Chặn / báo cáo / tạm khoá áp dụng như mọi phòng; phòng mở chỗ trống không nhận người có quan hệ chặn với bất kỳ ai trong phòng.
+- Backend cần thêm: cờ `open_slots` (hoặc mở rộng `visibility`) + route đổi chế độ phòng; sảnh hiển thị phòng `open_slots`.
