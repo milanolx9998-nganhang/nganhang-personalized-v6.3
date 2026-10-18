@@ -1,5 +1,16 @@
 # AI HANDOFF
 
+## Bàn giao mới nhất — 18/10/2026: backend Đấu V6.9
+
+- Đã hoàn thiện backend theo kế hoạch 1.3 §23 và sửa review V4 B0–B3, Q1–Q8. Giữ phần nháp trước; không sửa React, không commit/push/đổi nhánh, không sửa `.env`, không truy cập mạng ngoài. Báo cáo chi tiết: `docs/thiet-ke/phan-bien/TRIEN_KHAI_BACKEND_CODEX.md`; hợp đồng frontend: mục `/api/battle` trong `docs/API.md`.
+- B0: thiếu bảng battle hoặc lỗi khởi tạo Đấu không làm app thoát; health/tự luyện vẫn chạy, router Đấu trả 503 `BATTLE_UNAVAILABLE`. Sau khi vận hành migrate và sửa lỗi phải restart app; không tự migrate. Phần tạo lượt tự luyện/hồ sơ cũng tương thích schema chưa có V6.9.
+- Có đủ bốn chế độ, cờ khả năng mặc định tắt; commit trước ACK, hàng lệnh/khóa theo §23, SSE có giới hạn, cache deck theo khối 60 giây, sảnh/ghép đọc chặn theo lô. `battle_retry` không tạo mastery_events hoặc tính lại mastery; kết quả chỉ podium tối đa ba người + hạng riêng, không lộ câu chưa phát.
+- Migration mới `backend/src/db/migration-v69-battle.sql` đã đăng ký và qua migration-safety. Chỉ chạy migration trong database clone/smoke dùng một lần khi test, không trên database nguồn. Đã bổ sung unit, integration API/SSE, smoke đấu đôi. Kết quả cuối của các lượt chạy nằm trong báo cáo triển khai và mục work log cùng ngày.
+- `.codegraph/codegraph.db` đã đồng bộ và `repo-map.md` đã sinh lại bằng CodeGraph local; graph JSON/HTML cũ không phải chỉ mục hiện hành.
+- Việc tiếp: Claude review mã/DTO, giao frontend theo API thật; kiểm `caddy adapt`/`validate` trên máy có Caddy, đo tải theo §23.9; sau khi có commit do chủ dự án cho phép, CI đúng commit phải xanh trước up main. Chưa đo tải 300 học sinh, chưa deploy/bật cờ thật.
+
+Các mục bên dưới là lịch sử bàn giao trước V6.9; không dùng số phiên bản/nhánh cũ để suy trạng thái workspace hiện tại.
+
 Cập nhật: 2026-09-26 · Phiên bản mã: **6.6.7**
 
 **Trạng thái nhánh (pre-merge final hardening):**

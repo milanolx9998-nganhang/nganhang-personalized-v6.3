@@ -1,5 +1,6 @@
 {$DOMAIN} {
-  encode zstd gzip
+  @compressible not path_regexp battle_stream ^/api/battle/(lobby|rooms/[^/]+)/stream$
+  encode @compressible zstd gzip
   request_body {
     max_size 22MB
   }

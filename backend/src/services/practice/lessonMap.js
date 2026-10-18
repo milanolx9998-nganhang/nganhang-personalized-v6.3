@@ -136,6 +136,12 @@ export async function lessonCoverage(user, raw) {
   };
 }
 
+// Dùng chung cho bản đồ và gợi ý nội dung Đấu của chính học sinh.
+export function currentLesson(open){
+ const latest=[...open.filter(l=>l.progress.status!=='new')].sort((a,b)=>new Date(b.progress.last_at)-new Date(a.progress.last_at))[0];
+ const after=latest?open.slice(open.indexOf(latest)+1):open;
+ return latest&&latest.progress.status!=='done'?latest:after.find(l=>l.progress.status!=='done')||open.find(l=>l.progress.status!=='done')||null;
+}
 // ---------- Học sinh: bản đồ bài học ----------
 async function currentGrade(c, studentId) {
   return (await c.query(`SELECT c.grade FROM class_memberships m JOIN classes c ON c.id=m.class_id
@@ -177,13 +183,11 @@ export async function lessonMap(user, raw) {
   });
   const open = lessons.filter(l => l.can_practice), started = open.filter(l => l.progress.status !== 'new'), chapters = byChapter(lessons);
   // "Em đang ở đây": Bài luyện gần nhất nếu chưa đạt; không thì Bài luyện được kế tiếp chưa đạt.
-  const latest = [...started].sort((a, b) => new Date(b.progress.last_at) - new Date(a.progress.last_at))[0];
-  const after = latest ? open.slice(open.indexOf(latest) + 1) : open;
-  const current = latest && latest.progress.status !== 'done' ? latest : after.find(l => l.progress.status !== 'done') || open.find(l => l.progress.status !== 'done') || null;
+  const current = currentLesson(open);
   const focus = open.filter(l => l.progress.stuck).sort((a, b) => (a.progress.base ?? a.progress.mastery) - (b.progress.base ?? b.progress.mastery)).slice(0, 3)
     .map(l => ({lesson_id: l.id, name: l.name, score: l.progress.base ?? l.progress.mastery, attempts: l.progress.attempts, target: FOCUS_BELOW, base_questions: l.questions.levels[0] + l.questions.levels[1]}));
 
-  const activity = (await pool.query(`SELECT count(*) FILTER(WHERE status='completed')::int AS completed,count(*) FILTER(WHERE status='completed' AND source='retry')::int AS retries,
+  const activity = (await pool.query(`SELECT count(*) FILTER(WHERE status='completed')::int AS completed,count(*) FILTER(WHERE status='completed' AND source IN('retry','battle_retry'))::int AS retries,
       COALESCE(array_agg(DISTINCT (completed_at AT TIME ZONE '${TZ}')::date::text) FILTER(WHERE status='completed'),'{}') AS days,(now() AT TIME ZONE '${TZ}')::date::text AS today
     FROM attempts WHERE student_id=$1`, [user.id])).rows[0];
   const answeredCount = (await pool.query(`SELECT count(*) FILTER(WHERE ${answered})::int AS n FROM attempt_items i JOIN attempts a ON a.id=i.attempt_id WHERE a.student_id=$1 AND a.status='completed'`, [user.id])).rows[0].n;

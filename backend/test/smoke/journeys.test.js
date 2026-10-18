@@ -1,4 +1,4 @@
-// Smoke 5 hành trình chính trên một database TRẮNG vừa dựng bằng `npm run migrate` (+ `npm run seed`) — chạy trong CI trên
+// Smoke 6 hành trình chính trên một database TRẮNG vừa dựng bằng `npm run migrate` (+ `npm run seed`) — chạy trong CI trên
 // máy GitHub với Postgres riêng. Khác bộ integration: không sao chép database local, tự tạo mọi dữ liệu cần dùng.
 // Chỉ chạy khi tên database kết thúc bằng _ci hoặc _smoke, để không bao giờ ghi nhầm vào database thật.
 import 'dotenv/config';
@@ -12,6 +12,7 @@ import {spawn} from 'node:child_process';
 import pg from 'pg';
 import bcrypt from 'bcryptjs';
 import XLSX from 'xlsx';
+import {connectStream} from '../battle/sseClient.js';
 
 if (!/_(ci|smoke)$/.test(process.env.DB_NAME || '')) throw new Error('Smoke test chỉ chạy trên database tên kết thúc bằng _ci hoặc _smoke');
 const port = Number(process.env.SMOKE_PORT) || 3190, origin = `http://127.0.0.1:${port}`;
@@ -141,4 +142,29 @@ test('Hành trình 5 — bản đồ bài học: luyện ngay một chạm, sao 
   assert.deepEqual([lesson.progress.status, lesson.progress.stars], ['done', 3], 'hai lượt đúng hết (bài giao + luyện ngay) → 3 sao');
   assert.equal(after.data.motivation.streak.today_done, true);
   assert.ok(after.data.motivation.badges.find(b => b.id === 'first').earned);
+});
+
+test('Hành trình 6 — đấu đôi qua API và SSE, bảy câu, kết quả không đổi thành thạo',async()=>{
+ const hash=await bcrypt.hash(pw,10),username='smoke_opponent_'+tag;
+ const opponentId=(await db.query("INSERT INTO users(username,password_hash,full_name,role,must_change_password) VALUES($1,$2,'Bạn kiểm thử','student',false) RETURNING id",[username,hash])).rows[0].id;
+ await db.query('INSERT INTO student_profiles(user_id,student_code) VALUES($1,$2)',[opponentId,'SMOKE-B-'+tag]);
+ await db.query('INSERT INTO class_memberships(class_id,student_id) VALUES($1,$2)',[classId,opponentId]);
+ const opponent=await login(username),studentId=(await req('GET','/auth/me',undefined,student)).data.id;
+ const mastery=async()=>({events:(await db.query('SELECT * FROM mastery_events WHERE student_id=$1 ORDER BY id',[studentId])).rows,states:(await db.query('SELECT * FROM mastery_states WHERE student_id=$1 ORDER BY topic_id,cognitive_level',[studentId])).rows});
+ const before=await mastery();
+ expect(await req('POST','/battle/admin/settings',{battle_enabled:true,battle_modes:{class:false,duel_code:true,lobby:false,matchmaking:false,vote:false,ffa:false,team:false}}),200);
+ const made=await req('POST','/battle/rooms',{kind:'duel',scope:{subject_id:subjectId,topic_ids:[lessonId]},question_count:7,seconds:20},student);expect(made,201);const room=made.data;
+ expect(await req('POST','/battle/rooms/join',{code:room.code},opponent),200);
+ for(const token of [student,opponent])expect(await req('POST',`/battle/rooms/${room.id}/ready`,{ready:true},token),200);
+ const stream=await connectStream(origin,`/battle/rooms/${room.id}/stream`,student);
+ try{
+  expect(await req('POST',`/battle/rooms/${room.id}/start`,{},student),200);
+  for(let index=0;index<7;index++){
+   const state=await stream.waitFor(s=>s.phase==='question'&&s.question.index===index);assert.equal(state.question.answer,undefined);
+   for(const token of [student,opponent]){const answer=await req('POST',`/battle/rooms/${room.id}/answer`,{index,client_id:crypto.randomUUID(),response:'B'},token);expect(answer,200);assert.equal(answer.data.received,true);}
+   await stream.waitFor(s=>s.phase==='reveal'&&s.question.index===index);
+   for(const token of [student,opponent])expect(await req('POST',`/battle/rooms/${room.id}/next`,{},token),200);
+  }
+  const result=await stream.waitFor(s=>s.status==='finished');assert.equal(result.me.rank,1);assert.equal(result.me.points,700);assert.equal(result.questions.length,7);assert.deepEqual(await mastery(),before);
+ }finally{await stream.close();expect(await req('POST','/battle/admin/settings',{battle_enabled:false}),200);}
 });

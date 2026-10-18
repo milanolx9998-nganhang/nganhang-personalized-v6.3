@@ -1,0 +1,30 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {EventEmitter} from 'node:events';
+import {createDeck,hasImage,eligibleQuestion} from '../../src/services/battle/deck.js';
+import {createStreams} from '../../src/services/battle/stream.js';
+import {createSafety,purgeExpired} from '../../src/services/battle/safety.js';
+import {question} from './helpers.js';
+import {defaults,validateSettings} from '../../src/services/practice/config.js';
+test('Loại ảnh mọi vị trí, VDC, tự luận, đáp án không tự chấm',()=>{for(const value of [{options:[{text:'![ảnh](x)'}]},{left:[{image_url:'a'}]},{blocks:[{type:'image',url:'x'}]},{stem:'<img src="x">'},{answer:{aliases:['/uploads/a']}}])assert.equal(hasImage(value),true);const q=question();assert.equal(eligibleQuestion(q),true);assert.equal(eligibleQuestion({...q,cognitive_level:4}),false);assert.equal(eligibleQuestion({...q,auto_gradable:false}),false);});
+test('Cache 60 giây một lần quét mỗi khối, đếm và options dùng chung; bốc luôn kiểm lại',async()=>{let time=0,queries=0;const rows=Array.from({length:7},(_,i)=>question('multiple_choice',i)),d=createDeck({now:()=>time,client:{query:async()=>{queries++;return {rows};}}});await Promise.all([d.count(9,{}),d.available(9,{subject_id:1}),d.count(9,{topic_ids:[1]})]);assert.equal(queries,1);await d.draw({grade:9,scope:{subject_id:1},question_count:7,seconds:20,time_factors:{multiple_choice:1}});assert.equal(queries,2);time=60000;await d.count(9,{});assert.equal(queries,3);});
+function response(){const r=new EventEmitter();Object.assign(r,{writableLength:0,body:'',headers:{},status(){return this;},set(values){Object.assign(this.headers,values);return this;},setHeader(k,v){this.headers[k]=v;},flushHeaders(){},write(s){this.body+=s;return true;},end(s=''){this.body+=s;this.emit('close');}});return r;}
+test('SSE ảnh chụp đầy đủ tức thì; vượt bộ đệm đóng slow',async()=>{const s=createStreams(),res=response();await s.open({req:{},res,key:'r',user:{id:1},snapshot:()=>({run_id:'run',version:1})});assert.match(res.body,/run_id/);res.writableLength=65536;s.publish('r',true);await new Promise(resolve=>setImmediate(resolve));assert.match(res.body,/"reason":"slow"/);s.dispose();});
+test('SSE quá 10 lần mở/phút trả 429 và Retry-After',async()=>{const s=createStreams();for(let i=0;i<10;i++){const res=response();await s.open({res,key:'r',user:{id:1},snapshot:()=>({})});res.end();}const res=response();await assert.rejects(s.open({res,key:'r',user:{id:1},snapshot:()=>({})}),{status:429});assert.equal(res.headers['Retry-After'],'60');s.dispose();});
+test('Mở SSE đồng thời cũng chịu trần hai luồng mỗi người',async()=>{const s=createStreams();let release;const gate=new Promise(r=>{release=r;});const args={key:'r',user:{id:1},snapshot:async()=>{await gate;return {};}};const first=s.open({...args,res:response()}),second=s.open({...args,res:response()});await assert.rejects(s.open({...args,res:response()}),{status:429});release();await Promise.all([first,second]);s.dispose();});
+test('Nhịp SSE kiểm lại quyền, mất quyền đóng left',async()=>{let beat,allowed=true;const s=createStreams({setTimer:fn=>{beat=fn;return 1;},clearTimer:()=>{}}),res=response();await s.open({res,key:'r',user:{id:1},snapshot:()=>({}),authorized:async()=>allowed});allowed=false;await beat();assert.match(res.body,/"reason":"left"/);s.dispose();});
+test('SSE gộp thay đổi 250 ms, giữ run_id và gửi phiên bản mới nhất',async()=>{
+ const timers=new Map();let next=0;const s=createStreams({setTimer:(fn,ms)=>{const id=++next;timers.set(id,{fn,ms});return id;},clearTimer:id=>timers.delete(id)}),res=response();
+ await s.open({res,key:'r',user:{id:1},snapshot:()=>s.envelope()});const initial=s.envelope();
+ for(let i=0;i<20;i++)s.publish('r');
+ assert.equal([...timers.values()].filter(t=>t.ms===250).length,1);assert.equal((res.body.match(/event: snapshot/g)||[]).length,1);
+ [...timers.values()].find(t=>t.ms===250).fn();await new Promise(resolve=>setImmediate(resolve));
+ assert.equal((res.body.match(/event: snapshot/g)||[]).length,2);assert.equal(s.envelope().run_id,initial.run_id);assert.equal(s.envelope().version,initial.version+1);s.dispose();
+});
+test('SSE hết phiên đóng expired và trả lại chỗ trong giới hạn luồng',async()=>{
+ const timers=new Map();let next=0;const s=createStreams({now:()=>100,setTimer:(fn,ms)=>{const id=++next;timers.set(id,{fn,ms});return id;},clearTimer:id=>timers.delete(id)}),res=response();
+ await s.open({res,key:'r',user:{id:1},snapshot:()=>({}),expiresAt:1100});assert.equal(s.stats().streams,1);[...timers.values()].find(t=>t.ms===1000).fn();assert.match(res.body,/"reason":"expired"/);assert.equal(s.stats().streams,0);assert.equal(timers.size,0);s.dispose();
+});
+test('Bộ đệm an toàn 50 sự kiện, không ghi DB khi chưa báo cáo, hết hạn sau đóng',()=>{let queries=0;const s=createSafety({db:{query:()=>{queries++;}}});for(let i=0;i<60;i++)s.record('r','join',i,{},i);assert.equal(s.bufferSize('r'),50);assert.equal(queries,0);s.closed('r',100);s.prune(600101);assert.equal(s.bufferSize('r'),0);});
+test('purgeExpired theo hạn, giữ hồ sơ còn hạn, dọn FK trong giao dịch',async()=>{const sql=[],client={query:async text=>{sql.push(text);return {rows:text.startsWith('SELECT r.id')?[{id:'old'}]:[],rowCount:1};},release:()=>{}};const result=await purgeExpired({connect:async()=>client});assert.deepEqual(result,{events:1,reports:1,rooms:1});assert.ok(sql.some(s=>s.includes("interval '90 days'")));assert.ok(sql.some(s=>s.includes("interval '1 year'")));assert.ok(sql.some(s=>s.includes('+30<CURRENT_DATE')));assert.ok(sql.indexOf('COMMIT')>sql.findIndex(s=>s.startsWith('DELETE FROM battle_rooms')));});
+test('Cấu hình chỉ bật cờ vận hành được cho phép, kiểm đủ capability và giới hạn',()=>{assert.equal(validateSettings(defaults,{battle_enabled:true}).battle_enabled,true);assert.throws(()=>validateSettings(defaults,{leaderboard:true}));assert.throws(()=>validateSettings(defaults,{battle_modes:{duel_code:true}}));assert.throws(()=>validateSettings(defaults,{battle_limits:{...defaults.battle_limits,sse_bytes:999999}}));});

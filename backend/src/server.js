@@ -20,6 +20,7 @@ import {csrfGuard} from './middleware/session.js';
 import {staffMedia} from './services/practice/privateMedia.js';
 import {audit} from './utils/audit.js';
 import practiceRoutes from './routes/practice.js';
+import battleRoutes,{initializeBattle} from './routes/battle.js';
 import curriculumMasterRoutes from './routes/curriculumMaster.js';
 import competencyRoutes,{studentCompetencyRoutes} from './routes/competency.js';
 
@@ -55,6 +56,7 @@ app.use(requestContextMiddleware);
 app.use(helmet({contentSecurityPolicy:{directives:{defaultSrc:["'self'"],scriptSrc:["'self'"],styleSrc:["'self'","'unsafe-inline'"],imgSrc:["'self'",'data:'],objectSrc:["'none'"],baseUri:["'self'"],formAction:["'self'"],connectSrc:["'self'"],fontSrc:["'self'"],frameAncestors:["'self'",...(process.env.CANVAS_ORIGINS||'').split(',').filter(Boolean)]}},frameguard:process.env.CANVAS_ORIGINS?false:{action:'sameorigin'}}));
 const origins=(process.env.CORS_ORIGIN||'').split(',').filter(Boolean);
 app.use(cors({origin:(origin,cb)=>cb(null,!origin||origins.includes(origin))}));
+app.use('/api/battle',(req,_res,next)=>{req.battleReceivedAt=Date.now();next();},express.json({limit:'16kb'}));
 app.use(express.json({ limit: '20mb' }));
 app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 app.use(morgan((tokens,req,res)=>JSON.stringify({request_id:req.requestId,method:req.method,path:req.path,status:Number(tokens.status(req,res)),duration_ms:Number(tokens['response-time'](req,res))})));
@@ -75,7 +77,7 @@ app.use('/api/auth/login', loginLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api',auth,apiIpLimiter,sensitiveLimiter,(req,res,next)=>{
  if(req.user.must_change_password)return res.status(403).json({error:'Cần đổi mật khẩu trước khi tiếp tục'});
- if(req.user.role==='student'&&!req.path.startsWith('/practice/'))return res.status(403).json({error:'Học sinh chỉ được truy cập khu tự luyện'});
+ if(req.user.role==='student'&&!req.path.startsWith('/practice/')&&!req.path.startsWith('/battle/'))return res.status(403).json({error:'Học sinh chỉ được truy cập khu tự luyện và Đấu'});
 
  next();
 });
@@ -90,6 +92,7 @@ app.use('/api',(req,res,next)=>{
  next();
 });
 app.use('/api/practice',apiLimiter,practiceRoutes,studentCompetencyRoutes);
+app.use('/api/battle',apiLimiter,battleRoutes);
 app.use('/api/competency',apiLimiter,competencyRoutes);
 app.use('/api/curriculum',apiLimiter,curriculumMasterRoutes);
 app.use('/api/staff',apiLimiter,staffRoutes);
@@ -127,6 +130,7 @@ app.use(errorHandler);
   initRedis();
   try {
     await testConnection();
+    await initializeBattle();
     console.log('✓ Kết nối PostgreSQL thành công');
     // Dọn thao tác hoàn tác đã hết hạn quá lâu; lỗi (vd. chưa chạy migration) không chặn khởi động.
     const prune = () => pruneEditOperations().catch(e => console.warn('Không dọn được thao tác hoàn tác cũ:', e.message));

@@ -1,5 +1,6 @@
 {$DOMAIN} {
     tls internal
-    encode gzip
+    @compressible not path_regexp battle_stream ^/api/battle/(lobby|rooms/[^/]+)/stream$
+    encode @compressible gzip
     reverse_proxy app:3001
 }

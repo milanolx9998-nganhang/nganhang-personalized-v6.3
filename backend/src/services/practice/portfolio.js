@@ -19,7 +19,7 @@ export async function portfolioAccess(user,rawId){
 const allowed="a.student_id=$1 AND ($2::int[] IS NULL OR (a.config->>'subject_id')::int=ANY($2))";
 // JSON null, blank strings and empty object responses are not answered questions.
 export const answered=`CASE WHEN jsonb_typeof(i.response)='object' THEN EXISTS(SELECT 1 FROM jsonb_each(i.response) e WHERE e.key<>'unit' AND e.value NOT IN ('null'::jsonb,'""'::jsonb,'{}'::jsonb,'[]'::jsonb) AND btrim(e.value::text,'" '||chr(9)||chr(10)||chr(13))<>'') ELSE i.response IS NOT NULL AND btrim(i.response::text,'" '||chr(9)||chr(10)||chr(13)) NOT IN ('','null','{}','[]') END`;
-const historySelect=`SELECT a.id,a.started_at,a.completed_at,a.status,a.source,a.mode,a.assignment_id,ass.title AS assignment_title,a.retry_of,
+const historySelect=`SELECT a.id,a.started_at,a.completed_at,a.status,a.source,CASE WHEN a.source='battle_retry' THEN 'Luyện lại sau ván đấu' ELSE a.source END AS source_label,to_jsonb(a)->>'battle_room_id' AS battle_room_id,a.mode,a.assignment_id,ass.title AS assignment_title,a.retry_of,
  (a.config->>'subject_id')::int AS subject_id,s.name AS subject_name,a.score,a.denominator,a.percentage,a.duration_seconds,
  details.question_count,details.answered_count,details.skipped_count,details.uncertain_count,details.topics,details.levels
  FROM attempts a LEFT JOIN subjects s ON s.id=(a.config->>'subject_id')::int LEFT JOIN assignments ass ON ass.id=a.assignment_id
@@ -60,12 +60,28 @@ async function assignmentsRead(scope){return (await pool.query(`SELECT ass.id,as
  WHERE ($2::int[] IS NULL OR (ass.config->>'subject_id')::int=ANY($2)) AND
  (stats.attempts_used>0 OR EXISTS(SELECT 1 FROM assignment_targets t WHERE t.assignment_id=ass.id AND (t.student_id=$1 OR t.class_id IN(SELECT class_id FROM class_memberships WHERE student_id=$1 AND ended_at IS NULL AND valid_from<=CURRENT_DATE AND (valid_to IS NULL OR valid_to>=CURRENT_DATE))))) ORDER BY ass.created_at DESC,ass.id DESC`,[scope.id,scope.subjects])).rows;}
 export async function portfolioAssignments(user,id){return {assignments:await assignmentsRead(await portfolioAccess(user,id))};}
+// Danh sách cá nhân chỉ nêu câu đã phát, không mở đáp án hoặc câu chưa xuất hiện trong ván.
+export async function reviewQuestions(user){
+ if(user.role!=='student')fail('Danh sách dành cho chính học sinh',403);
+ const practice=(await pool.query(`SELECT i.id AS item_id,a.id AS attempt_id,i.question_id,'practice' AS source,'Lượt luyện' AS source_label,
+  COALESCE((i.curriculum_snapshot->>'topic_id')::int,v.topic_id) AS topic_id,a.completed_at AS at
+  FROM attempt_items i JOIN attempts a ON a.id=i.attempt_id JOIN question_versions v ON v.id=i.question_version_id
+  WHERE a.student_id=$1 AND a.status='completed' AND (i.skipped OR i.uncertain OR (i.grade_result->>'score')::numeric<1)
+  ORDER BY a.completed_at DESC LIMIT 100`,[user.id])).rows;
+ const hasBattle=(await pool.query("SELECT to_regclass('battle_rooms') IS NOT NULL AS present")).rows[0].present;
+ const battle=hasBattle?(await pool.query(`SELECT r.id AS room_id,q.idx AS index,q.question_id,q.topic_id,'battle' AS source,'Ván đấu' AS source_label,r.ended_at AS at
+  FROM battle_rooms r JOIN battle_players p ON p.room_id=r.id JOIN battle_questions q ON q.room_id=r.id
+  LEFT JOIN battle_answers a ON a.room_id=r.id AND a.idx=q.idx AND a.user_id=p.user_id
+  WHERE p.user_id=$1 AND r.status IN('finished','interrupted') AND q.idx<r.asked_count AND COALESCE(a.score,0)<1
+  ORDER BY r.ended_at DESC,q.idx LIMIT 100`,[user.id])).rows:[];
+ return {items:[...practice,...battle].sort((a,b)=>new Date(b.at)-new Date(a.at)).slice(0,100)};
+}
 export async function portfolioOverview(user,id){
  const scope=await portfolioAccess(user,id),params=[scope.id,scope.subjects];
  const summary=(await pool.query(`SELECT count(*)::int started_attempts,count(*) FILTER(WHERE a.status='completed')::int completed_attempts,
  count(DISTINCT (a.completed_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date) FILTER(WHERE a.status='completed')::int active_days,
  COALESCE(sum(a.duration_seconds) FILTER(WHERE a.status='completed'),0)::int duration_seconds,max(a.completed_at) last_practice,
- count(*) FILTER(WHERE source='self_practice')::int self_practice_attempts,count(*) FILTER(WHERE source='teacher_assigned')::int teacher_assigned_attempts,count(*) FILTER(WHERE source='retry')::int retry_attempts FROM attempts a WHERE ${allowed}`,params)).rows[0];
+ count(*) FILTER(WHERE source='self_practice')::int self_practice_attempts,count(*) FILTER(WHERE source='teacher_assigned')::int teacher_assigned_attempts,count(*) FILTER(WHERE source='retry')::int retry_attempts,count(*) FILTER(WHERE source='battle_retry')::int battle_retry_attempts FROM attempts a WHERE ${allowed}`,params)).rows[0];
  const counts=(await pool.query(`SELECT count(*)::int questions_attempted,count(DISTINCT i.question_id)::int unique_questions,count(*) FILTER(WHERE ${answered})::int answered_questions FROM attempt_items i JOIN attempts a ON a.id=i.attempt_id WHERE ${allowed} AND a.status='completed'`,params)).rows[0];
  const recent=(await pool.query(historySelect+` WHERE ${allowed} ORDER BY a.started_at DESC,a.id DESC LIMIT 5`,params)).rows;
  const recentCompleted=(await pool.query(historySelect+` WHERE ${allowed} AND a.status='completed' ORDER BY a.completed_at DESC,a.id DESC LIMIT 5`,params)).rows;

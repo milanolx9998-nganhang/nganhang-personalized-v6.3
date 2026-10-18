@@ -16,7 +16,7 @@
     "seed-kntt": "node src/db/seed-kntt.js",
     "seed-khoa-hoc": "node src/db/seed-khoa-hoc.js",
     "seed:khtn7-lessons": "node src/db/seed-khtn7-vatli-lessons.js",
-    "test": "node test/matrixBalancer.test.js && node --test test/practice/*.test.js",
+    "test": "node test/matrixBalancer.test.js && node --test test/practice/*.test.js test/battle/*.test.js",
     "test:integration": "node --test --test-concurrency=3 test/integration/*.test.js",
     "test:security": "node --test test/security/*.test.js",
     "test:smoke": "node --test test/smoke/*.test.js",

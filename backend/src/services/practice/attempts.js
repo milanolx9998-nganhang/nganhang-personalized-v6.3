@@ -39,11 +39,19 @@ export async function contentOptions(user,raw){const d=z.object({subject_id:z.co
 export async function availability(user,raw){const config=configSchema.parse(raw);return selectQuestions(await candidates(pool,user,config),config,'preview');}
 async function lockedAttempt(client,user,id){const a=(await client.query('SELECT * FROM attempts WHERE id=$1 FOR UPDATE',[id])).rows[0];if(!a)fail('Không tìm thấy lượt luyện',404);if(a.student_id!==user.id)fail('Không có quyền với lượt luyện này',403);return a;}
 // minQuestions: sàn số câu riêng cho lượt luyện nhanh theo Bài (lessonMap.js); mặc định dùng practice_min_questions.
-export async function createAttempt(user,raw,{assignmentId=null,retryId=null,minQuestions=null}={}){
+export async function createAttempt(user,raw,{assignmentId=null,retryId=null,minQuestions=null,battleRetry=null}={}){
  if(user.role!=='student')fail('Chỉ học sinh tạo lượt luyện',403);
  return tx(async client=>{
   await client.query('SELECT id FROM users WHERE id=$1 FOR UPDATE',[user.id]);
-  const cfg=await settings(client);let config;let fixed;let frozenCurriculum=null;let source='self_practice';let assignment;
+  const cfg=await settings(client);let config;let fixed;let frozenCurriculum=null;let source='self_practice';let assignment;let battleRoomId=null;let excluded=0;
+  if(battleRetry){
+   const room=(await client.query("SELECT r.* FROM battle_rooms r JOIN battle_players p ON p.room_id=r.id WHERE r.id=$1 AND p.user_id=$2 AND r.status IN('finished','interrupted','closed')",[battleRetry.roomId,user.id])).rows[0];if(!room)fail('Không có quyền luyện lại ván này',403);
+   const existing=(await client.query("SELECT * FROM attempts WHERE student_id=$1 AND battle_room_id=$2 AND source='battle_retry' AND retry_of IS NULL",[user.id,room.id])).rows[0];if(existing)return studentAttempt(existing);
+   const wrong=(await client.query('SELECT q.question_version_id AS id,q.curriculum_snapshot AS curriculum FROM battle_questions q LEFT JOIN battle_answers a ON a.room_id=q.room_id AND a.idx=q.idx AND a.user_id=$2 WHERE q.room_id=$1 AND q.idx<$3 AND COALESCE(a.score,0)<1 ORDER BY q.idx',[room.id,user.id,room.asked_count])).rows;
+   if(!wrong.length)fail('Em không sai câu nào trong ván này',409);
+   if(wrong.some(q=>!battleRetry.versionIds.includes(q.id))||battleRetry.versionIds.some(id=>!wrong.some(q=>q.id===id)))fail('Danh sách câu luyện lại không khớp ván',409);
+   fixed=wrong.map(q=>q.id);frozenCurriculum=wrong;battleRoomId=room.id;source='battle_retry';config={subject_id:room.subject_id,grade:room.grade,mode:'practice',count:fixed.length,topic_ids:[...new Set(wrong.map(q=>q.curriculum.topic_id))],types:['multiple_choice','true_false','short_answer','matching'],percent:[40,40,20,0]};
+  }
   if(retryId){
    const previous=await lockedAttempt(client,user,retryId);if(previous.status!=='completed')fail('Lượt cũ chưa hoàn tất');
    assignmentId=previous.assignment_id;
@@ -51,7 +59,7 @@ export async function createAttempt(user,raw,{assignmentId=null,retryId=null,min
    fixed=(await client.query("SELECT i.question_version_id FROM attempt_items i WHERE attempt_id=$1 AND (uncertain OR skipped OR (grade_result->>'score')::numeric<1)",[retryId])).rows.map(r=>r.question_version_id);
    if(!fixed.length)fail('Không có câu sai hoặc chưa chắc để luyện lại');
    frozenCurriculum=(await client.query('SELECT question_version_id AS id,curriculum_snapshot AS curriculum FROM attempt_items WHERE attempt_id=$1',[retryId])).rows;
-   config={...previous.config,count:fixed.length};source='retry';
+   config={...previous.config,count:fixed.length};source=previous.source==='battle_retry'?'battle_retry':'retry';battleRoomId=previous.battle_room_id;
   }
   if(assignmentId){
    assignment=(await client.query('SELECT * FROM assignments WHERE id=$1 FOR SHARE',[assignmentId])).rows[0];await assignmentAccess(user,assignment,client);
@@ -62,10 +70,16 @@ export async function createAttempt(user,raw,{assignmentId=null,retryId=null,min
    if(!retryId){config=configSchema.parse(assignment.config);fixed=assignment.kind==='fixed'?assignment.fixed_versions:null;frozenCurriculum=assignment.curriculum_snapshot;source='teacher_assigned';}
   }
   if(!config){config=configSchema.parse(raw);const least=minQuestions??cfg.practice_min_questions;if(config.count<least||config.count>cfg.practice_max_questions)fail(`Chọn ${least}–${cfg.practice_max_questions} câu`);}
+  if(source==='battle_retry'){
+   const available=(await client.query(`SELECT v.id ${USABLE_FROM} JOIN topics t ON t.id=q.topic_id WHERE ${USABLE_WHERE} AND ${USABLE_LESSON} AND b.kind='school' AND v.id=ANY($1::uuid[])`,[fixed])).rows.map(r=>r.id);
+   excluded=fixed.length-available.length;fixed=fixed.filter(id=>available.includes(id));if(!fixed.length)fail('Không còn câu sai dùng được để luyện lại',409,{excluded_questions:excluded});config.count=fixed.length;config.excluded_questions=excluded;
+  }
   const seed=crypto.randomUUID();let items;
-  if(fixed){items=(await client.query('SELECT * FROM question_versions WHERE id=ANY($1::uuid[])',[fixed])).rows.sort((a,b)=>fixed.indexOf(a.id)-fixed.indexOf(b.id)).map(q=>({...q,selection_reason:source==='retry'?'repeat':'assigned'}));if(items.length!==fixed.length)fail('Bản câu hỏi đã khóa không đầy đủ');}
+  if(fixed){items=(await client.query('SELECT * FROM question_versions WHERE id=ANY($1::uuid[])',[fixed])).rows.sort((a,b)=>fixed.indexOf(a.id)-fixed.indexOf(b.id)).map(q=>({...q,selection_reason:['retry','battle_retry'].includes(source)?'repeat':'assigned'}));if(items.length!==fixed.length)fail('Bản câu hỏi đã khóa không đầy đủ');}
   else {const reader=assignment?(await client.query('SELECT id,role,subject_id,department_id FROM users WHERE id=$1',[assignment.created_by])).rows[0]:user;const result=selectQuestions(await candidates(client,user,config,{reader}),config,seed);if(result.shortages.length)fail('Kho chưa đủ câu theo cấu hình. Hãy giảm số câu hoặc sửa tỉ lệ.',409,result.shortages);items=result.items;}
-  const a=(await client.query('INSERT INTO attempts(student_id,assignment_id,retry_of,source,mode,config,seed) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING *',[user.id,assignmentId,retryId,source,config.mode,JSON.stringify(config),seed])).rows[0];
+  // Giữ đường tự luyện tương thích với database chưa cài migration Đấu.
+  const params=[user.id,assignmentId,retryId,source,config.mode,JSON.stringify(config),seed];
+  const a=(await client.query(source==='battle_retry'?'INSERT INTO attempts(student_id,assignment_id,retry_of,source,mode,config,seed,battle_room_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *':'INSERT INTO attempts(student_id,assignment_id,retry_of,source,mode,config,seed) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING *',source==='battle_retry'?[...params,battleRoomId]:params)).rows[0];
   // PERF V6.6.7: một câu INSERT cho cả bài thay vì một câu mỗi câu hỏi (40 câu = 40 lượt đi-về DB khi cả lớp bấm "Bắt đầu").
   const rows=items.map((q,i)=>({v:q.id,q:q.question_id,s:i+1,r:q.selection_reason,c:fixed?(frozenCurriculum?.find(c=>c.id===q.id)?.curriculum||{historical_labels_unavailable:true,topic_id:q.topic_id,cognitive_level:'M'+q.cognitive_level}):(q.curriculum_snapshot??null)}));
   await client.query(`INSERT INTO attempt_items(attempt_id,question_version_id,question_id,sequence,selection_reason,curriculum_snapshot)
@@ -109,8 +123,11 @@ export async function submitAttempt(user,id){
    const key=`${i.topic_id}:${i.cognitive_level}`,g=groups.get(key)||{topic:i.topic_id,level:i.cognitive_level,score:0,ids:[]};g.score+=result.score;g.ids.push(i.question_id);groups.set(key,g);
   }
   const completed=(await client.query("UPDATE attempts SET status='completed',completed_at=now(),score=$1,denominator=$2,percentage=$3,duration_seconds=GREATEST(0,extract(epoch FROM now()-started_at)::int) WHERE id=$4 RETURNING *",[score,denominator,denominator?score/denominator*100:null,id])).rows[0];
-  for(const g of groups.values())await client.query('INSERT INTO mastery_events(student_id,attempt_id,topic_id,cognitive_level,score,question_ids) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING',[user.id,id,g.topic,g.level,g.score/g.ids.length*100,g.ids]);
-  await recalculate(client,user.id,await settings(client));await log(client,user,'SUBMIT_ATTEMPT',id,{score,denominator});return studentAttempt(completed);
+  if(a.source!=='battle_retry'){
+   for(const g of groups.values())await client.query('INSERT INTO mastery_events(student_id,attempt_id,topic_id,cognitive_level,score,question_ids) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING',[user.id,id,g.topic,g.level,g.score/g.ids.length*100,g.ids]);
+   await recalculate(client,user.id,await settings(client));
+  }
+  await log(client,user,'SUBMIT_ATTEMPT',id,{score,denominator});return studentAttempt(completed);
  });
 }
 export async function dashboard(studentId,client=pool,subjects=null){

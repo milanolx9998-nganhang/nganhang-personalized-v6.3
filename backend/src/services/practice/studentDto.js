@@ -13,4 +13,4 @@ export function studentQuestion(version,reveal=false){
  return out;
 }
 export function studentAssignment(a){return {...pick(a,['id','title','instructions','kind','opens_at','closes_at','max_attempts','status','allow_after_deadline','answer_release_policy','answers_released_at']),config:pick(a.config,['subject_id','grade','count','mode','types'])};}
-export function studentAttempt(a){return pick(a,['id','assignment_id','retry_of','source','mode','status','started_at','completed_at','score','denominator','percentage','duration_seconds','config']);}
+export function studentAttempt(a){return pick(a,['id','assignment_id','retry_of','battle_room_id','source','mode','status','started_at','completed_at','score','denominator','percentage','duration_seconds','config']);}

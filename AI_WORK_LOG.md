@@ -977,3 +977,19 @@ Kết quả chạy toàn bộ: xem mục kế tiếp.
 **Thay đổi:** `docs/thiet-ke/KE_HOACH_DAU_TRUONG_V69.md` (21 mục, có bối cảnh hệ thống để người đọc không cần mã nguồn, 20 câu hỏi mở cần góp ý); `task_plan.md` ghi quyết định và trỏ sang tài liệu mới. Nháp đã viết trước khi dừng, CHƯA nối vào app, chưa test: `backend/src/services/battle/engine.js`, `backend/src/db/migration-v69-battle.sql` (chưa thêm vào `upgrade.js`).
 
 **Kiểm:** chưa chạy gì (tài liệu + nháp). **Việc tiếp:** chờ góp ý của các AI, gộp góp ý vào tài liệu rồi mới triển khai.
+
+## 2026-10-18 — V6.9 "Đấu": phản biện 3 vòng xong, giao Codex làm backend (đang dở)
+
+**Đã làm:** phản biện Claude ↔ Codex (gpt-6-astra, cao) 3 vòng → kế hoạch 1.3 (`docs/thiet-ke/KE_HOACH_DAU_TRUONG_V69.md`, §23 phụ lục triển khai), commit `449aa8c` trên `perf-v6671-followup`. Tạo nhánh `feat-v69-battle`, giao Codex làm backend (prompt: scratchpad `codex-impl-prompt.md`). Codex **hết hạn mức** giữa chừng (mở lại 13:03 18/10) sau khi viết: `backend/src/db/migration-v69-battle.sql` (qua migration-safety), `backend/src/services/battle/{engine,dto,deck,stream}.js` — chưa đăng ký migration, chưa có rooms/routes/test. Anh Hiếu chọn chờ Codex làm tiếp. Claude đã soát phần dở, ghi chú 7 điểm (cache deck, badge ≥80%, dọn dữ liệu theo hạn, test stream…).
+
+**Việc tiếp:** 13:07 (hẹn giờ trong phiên) resume phiên Codex `01a14cc2-dc75-7031-b267-8765495f3548` kèm ghi chú review; Codex xong thì Claude review + chạy unit/security/integration/smoke; sau đó giao Gemini 4 Argon web làm giao diện React theo hợp đồng DTO thật.
+
+## 2026-10-18 — V6.9 backend hoàn thiện, sửa review Claude V4
+
+**Yêu cầu:** tiếp tục phần dở, giữ migration/engine/DTO/deck/stream; hoàn tất backend theo kế hoạch 1.3 §23, sửa B0–B3 và Q1–Q8 của `V4_CLAUDE_REVIEW_BACKEND.md`, bổ sung tài liệu/test. Không frontend, không commit/push/đổi nhánh, không sửa `.env`, không mạng ngoài, không migrate database thật.
+
+**Thay đổi:** migration đăng ký trong upgrade; dịch vụ battle (engine, DTO, deck, rooms, storage, availability, matchmaking, stream, safety); router/server/cấu hình; battle_retry và Câu cần xem lại trong attempts/lessonMap/portfolio cùng DTO/validation liên quan; Caddy bỏ encode SSE; unit/integration/smoke; `docs/API.md`, `docs/thiet-ke/phan-bien/TRIEN_KHAI_BACKEND_CODEX.md`, handoff. B0 cô lập mọi lỗi khởi tạo, Đấu trả 503 nhưng app vẫn chạy trên schema cũ; tự luyện/hồ sơ tránh phụ thuộc cột battle chưa cài. B1/B2 dùng truy vấn chặn theo lô, không publish sảnh khi trả lời; B3 cache theo khối. Sửa trạng thái restart, badge ≥80%, gợi ý riêng 30 ngày, thông báo không có câu sai, tên trùng ổn định, lớp độc lập lobby, comment Việt. Chi tiết từng mục review và §23 nằm trong báo cáo.
+
+**Kiểm:** `npm test` 186/186 (matrixBalancer cũng đạt); security 27/27; integration toàn bộ 177/177 (171 cũ + 6 V6.9, bao gồm kiểm B0 trước khi migrate clone); trước đó V6.9 + V6.8 riêng 10/10; smoke 6/6 trên DB trắng dùng một lần; migration-safety additive=true; diff --check đạt. PostgreSQL chỉ ghi clone/DB smoke và dọn sau test. Đã rebuild chỉ mục CodeGraph local và repo-map. Không đổi frontend; không cần build.
+
+**Việc tiếp:** Claude review mã và hợp đồng DTO, giao frontend; kiểm Caddy adapt/validate trên máy có binary và đo tải §23.9 (300 học sinh/phòng 50/reconnect); sau khi được chủ dự án cho phép commit/push, phải có CI đúng commit xanh trước up main. Chưa deploy/bật cờ thật, chưa đo tải và chưa chạy Caddy thực tế. Không có commit/push trong phiên này.

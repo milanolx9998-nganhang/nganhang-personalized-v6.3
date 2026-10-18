@@ -9,7 +9,7 @@ import v643Routes from './v643.js';
 import {workspaceOverview} from '../services/practice/workspace.js';
 import v63Routes from './v63.js';
 import {classDashboard,scopedSubjects} from '../services/practice/analytics.js';
-import {answered,portfolioOverview,attemptHistory,attemptReview,portfolioMastery,portfolioAssignments,portfolioClasses} from '../services/practice/portfolio.js';
+import {answered,portfolioOverview,attemptHistory,attemptReview,portfolioMastery,portfolioAssignments,portfolioClasses,reviewQuestions} from '../services/practice/portfolio.js';
 import adminRoutes from './practiceAdmin.js';
 import {cached,cachedShared,cacheKey,invalidate,hashOf} from '../services/cache/cache.js';
 import {Router} from 'express';
@@ -22,7 +22,7 @@ import {auth} from '../middleware/auth.js';
 import {pool,tx} from '../db/pool.js';
 import {contentOptions,availability,createAttempt,getAttempt,saveResponse,submitAttempt,dashboard} from '../services/practice/attempts.js';
 import {assignmentAccess,staff,classAccess,studentAccess,bankAccess,subjectAccess} from '../services/practice/authorization.js';
-import {settings,defaults,fail,log,validateSettings} from '../services/practice/config.js';
+import {settings,defaults,fail,log,validateSettings,operationalFlags,notifySettingsChanged} from '../services/practice/config.js';
 import {studentAssignment} from '../services/practice/studentDto.js';
 import {attemptMedia} from '../services/practice/privateMedia.js';
 import {saveAssignment,listAssignments} from '../services/practice/assignments.js';
@@ -56,7 +56,8 @@ const temp=path.resolve(process.env.UPLOAD_DIR||'uploads','private-imports');fs.
 const upload=multer({storage:multer.diskStorage({destination:temp,filename:(_r,file,cb)=>cb(null,crypto.randomUUID()+path.extname(file.originalname).toLowerCase())}),limits:{fileSize:20*1024*1024,files:1},fileFilter:(_req,file,cb)=>cb(null,['.docx','.xlsx','.zip'].includes(path.extname(file.originalname).toLowerCase()))});
 r.get('/workspace',wrap(async(req,res)=>res.json(await workspaceOverview(req.user))));
 r.get('/settings',wrap(async(req,res)=>res.json(await settings())));
-r.put('/settings',wrap(async(req,res)=>{if(!await can(req.user,'system.config',{}))fail('Không có quyền cấu hình hệ thống',403);await tx(async c=>{validateSettings(await settings(c),req.body);for(const [key,value] of Object.entries(req.body)){if(!(key in defaults))fail('Cấu hình không hợp lệ: '+key);if(['personalized_recommendations','auto_personalized_practice','essay_ai_grading','leaderboard','canvas_lti'].includes(key)&&value!==false)fail('Tính năng ngoài V1 chưa được bật');if(typeof defaults[key]==='number'&&(!Number.isFinite(value)||value<0))fail('Giá trị cấu hình không hợp lệ');if(key==='mastery_decay_rate'&&(value<=0||value>1))fail('Hệ số Mastery phải trong (0,1]');await c.query('INSERT INTO system_settings(key,value,updated_by) VALUES($1,$2,$3) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value,updated_by=EXCLUDED.updated_by,updated_at=now()',[key,JSON.stringify(value),req.user.id]);}await log(c,req.user,'SETTINGS_UPDATE','settings',{keys:Object.keys(req.body)});});res.json({ok:true});}));
+r.get('/review-questions',wrap(async(req,res)=>res.json(await reviewQuestions(req.user))));
+r.put('/settings',wrap(async(req,res)=>{if(!await can(req.user,'system.config',{}))fail('Không có quyền cấu hình hệ thống',403);await tx(async c=>{validateSettings(await settings(c),req.body);for(const [key,value] of Object.entries(req.body)){if(!(key in defaults))fail('Cấu hình không hợp lệ: '+key);if(typeof defaults[key]==='boolean'&&!operationalFlags.includes(key)&&value!==false)fail('Tính năng ngoài V1 chưa được bật');if(typeof defaults[key]==='number'&&(!Number.isFinite(value)||value<0))fail('Giá trị cấu hình không hợp lệ');if(key==='mastery_decay_rate'&&(value<=0||value>1))fail('Hệ số Mastery phải trong (0,1]');await c.query('INSERT INTO system_settings(key,value,updated_by) VALUES($1,$2,$3) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value,updated_by=EXCLUDED.updated_by,updated_at=now()',[key,JSON.stringify(value),req.user.id]);}await log(c,req.user,'SETTINGS_UPDATE','settings',{keys:Object.keys(req.body)});});await notifySettingsChanged();res.json({ok:true});}));
 // PERF V6.6.7: catalog giống nhau với mọi người (~400 KB) → cache chung 10 phút theo thế hệ nội dung, giữ sẵn
 // dạng chuỗi JSON để gửi thẳng, không parse / tuần tự hóa lại mỗi request.
 // Môn người dùng được đọc nội dung — để ô "Môn" chỉ liệt kê môn dùng được. Học sinh / quản trị: null (mọi môn).
