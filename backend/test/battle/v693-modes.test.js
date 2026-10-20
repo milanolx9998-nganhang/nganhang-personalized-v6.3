@@ -25,7 +25,11 @@ test('V693: chỉ Quiz lớp nhận trục mới, cờ mặc định tắt, Rede
  assert.deepEqual(Object.fromEntries(Object.keys(modeDefaults).map(k=>[k,normalizeModes({kind:'duel'},{} )[k]])),modeDefaults);
  for(const change of [{pacing:'self'},{scoring:'speed'},{reveal_policy:'deferred'},{show_live_board:false}])assert.throws(()=>normalizeModes({kind:'class',...change},{}),{status:403,code:'BATTLE_FEATURE_OFF'});
  assert.throws(()=>normalizeModes({kind:'class',redemption:true},{}),{code:'BATTLE_REDEMPTION_UNSUPPORTED'});
- for(const change of [{time_limit:'total',total_minutes:3},{pacing:'self',time_limit:'total',total_minutes:4},{total_minutes:3}])assert.throws(()=>normalizeModes({kind:'class',...change},{battle_modes:flags}),{code:'BATTLE_MODE_INVALID'});
+ // Thi theo phút: số phút tùy chọn, nguyên 1–90
+ const on={battle_modes:{self_paced:true,speed_scoring:true}};
+ for(const m of [1,7,45,90])assert.equal(normalizeModes({kind:'class',pacing:'self',time_limit:'total',total_minutes:m},on).total_minutes,m);
+ for(const m of [0,91,2.5,null])assert.throws(()=>normalizeModes({kind:'class',pacing:'self',time_limit:'total',total_minutes:m},on),{status:400,code:'BATTLE_MODE_INVALID'});
+ for(const change of [{time_limit:'total',total_minutes:3},{pacing:'self',time_limit:'total',total_minutes:95},{total_minutes:3}])assert.throws(()=>normalizeModes({kind:'class',...change},{battle_modes:flags}),{code:'BATTLE_MODE_INVALID'});
 });
 test('V693: điểm liên tục, từng phần, loại câu; hòa speed dùng accuracy, lịch sử NULL giữ điểm',()=>{
  for(const ms of [0,1499,1500,20000,999999]){const a=answerPoints({scoring:'speed'},{seconds:20},.75,ms);assert.equal(a.base_points+a.speed_points,Math.round(.75*(600+Math.round(400*Math.max(0,1-ms/20000)))));}

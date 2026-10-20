@@ -11,7 +11,7 @@ export function normalizeModes(data,cfg){
  if(!['sync','self'].includes(r.pacing)||!['accuracy','speed'].includes(r.scoring)||!['per_question','total'].includes(r.time_limit)||!['instant','deferred'].includes(r.reveal_policy)||typeof r.show_live_board!=='boolean')modeError('BATTLE_MODE_INVALID','Cách chơi không hợp lệ');
  if((r.pacing==='self'||r.time_limit==='total'||r.reveal_policy==='deferred'||!r.show_live_board)&&!cfg?.battle_modes?.self_paced)modeError('BATTLE_FEATURE_OFF','Tự chơi / chính sách công bố đang tắt',403);
  if(r.scoring==='speed'&&!cfg?.battle_modes?.speed_scoring)modeError('BATTLE_FEATURE_OFF','Nhanh tay đang tắt',403);
- if(r.pacing==='self'&&!['duel','ffa','class'].includes(r.kind)||r.time_limit==='total'&&(r.pacing!=='self'||![3,5,10,15,20].includes(r.total_minutes))||r.time_limit==='per_question'&&r.total_minutes!==null)modeError('BATTLE_MODE_INVALID','Tổ hợp cách chơi / thời gian không hợp lệ');
+ if(r.pacing==='self'&&!['duel','ffa','class'].includes(r.kind)||r.time_limit==='total'&&(r.pacing!=='self'||!(Number.isInteger(r.total_minutes)&&r.total_minutes>=1&&r.total_minutes<=90))||r.time_limit==='per_question'&&r.total_minutes!==null)modeError('BATTLE_MODE_INVALID','Tổ hợp cách chơi / thời gian không hợp lệ');
  if(!rankEligible(r)){r.ranked=false;r.match_meta={...r.match_meta,rank_enabled:false,ranked:{}};}
  return r;
 }

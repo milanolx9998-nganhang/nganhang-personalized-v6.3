@@ -13,7 +13,7 @@ DO $$ BEGIN
   ALTER TABLE battle_rooms ADD CONSTRAINT battle_modes_combination CHECK (
    (kind='class' OR (pacing='sync' AND scoring='accuracy' AND time_limit='per_question' AND reveal_policy='instant' AND show_live_board)) AND
    ((time_limit='per_question' AND total_minutes IS NULL) OR
-    (time_limit='total' AND pacing='self' AND total_minutes IS NOT NULL AND total_minutes IN (3,5,10,15,20))));
+    (time_limit='total' AND pacing='self' AND total_minutes IS NOT NULL AND total_minutes BETWEEN 1 AND 90)));
  END IF;
 END $$;
 CREATE TABLE IF NOT EXISTS battle_player_progress (

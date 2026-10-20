@@ -1,6 +1,9 @@
 import React, { useEffect } from 'react';
 
+// Nút chọn nhanh; giáo viên nhập được số phút bất kỳ trong khoảng MIN–MAX
 const TOTAL_MINUTE_OPTIONS = [3, 5, 10, 15, 20];
+const MIN_MINUTES = 1;
+const MAX_MINUTES = 90;
 
 /**
  * Chuẩn hoá 6 trường cấu hình cách chơi theo đúng hợp đồng V6.9.3
@@ -21,7 +24,7 @@ export function normalizePlayModeConfig(raw = {}, flags = {}, kind = 'duel') {
     time_limit = raw.time_limit === 'total' ? 'total' : 'per_question';
     if (time_limit === 'total') {
       const m = Number(raw.total_minutes);
-      total_minutes = TOTAL_MINUTE_OPTIONS.includes(m) ? m : 10;
+      total_minutes = Number.isInteger(m) && m >= MIN_MINUTES && m <= MAX_MINUTES ? m : 10;
     } else {
       total_minutes = null;
     }
@@ -214,6 +217,27 @@ export default function PlayModePicker({
                   </button>
                 );
               })}
+              <label className="arena-row" style={{ gap: '6px' }}>
+                <span>Hoặc nhập</span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={MIN_MINUTES}
+                  max={MAX_MINUTES}
+                  step={1}
+                  className="arena-input arena-mono"
+                  style={{ width: '5.5rem' }}
+                  aria-label={`Số phút (${MIN_MINUTES}–${MAX_MINUTES})`}
+                  value={normalized.total_minutes ?? ''}
+                  onChange={(e) => {
+                    const n = parseInt(e.target.value, 10);
+                    if (Number.isInteger(n)) {
+                      emitChange({ total_minutes: Math.min(MAX_MINUTES, Math.max(MIN_MINUTES, n)) });
+                    }
+                  }}
+                />
+                <span>phút (1–90)</span>
+              </label>
             </div>
           </div>
         )}

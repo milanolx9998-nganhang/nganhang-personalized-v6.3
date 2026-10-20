@@ -158,7 +158,7 @@ Chi tiết ngữ nghĩa: STUDENT_PORTFOLIO.md.
 | `pacing` | `sync` (mặc định), `self` | self chỉ class; cần `battle_modes.self_paced` |
 | `scoring` | `accuracy` (mặc định), `speed` | speed cần `battle_modes.speed_scoring` |
 | `time_limit` | `per_question` (mặc định), `total` | total chỉ self |
-| `total_minutes` | null (mặc định), 3/5/10/15/20 | bắt buộc có số khi total; per_question phải null |
+| `total_minutes` | null (mặc định), số nguyên 1–90 (giao diện có nút nhanh 3/5/10/15/20) | bắt buộc có số khi total; per_question phải null |
 | `reveal_policy` | `instant` (mặc định), `deferred` | deferred cần self_paced; hoãn đúng/sai, điểm riêng, đáp án và lời giải đến kết thúc |
 | `show_live_board` | true (mặc định) | false loại bảng công khai khỏi JSON; cần self_paced khi chọn false |
 
