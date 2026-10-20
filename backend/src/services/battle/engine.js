@@ -1,3 +1,4 @@
+import {issuedFor,pointsOf} from './modes.js';
 import {normalizeQuestion} from '../practice/grading.js';
 // Luật thuần: thời gian và nguồn bốc thăm do bên gọi cung cấp.
 export const terminal = room => ['finished','interrupted','closed'].includes(room.status);
@@ -5,10 +6,11 @@ export const activePlayers = room => room.players.filter(p=>!p.left_at);
 export const answerKey = (index,userId) => `${index}:${userId}`;
 export function standings(room, through=room.asked_count) {
  const rows=room.players.filter(p=>!room.scope?.roster_ids||room.scope.roster_ids.includes(p.user_id)).map(p=>{
-  const answers=room.answers.filter(a=>a.user_id===p.user_id&&a.idx<through);
-  return {user_id:p.user_id,is_bot:Boolean(p.is_bot),name:p.display_name,class_name:p.class_name,team:p.team,points:answers.reduce((s,a)=>s+Number(a.score)*100,0),correct:answers.filter(a=>Number(a.score)===1).length,ms:answers.reduce((s,a)=>s+a.ms,0)};
+  const answers=room.answers.filter(a=>a.user_id===p.user_id&&a.idx<Math.min(through,issuedFor(room,p.user_id)));
+  return {user_id:p.user_id,is_bot:Boolean(p.is_bot),name:p.display_name,class_name:p.class_name,team:p.team,points:answers.reduce((s,a)=>s+pointsOf(a),0),accuracy_sum:answers.reduce((s,a)=>s+Number(a.score),0),fully_correct:answers.filter(a=>Number(a.score)===1).length,submitted:answers.filter(a=>!a.timed_out).length,issued:issuedFor(room,p.user_id),total:room.question_count??room.questions?.length??room.asked_count,base_points:answers.reduce((s,a)=>s+Number(a.base_points??Number(a.score)*100),0),speed_points:answers.reduce((s,a)=>s+Number(a.speed_points||0),0),fastest_points:answers.reduce((s,a)=>s+Number(a.fastest_points||0),0),correct:answers.filter(a=>Number(a.score)===1).length,ms:answers.reduce((s,a)=>s+a.ms,0)};
  });
- return rows.map(p=>({...p,rank:1+rows.filter(x=>x.points>p.points+1e-8).length})).sort((a,b)=>b.points-a.points);
+ const compare=(a,b)=>Math.abs(a.points-b.points)>1e-8?b.points-a.points:room.scoring==='speed'?b.accuracy_sum-a.accuracy_sum:0;
+ return rows.map(p=>({...p,rank:1+rows.filter(x=>compare(x,p)<0).length})).sort(compare);
 }
 export function teamStandings(room,through=room.asked_count){
  const rows=standings(room,through),teams=[1,2].map(team=>{const members=rows.filter(p=>p.team===team);return {team,points:members.length?members.reduce((s,p)=>s+p.points,0)/members.length:0};});

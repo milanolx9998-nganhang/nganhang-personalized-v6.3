@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Rich } from '../../practice/Rich.jsx';
 import { battleApi } from '../battleApi.js';
+import { SpeedPointsPop, FastestBadge } from './SpeedPoints.jsx';
 
 const MC_SHAPES = { A: '▲', B: '●', C: '■', D: '◆' };
 
@@ -444,10 +445,22 @@ export default function RevealPanel({
             </div>
           </div>
 
-          <div className="arena-verdict-banner__points arena-mono">
-            +{verdict.points} điểm
-          </div>
+          {snapshot.scoring === 'speed' && myAnswer?.base_points != null ? (
+            <SpeedPointsPop
+              base={Number(myAnswer.base_points) || 0}
+              speed={Number(myAnswer.speed_points) || 0}
+              fastest={Number(myAnswer.fastest_points) || 0}
+            />
+          ) : (
+            <div className="arena-verdict-banner__points arena-mono">
+              +{verdict.points} điểm
+            </div>
+          )}
         </section>
+      )}
+
+      {snapshot.scoring === 'speed' && snapshot.fastest?.names?.length > 0 && (
+        <FastestBadge names={snapshot.fastest.names} />
       )}
 
       {/* Đề bài & Chi tiết đáp án đúng */}

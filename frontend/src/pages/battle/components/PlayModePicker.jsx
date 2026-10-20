@@ -118,7 +118,9 @@ export default function PlayModePicker({
     }
   };
 
+  // Quiz lớp (kind class) không bao giờ tính hạng (plan 1.2)
   const isRankedEligibleCombo =
+    kind !== 'class' &&
     normalized.pacing === 'sync' &&
     normalized.scoring === 'accuracy' &&
     normalized.time_limit === 'per_question';
@@ -327,6 +329,8 @@ export default function PlayModePicker({
         <span className="arena-mode-picker__summary-text">
           {isRankedEligibleCombo
             ? 'Tổ hợp Cùng nhịp · Đúng là chính đủ điều kiện xét tính hạng (khi phạm vi từ cả Chương).'
+            : kind === 'class'
+            ? 'Quiz lớp không tính hạng — điểm chỉ dùng trong ván, không ảnh hưởng điểm thành thạo.'
             : 'Không tính hạng — chỉ ván Cùng nhịp · Đúng là chính mới tính hạng.'}
         </span>
       </div>

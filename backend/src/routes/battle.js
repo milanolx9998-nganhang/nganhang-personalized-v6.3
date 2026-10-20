@@ -1,3 +1,4 @@
+import {issuedFor,modeDefaults,normalizeModes} from '../services/battle/modes.js';
 import {Router} from 'express';
 import {z} from 'zod';
 import jwt from 'jsonwebtoken';
@@ -22,8 +23,8 @@ import {flexPatchSchema,rankSchema} from '../services/battle/settings.js';
 const r=Router(),wrap=fn=>async(req,res,next)=>{try{await fn(req,res);}catch(e){next(e);}};
 const uid=req=>String(req.user.id),idSchema=z.string().uuid(),empty=z.object({}).strict();
 const scopeSchema=z.object({subject_id:z.number().int().positive().nullable().optional(),branch_id:z.number().int().positive().nullable().optional(),topic_ids:z.array(z.number().int().positive()).min(1).max(100).nullable().optional(),chapter:z.string().max(200).optional()}).strict();
-const createSchema=z.object({kind:z.enum(['duel','team','ffa','class']),visibility:z.enum(['public','code']).default('code'),open_slots:z.boolean().default(false),ranked:z.boolean().default(false),class_id:z.number().int().positive().optional(),scope:scopeSchema.default({}),content_mode:z.enum(['fixed','vote']).default('fixed'),capacity:z.number().int().positive().optional(),question_count:z.union([z.literal(7),z.literal(10),z.literal(15)]).default(7),seconds:z.number().int().min(20).max(180).default(30)}).strict().superRefine((v,c)=>{const max={duel:2,team:8,ffa:20,class:50}[v.kind];if(v.capacity&&(v.capacity>max||v.capacity<(v.kind==='class'?1:2)||v.kind==='duel'&&v.capacity!==2))c.addIssue({code:'custom',message:'Sức chứa không hợp lệ'});if(v.kind==='class'?!v.class_id||!v.scope.subject_id||v.content_mode!=='fixed':v.class_id!=null||![20,30,45].includes(v.seconds))c.addIssue({code:'custom',message:'Cấu hình phòng không hợp lệ'});}).transform(v=>({...v,capacity:v.capacity||{duel:2,team:8,ffa:20,class:50}[v.kind]}));
-const actionSchemas={visibility:z.object({visibility:z.enum(['code','public']),open_slots:z.boolean().default(false)}).strict(),start:z.object({show_top3:z.boolean().optional()}).strict(),ready:z.object({ready:z.boolean(),ranked:z.boolean().optional()}).strict(),team:z.object({team:z.union([z.literal(1),z.literal(2)])}).strict(),vote:z.object({option_id:z.string().max(80),force:z.boolean().default(false)}).strict(),nominate:z.object({scope:scopeSchema}).strict(),answer:z.object({index:z.number().int().min(0).max(14),client_id:z.string().uuid(),response:z.unknown().optional(),skip:z.boolean().optional()}).strict().refine(v=>v.skip===true?v.response===undefined:v.response!==undefined,'Gửi đáp án hoặc bỏ qua'),emote:z.object({kind:z.enum(['hello','cheer','thanks','well_done'])}).strict()};
+const createSchema=z.object({pacing:z.enum(['sync','self']).optional(),scoring:z.enum(['accuracy','speed']).optional(),time_limit:z.enum(['per_question','total']).optional(),total_minutes:z.number().int().nullable().optional(),reveal_policy:z.enum(['instant','deferred']).optional(),show_live_board:z.boolean().optional(),redemption:z.boolean().optional(),kind:z.enum(['duel','team','ffa','class']),visibility:z.enum(['public','code']).default('code'),open_slots:z.boolean().default(false),ranked:z.boolean().default(false),class_id:z.number().int().positive().optional(),scope:scopeSchema.default({}),content_mode:z.enum(['fixed','vote']).default('fixed'),capacity:z.number().int().positive().optional(),question_count:z.union([z.literal(7),z.literal(10),z.literal(15)]).default(7),seconds:z.number().int().min(20).max(180).default(30)}).strict().superRefine((v,c)=>{const max={duel:2,team:8,ffa:20,class:50}[v.kind];if(v.capacity&&(v.capacity>max||v.capacity<(v.kind==='class'?1:2)||v.kind==='duel'&&v.capacity!==2))c.addIssue({code:'custom',message:'Sức chứa không hợp lệ'});if(v.kind==='class'?!v.class_id||!v.scope.subject_id||v.content_mode!=='fixed':v.class_id!=null||![20,30,45].includes(v.seconds))c.addIssue({code:'custom',message:'Cấu hình phòng không hợp lệ'});}).transform(v=>({...v,capacity:v.capacity||{duel:2,team:8,ffa:20,class:50}[v.kind]}));
+const actionSchemas={next:z.object({expected_cursor:z.number().int().min(0).max(14).optional()}).strict(),visibility:z.object({visibility:z.enum(['code','public']),open_slots:z.boolean().default(false)}).strict(),start:z.object({show_top3:z.boolean().optional()}).strict(),ready:z.object({ready:z.boolean(),ranked:z.boolean().optional()}).strict(),team:z.object({team:z.union([z.literal(1),z.literal(2)])}).strict(),vote:z.object({option_id:z.string().max(80),force:z.boolean().default(false)}).strict(),nominate:z.object({scope:scopeSchema}).strict(),answer:z.object({index:z.number().int().min(0).max(14),client_id:z.string().uuid(),response:z.unknown().optional(),skip:z.boolean().optional()}).strict().refine(v=>v.skip===true?v.response===undefined:v.response!==undefined,'Gửi đáp án hoặc bỏ qua'),emote:z.object({kind:z.enum(['hello','cheer','thanks','well_done'])}).strict()};
 export async function battleIdentity(user,classId=null,subjectId=null){
  if(user.role==='student'){
   const rows=(await pool.query(`SELECT c.id AS class_id,c.name AS class_name,c.grade FROM class_memberships m JOIN classes c ON c.id=m.class_id JOIN school_years y ON y.id=c.school_year_id
@@ -49,6 +50,7 @@ const student=req=>{if(req.user.role!=='student')fail('Trang dành cho học sin
 const admin=req=>{if(req.user.role!=='admin')fail('Chỉ quản trị xử lý an toàn',403);};
 const createLimit=limiter('battle-create',600000,async()=>Number((await settings()).battle_limits.create_rooms),uid),codeLimit=limiter('battle-code',60000,async()=>Number((await settings()).battle_limits.bad_codes),uid,true);
 r.use((req,res,next)=>{if(!battleAvailability.ready)return res.status(503).json({error:'Đấu chưa sẵn sàng',code:'BATTLE_UNAVAILABLE'});req.battleReceivedAt??=Date.now();next();});
+r.use((req,res,next)=>{try{if(req.user.role==='student'&&req.body&&Object.keys(req.body).some(k=>k in modeDefaults||k==='redemption'))normalizeModes({...req.body,kind:'duel'},battleRooms.getConfig());next();}catch(e){next(e);}});
 r.get('/me',wrap(async(req,res)=>{const cfg=await settings(),info=await battleIdentity(req.user);res.json({...info,battle_enabled:cfg.battle_enabled,battle_emergency_stop:cfg.battle_emergency_stop,battle_modes:cfg.battle_modes,current_room_id:battleRooms.studentRooms.get(req.user.id)||null,queue:matchmaking.status(req.user.id),suspension:await safety.suspension(req.user.id),reports:await safety.feedback(req.user)});}));
 r.get('/options',wrap(async(req,res)=>{
  const q=z.object({class_id:z.coerce.number().int().positive().optional(),subject_id:z.coerce.number().int().positive().optional(),count:z.coerce.number().int().refine(n=>[7,10,15].includes(n)).default(7)}).strict().parse(req.query);
@@ -64,10 +66,10 @@ r.get('/options',wrap(async(req,res)=>{
  if(!info.grade)fail('Giáo viên cần chọn lớp và môn');res.json(await contentOptions(info.grade,q.count,req.user.role==='student'?req.user.id:null,{subject_id:q.subject_id}));
 }));
 r.get('/lobby',wrap(async(req,res)=>{student(req);const cfg=await settings();if(!cfg.battle_modes.class)battleRooms.feature('lobby');res.json(await battleRooms.lobby(req.user));}));
-async function openStream(req,res,key,snapshot,allowed){
+async function openStream(req,res,key,snapshot,allowed,projector=false){
  if((await settings()).battle_emergency_stop)fail('Đấu đang dừng khẩn cấp',403);
  const token=cookies(req)[SESSION_COOKIE]||(req.headers.authorization||'').slice(7),claims=jwt.decode(token);
- await streams.open({req,res,key,user:req.user,snapshot,expiresAt:claims?.exp*1000,onDisconnect:key==='lobby'?undefined:()=>battleRooms.disconnected(req.user,key),authorized:async()=>{
+ await streams.open({req,res,key,projector,user:req.user,snapshot,expiresAt:claims?.exp*1000,onDisconnect:key==='lobby'?undefined:()=>battleRooms.disconnected(req.user,key),authorized:async()=>{
   if(claims?.exp&&Date.now()>=claims.exp*1000)return false;
   const row=(await pool.query('SELECT token_version FROM users WHERE id=$1 AND is_active=true AND NOT must_change_password',[req.user.id])).rows[0];
   return Boolean(row&&row.token_version===req.user.token_version&&!await safety.suspension(req.user.id)&&await allowed());
@@ -79,18 +81,25 @@ r.post('/rooms/join',codeLimit,wrap(async(req,res)=>{student(req);const {code}=z
 r.post('/rooms/:id/join',wrap(async(req,res)=>{student(req);const id=idSchema.parse(req.params.id),room=await battleRooms.get(id);if(room.kind!=='class')battleRooms.feature('lobby');if(room.visibility!=='public'&&!room.open_slots&&room.kind!=='class')fail('Phòng này cần mã',403);res.json(roomDto(await battleRooms.join(req.user,id),req.user,Date.now()));}));
 r.post('/rooms/:id/leave',wrap(async(req,res)=>{empty.parse(req.body);res.json(roomDto(await battleRooms.leave(req.user,idSchema.parse(req.params.id)),req.user,Date.now()));}));
 for(const action of ['visibility','ready','team','vote','nominate','start','next','pause','resume','end','answer','emote'])r.post('/rooms/:id/'+action,wrap(async(req,res)=>res.json(await battleRooms.command(req.user,idSchema.parse(req.params.id),action,(actionSchemas[action]||empty).parse(req.body),req.battleReceivedAt))));
+r.get('/rooms/:id',wrap(async(req,res)=>res.json(await battleRooms.snapshot(req.user,idSchema.parse(req.params.id)))));
 r.get('/rooms/:id/stream',wrap(async(req,res)=>{const id=idSchema.parse(req.params.id);await battleRooms.snapshot(req.user,id);await openStream(req,res,id,()=>battleRooms.snapshot(req.user,id),async()=>{try{const room=await battleRooms.get(id);battleRooms.access(room,req.user);return true;}catch{return false;}});}));
+for(const live of [false,true])r.get('/rooms/:id/projector'+(live?'/stream':''),wrap(async(req,res)=>{
+ const id=idSchema.parse(req.params.id),allowed=async()=>{const room=await battleRooms.get(id);return room.kind==='class'&&room.host_id===req.user.id&&req.user.role!=='student';};
+ if(!await allowed())fail('Projector access denied',403);
+ const snapshot=()=>battleRooms.snapshot(req.user,id,false,{projector:true});
+ if(live)await openStream(req,res,id,snapshot,allowed,true);else res.json(await snapshot());
+}));
 r.get('/rooms/:id/result',wrap(async(req,res)=>res.json(await battleRooms.snapshot(req.user,idSchema.parse(req.params.id),true))));
 r.get('/history',wrap(async(req,res)=>res.json(await battleRooms.history(req.user))));
 r.post('/rooms/:id/rematch',createLimit,wrap(async(req,res)=>{
  empty.parse(req.body);const old=await battleRooms.get(idSchema.parse(req.params.id));battleRooms.access(old,req.user,false);if(!terminal(old))fail('Ván chưa kết thúc',409);
  if(old.kind==='class'&&req.user.id!==old.host_id)fail('Chỉ giáo viên mở lại ván lớp',403);
- const data=createSchema.parse({kind:old.kind,visibility:old.visibility,...(old.class_id?{class_id:old.class_id}:{}),scope:{subject_id:old.scope.subject_id,branch_id:old.scope.branch_id,topic_ids:old.scope.topic_ids},content_mode:'fixed',capacity:old.capacity,question_count:old.question_count,seconds:old.seconds});
+ const data=createSchema.parse({...Object.fromEntries(Object.keys(modeDefaults).map(k=>[k,old[k]??modeDefaults[k]])),kind:old.kind,visibility:old.visibility,...(old.class_id?{class_id:old.class_id}:{}),scope:{subject_id:old.scope.subject_id,branch_id:old.scope.branch_id,topic_ids:old.scope.topic_ids},content_mode:'fixed',capacity:old.capacity,question_count:old.question_count,seconds:old.seconds});
  res.status(201).json(roomDto(await battleRooms.create(req.user,{...data,rematch_of:old.id}),req.user,Date.now()));
 }));
 r.post('/rooms/:id/retry-wrong',wrap(async(req,res)=>{
  student(req);empty.parse(req.body);const room=await battleRooms.get(idSchema.parse(req.params.id));battleRooms.access(room,req.user,false);if(!terminal(room))fail('Ván chưa kết thúc',409);
- const versions=room.questions.slice(0,room.asked_count).filter(q=>Number(room.answers.find(a=>a.idx===q.idx&&a.user_id===req.user.id)?.score||0)<1).map(q=>q.question_version_id);
+ const versions=room.questions.slice(0,issuedFor(room,req.user.id)).filter(q=>Number(room.answers.find(a=>a.idx===q.idx&&a.user_id===req.user.id)?.score||0)<1).map(q=>q.question_version_id);
  res.json(await createAttempt(req.user,{}, {battleRetry:{roomId:room.id,versionIds:versions}}));
 }));
 const lengthsSchema=z.union([z.literal('any'),z.array(z.union([z.literal(7),z.literal(10),z.literal(15)])).min(1).max(3)]);

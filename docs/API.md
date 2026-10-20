@@ -147,6 +147,46 @@ Chi tiết ngữ nghĩa: STUDENT_PORTFOLIO.md.
 
 ## Đấu V6.9 — `/api/battle`
 
+### V6.9.3 — hợp đồng các cách chơi (Phụ lục 1.2 thắng 1.1 khi mâu thuẫn)
+
+**Đấu trường / Quiz lớp:** mọi giá trị khác mặc định dưới đây chỉ được nhận ở `kind:'class'`. Phòng học sinh duel/ffa/team, ghép trận và rematch phòng học sinh gửi trục khác mặc định trả **400 `BATTLE_MODE_INVALID`**, kể cả khi cờ đang tắt. Quiz lớp không tính LP/MMR. Các cờ tiếp tục kiểm tra ở phòng lớp.
+
+`POST /rooms` giữ toàn bộ trường cũ, bổ sung:
+
+| Trường | Giá trị / mặc định | Điều kiện |
+|---|---|---|
+| `pacing` | `sync` (mặc định), `self` | self chỉ class; cần `battle_modes.self_paced` |
+| `scoring` | `accuracy` (mặc định), `speed` | speed cần `battle_modes.speed_scoring` |
+| `time_limit` | `per_question` (mặc định), `total` | total chỉ self |
+| `total_minutes` | null (mặc định), 3/5/10/15/20 | bắt buộc có số khi total; per_question phải null |
+| `reveal_policy` | `instant` (mặc định), `deferred` | deferred cần self_paced; hoãn đúng/sai, điểm riêng, đáp án và lời giải đến kết thúc |
+| `show_live_board` | true (mặc định) | false loại bảng công khai khỏi JSON; cần self_paced khi chọn false |
+
+Payload không gửi trường mới giữ luật V6.9.2. Phòng lớp gửi giá trị mới khi cờ tương ứng tắt trả 403 `BATTLE_FEATURE_OFF` (không âm thầm đổi về mặc định). `redemption:true` luôn bị từ chối 400 `BATTLE_REDEMPTION_UNSUPPORTED`. Rematch sao chép cả sáu trường. Các ván mới chụp `rules_version: "1.4"`. Điểm game không ghi mastery, không phải điểm đánh giá năng lực GDPT 2018.
+
+Mọi snapshot có các trục trên, `rules_version`, `rank_disabled_reason` (null hoặc `BATTLE_MODES_UNRANKED`), `server_now`, `version`. Rank chỉ có thể bật ở sync + accuracy + per_question, ngoài ra còn các điều kiện rank cũ. `version` tăng theo phòng; client bỏ snapshot cũ. Thời gian là milliseconds Unix theo máy chủ.
+
+**Cùng nhịp + Nhanh tay:** ở pha reveal và policy instant, snapshot có `fastest: {names:["Tên ngắn"], ms:1234}`; không có người đủ điều kiện thì names rỗng và ms null. `my_answer` bổ sung `base_points`, `speed_points`, `fastest_points` của câu vừa đóng. Policy deferred không công bố fastest hoặc các điểm này trong ván; xem khi kết thúc.
+
+**Phòng self:** pha phòng `lobby → countdown → question ↔ paused → finished/interrupted`; không có reveal chung. Snapshot riêng người chơi chứa:
+
+- `my_progress: {cursor, issued_count, phase, opened_at, deadline, paused_ms, progress_version, auto_next_at}`; phase là question/feedback/done; cursor bắt đầu 0. Trước phát câu đầu là null. `deadline` null với total, `auto_next_at` null với total/done. Tiến độ người khác không thay progress_version của mình.
+- `question: {index,total,type,stem,...}` chỉ câu hiện tại đã phát cho mình, theo whitelist DTO câu cũ. Không chứa đáp án trong phase question. `my_answer: {received}` hoặc `{received:true,response,skipped}`.
+- `feedback`: null khi chưa chốt; `{received:true,index}` khi deferred; instant bổ sung `score,base_points,speed_points,fastest_points,question` (question gồm answer/explanation). Đáp án chỉ được công bố sau commit. Instant phục vụ ôn tập, chấp nhận khả năng học sinh chia sẻ lời giải cho bạn chưa làm.
+- `play_started_at`, `ends_at`: hạn tổng bắt đầu sau commit phát câu đầu, không tính countdown. Pause dừng hạn tổng và thời gian tính thưởng. Client đếm bằng server_now và hạn máy chủ, không gửi thời gian làm bài tự khai.
+- `public_board: [{name,submitted,total,points?}]`: chỉ tên ngắn, số câu đã nộp/tổng, điểm đã được phép công bố; deferred không có points khi ván đang chạy. Không ID câu, không lưới đúng/sai, không nội dung tương lai. Không có trường này khi show_live_board=false. Bảng có `board_version`, `board_at`, đổi tối đa 1 lần/giây trong ván; ACK và cập nhật riêng tới ngay, có thể mang bản bảng cũ trong cùng snapshot.
+- Giáo viên chủ phòng lớp có thêm `teacher_progress: [{id,name,cursor,issued,phase,answers:[{index,score,skipped}]}]`, chỉ các lượt đã phát. Màn chiếu dùng `GET /rooms/:id/projector` hoặc `/projector/stream` (chỉ giáo viên chủ phòng), tuyệt đối không dùng snapshot riêng giáo viên: DTO màn chiếu không chứa teacher_progress, câu hỏi/đáp án cá nhân hoặc feedback.
+
+`GET /rooms/:id` trả snapshot HTTP cùng hợp đồng với SSE `/rooms/:id/stream`. Nộp vẫn dùng `POST /rooms/:id/answer {index,client_id,response}` hoặc `{index,client_id,skip:true}`. ACK giữ `{received:true,index,at}`; đọc snapshot/SSE để nhận feedback. Cùng client_id luôn trả biên nhận cũ, kể cả sau kết thúc/restart; khác client_id cho câu đã chốt trả 409 kèm biên nhận. Không ACK khi DB lỗi.
+
+`POST /rooms/:id/next {expected_cursor: 0}` bắt buộc với self. Chỉ nhận khi phase cá nhân feedback; stale cursor trả 409 `BATTLE_CURSOR_CONFLICT`, `details.my_progress` chứa tiến độ hiện tại. Hai tab không thể chuyển hai câu. Với sync vẫn nhận `{}` theo luật cũ. Self/per_question: hết hạn ghi câu bỏ trống, feedback 3 giây rồi tự next; bấm next được ngay. Self/total: không tự next, không đóng câu theo seconds, hết ends_at kết thúc cả phòng. Hạn tổng cứng: request nhận lúc `received_at >= ends_at` bị từ chối 409 `BATTLE_TOTAL_EXPIRED`, không grace. Request hợp lệ đứng trước lệnh đóng vẫn được commit dù DB hoàn tất sau hạn.
+
+**Kết quả/lịch sử:** `me` bổ sung `points,accuracy_sum,fully_correct,submitted,issued,total,base_points,speed_points,fastest_points`; total là tổng câu của ván, `participant_count` là số người; `correct` giữ alias fully_correct. `submitted` đếm đáp án do người chơi chốt/bỏ qua, không đếm timeout; issued đếm số câu đã phát. Độ đúng phải hiển thị cùng mẫu số, ví dụ accuracy_sum/submitted và issued/total, không chỉ phần trăm. `questions` và `review` chỉ có idx < issued_count của chính người xem (sync dùng asked_count); câu đã phát chưa nộp có score=0, response=null, submitted=false. Các trường điểm tách cũng có trong từng câu. Quy tắc này áp cả retry-wrong, createAttempt, portfolio, sau restart và người đã rời.
+
+Speed: bonus=round(400×clamp(1−ms/(seconds×1000),0,1)); tổng trước thưởng nhanh nhất=round(score×(600+bonus)); base_points=round(score×600), speed_points=tổng−base_points. Sync đóng câu hợp lệ mới quyết toán +100 cho mọi người đúng hoàn toàn có ms nhỏ nhất, cùng giao dịch chuyển reveal. Kết thúc giữa câu/interrupted không thưởng. Speed xếp points rồi accuracy_sum, hòa cả hai đồng hạng; accuracy giữ luật cũ. Cột điểm lịch sử null được đọc bằng score×100, không thay điểm cũ. `fast_response` là tín hiệu ms<1500 cho báo cáo, không giảm điểm.
+
+Lỗi bổ sung: 400 `BATTLE_MODE_INVALID` (tổ hợp/enum sai); 403 `BATTLE_FEATURE_OFF`; 409 `BATTLE_CURSOR_CONFLICT`, `BATTLE_TOTAL_EXPIRED`, `BATTLE_QUESTION_CLOSED`. Lỗi quyền, kill switch, giới hạn hàng lệnh, 503 lưu DB và biên nhận giữ hợp đồng cũ. Restart luôn interrupted, không phục hồi ván đang chơi. Triển khai cần ngừng nhận ván mới và đợi các ván hiện tại kết thúc trước restart.
+
 Theo kế hoạch 1.3, mục 23 ưu tiên. Tất cả route yêu cầu đăng nhập; cookie dùng CSRF như các API khác. JSON tối đa **16 KB**. Mã phòng không thay thế quyền thành viên. Học sinh phải có đúng một lớp còn hiệu lực trong năm học hiện tại; phòng học sinh cùng khối, phòng lớp đúng lớp. Giáo viên tạo phòng cần phân công đúng cặp lớp–môn, quản trị được phép tạo phòng lớp.
 
 Nếu thiếu migration hoặc khởi tạo Đấu thất bại, app và `/api/health` vẫn hoạt động. Toàn bộ router Đấu trả `503 {"error":"Đấu chưa sẵn sàng","code":"BATTLE_UNAVAILABLE"}`. Sau khi vận hành cài migration trên môi trường đã được duyệt, khởi động lại tiến trình để thử khởi tạo lại.

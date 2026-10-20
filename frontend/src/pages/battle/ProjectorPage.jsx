@@ -944,7 +944,7 @@ export default function ProjectorPage() {
                   </h2>
                 </div>
                 <span className="arena-chip arena-chip--amber">
-                  Đúng là chính
+                  {[snapshot?.pacing === 'self' ? (snapshot?.time_limit === 'total' ? `Thi theo phút · ${snapshot?.total_minutes} phút` : 'Tự chơi') : 'Cùng nhịp', snapshot?.scoring === 'speed' ? '⚡ Nhanh tay' : 'Đúng là chính'].join(' · ')}
                 </span>
               </div>
 

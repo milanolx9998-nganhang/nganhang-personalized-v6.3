@@ -69,10 +69,11 @@ export async function reviewQuestions(user){
   WHERE a.student_id=$1 AND a.status='completed' AND (i.skipped OR i.uncertain OR (i.grade_result->>'score')::numeric<1)
   ORDER BY a.completed_at DESC LIMIT 100`,[user.id])).rows;
  const hasBattle=(await pool.query("SELECT to_regclass('battle_rooms') IS NOT NULL AS present")).rows[0].present;
+ const hasProgress=hasBattle&&(await pool.query("SELECT to_regclass('battle_player_progress') IS NOT NULL AS present")).rows[0].present;
  const battle=hasBattle?(await pool.query(`SELECT r.id AS room_id,q.idx AS index,q.question_id,q.topic_id,'battle' AS source,'Ván đấu' AS source_label,r.ended_at AS at
   FROM battle_rooms r JOIN battle_players p ON p.room_id=r.id JOIN battle_questions q ON q.room_id=r.id
   LEFT JOIN battle_answers a ON a.room_id=r.id AND a.idx=q.idx AND a.user_id=p.user_id
-  WHERE p.user_id=$1 AND r.status IN('finished','interrupted') AND q.idx<r.asked_count AND COALESCE(a.score,0)<1
+  WHERE p.user_id=$1 AND r.status IN('finished','interrupted') AND q.idx<${hasProgress?"CASE WHEN r.pacing='self' THEN COALESCE((SELECT bp.issued_count FROM battle_player_progress bp WHERE bp.room_id=r.id AND bp.player_key=p.user_id::text),0) ELSE r.asked_count END":'r.asked_count'} AND COALESCE(a.score,0)<1
   ORDER BY r.ended_at DESC,q.idx LIMIT 100`,[user.id])).rows:[];
  return {items:[...practice,...battle].sort((a,b)=>new Date(b.at)-new Date(a.at)).slice(0,100)};
 }

@@ -1,3 +1,4 @@
+import {rankEligible} from './modes.js';
 import {pool} from '../../db/pool.js';
 import {rankConfig} from './settings.js';
 import {standings} from './engine.js';
@@ -26,6 +27,7 @@ export function createRatings(db=pool){
  }
  async function mmrs(userId,grade,cfg){const d=rankConfig(cfg),rows=(await db.query('SELECT s.subject_id,s.mmr,s.season FROM battle_subject_ratings s JOIN battle_ratings r USING(user_id,grade,season) WHERE s.user_id=$1 AND s.grade=$2 ORDER BY r.updated_at DESC',[userId,grade])).rows,out={};for(const r of rows){if(out[r.subject_id]===undefined||r.season===d.season)out[r.subject_id]=r.season===d.season?Number(r.mmr):d.base_mmr+(Number(r.mmr)-d.base_mmr)*d.reset_factor;}return out;}
  async function settle(c,room,cfg){
+  if(!rankEligible(room))return;
   const d=rankConfig(cfg),meta=room.match_meta;
   if(!meta?.rank_enabled||room.status!=='finished'||!['completed','left'].includes(room.end_reason)||room.asked_count<1||!room.auto_match&&!d.self_created)return;
   const rows=standings(room),humans=room.players.filter(p=>!p.is_bot).sort((a,b)=>a.user_id-b.user_id),subjects=meta.subject_ids||[room.scope.subject_id],scopeKey=JSON.stringify([subjects.slice().sort((a,b)=>a-b),(room.scope.topic_ids||[]).slice().sort((a,b)=>a-b)]);

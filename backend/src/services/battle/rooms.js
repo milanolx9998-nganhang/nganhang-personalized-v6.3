@@ -1,8 +1,10 @@
+import {createSelfPaced} from './selfPaced.js';
+import {normalizeModes,rankEligible,answerPoints,settleFastest,totalExpired,modeError} from './modes.js';
 import {randomUUID,randomInt} from 'node:crypto';
 import {fail} from '../practice/config.js';
 import {gradeQuestion} from '../practice/grading.js';
 import {activePlayers,startReasons,terminal,standings,timerCurrent,voteDecision} from './engine.js';
-import {roomDto,lobbyCard} from './dto.js';
+import {roomDto,lobbyCard,publicBoard,usesPrivateProgress} from './dto.js';
 import {flexConfig,rankConfig} from './settings.js';
 import {scopeWidth,inScope} from './flex.js';
 import {createBots} from './bots.js';
@@ -27,56 +29,77 @@ export function createStudentLocks(options={}){
  return {run:(ids,work)=>{const sorted=[...new Set(ids)].sort((a,b)=>a-b),end=Date.now()+(options.waitMs||5000);const take=i=>i===sorted.length?work():serial.run(sorted[i],()=>{if(Date.now()>end)fail('Hệ thống đang bận, thử lại',503);return take(i+1);},{timeoutMs:Math.max(0,end-Date.now())});return take(0);}};
 }
 export function createRooms({store,deck,safety,streams,identity,normalizeScope,options,bots=createBots(),goldenHours,ratings,learning,now=Date.now,setTimer=setTimeout,clearTimer=clearTimeout,random=()=>randomInt(0,1000000)/1000000,locks=createStudentLocks(),queue=createSerial()}={}){
- const rooms=new Map(),studentRooms=new Map(),timers=new Map(),botTimers=new Map(),lobbyIdentities=new Map();let config,matchmaking,housekeeping;
+ const rooms=new Map(),studentRooms=new Map(),timers=new Map(),lobbyIdentities=new Map();let config,matchmaking,housekeeping;
  const isHost=(r,u)=>r.host_id===u.id;
  function feature(name){if(!config?.battle_modes?.[name]){const e=new Error('Khả năng Đấu này đang tắt');e.status=403;e.code='BATTLE_FEATURE_OFF';throw e;}}
  function admission(){if(!config?.battle_enabled)fail('Đang ngừng nhận ván mới',403);if(config.battle_emergency_stop)fail('Đấu đang dừng khẩn cấp',403);}
  function access(r,u,live=true){const p=r.players.find(p=>p.user_id===u.id);if(r.kind==='class'&&isHost(r,u)&&u.role!=='student')return true;if(!p||live&&p.left_at)fail('Em không còn trong phòng này',403);return true;}
  async function get(id){return rooms.get(id)||await store.load(id);}
  const receipt=a=>({received:true,index:a.idx,at:a.received_at});
- function publish(r,immediate=false,lobbyChanged=false){r.version++;streams.publish(r.id,immediate);if(lobbyChanged)streams.publish('lobby');}
+ function publish(r,immediate=false,lobbyChanged=false,privateKeys){
+  r.version++;
+  if(usesPrivateProgress(r)&&r.phase!=='lobby'){
+   const refresh=()=>{const current=rooms.get(r.id);if(!current)return;current.public_board_snapshot=publicBoard(current);current.board_at=now();current.board_version=(current.board_version||0)+1;current.version++;};
+   const delay=Math.max(0,1000-(now()-(r.board_at??-Infinity)));
+   if(delay===0||terminal(r)){refresh();streams.publish(r.id,true);}
+   else {streams.publishBoard?.(r.id,delay,refresh);if(immediate)streams.publish(r.id,true);else for(const key of privateKeys||[])streams.publishPrivate?.(r.id,key);if(r.kind==='class')streams.publishPrivate?.(r.id,r.host_id);}
+  }else streams.publish(r.id,immediate);
+  if(lobbyChanged)streams.publish('lobby');
+ }
+ const self=createSelfPaced({now,commit,finish,bots,getConfig:()=>config,random});
  function schedule(r){
-  clearTimer(timers.get(r.id));timers.delete(r.id);for(const t of botTimers.get(r.id)||[])clearTimer(t);botTimers.delete(r.id);if(terminal(r))return;
-  if(r.phase==='question'){
-   const list=[];for(const p of activePlayers(r).filter(p=>p.is_bot)){
-    if(r.answers.some(a=>a.idx===r.index&&a.user_id===p.user_id))continue;const plan=r.bot_plans?.[p.user_id];if(!plan)continue;
-    const cmd={action:'bot_answer',index:r.index,schedule_version:r.schedule_version,user_id:p.user_id,response:plan.response};
-    const timer=setTimer(()=>{void internal(r.id,cmd).catch(()=>streams.closeAll('unavailable'));},Math.max(0,r.opened_at+plan.delay-now()));timer.unref?.();list.push(timer);
-   }botTimers.set(r.id,list);
+  clearTimer(timers.get(r.id));timers.delete(r.id);if(terminal(r)||r.phase==='paused')return;
+  const candidates=[];
+  if(r.pacing==='self'&&r.phase==='question'){const event=self.events(r)[0];if(event)candidates.push({at:event.at,action:'self_tick'});}
+  else if(r.phase==='question'){
+   candidates.push({at:r.close_at,action:'close'});
+   for(const p of activePlayers(r).filter(p=>p.is_bot)){
+    if(r.answers.some(a=>a.idx===r.index&&a.user_id===p.user_id))continue;
+    const plan=r.bot_plans?.[p.user_id];if(plan)candidates.push({at:r.opened_at+(r.paused_ms||0)+plan.delay,action:'bot_answer',user_id:p.user_id,response:plan.response});
+   }
   }
-  let at,action;
-  if(r.vote){at=r.vote.deadline;action='vote_timeout';}
-  else if(r.phase==='countdown'){at=r.countdown_at;action='open';}
-  else if(r.phase==='question'){at=r.close_at;action='close';}
-  else if(r.phase==='reveal'&&r.kind!=='class'){at=r.reveal_at+20000;action='advance';}
-  else if(r.phase==='lobby'){at=r.auto_start_at??r.activity_at+1800000;action=r.auto_start_at?'auto_start':'idle';}
-  if(at==null)return;
-  const command={action,index:r.index,schedule_version:r.schedule_version};
-  const timer=setTimer(()=>{timers.delete(r.id);void internal(r.id,command).catch(()=>{streams.closeAll('unavailable');});},Math.max(0,at-now()));timer.unref?.();timers.set(r.id,timer);
+  if(r.vote)candidates.push({at:r.vote.deadline,action:'vote_timeout'});
+  else if(r.phase==='countdown')candidates.push({at:r.countdown_at,action:'open'});
+  else if(r.phase==='reveal'&&r.kind!=='class')candidates.push({at:r.reveal_at+20000,action:'advance'});
+  else if(r.phase==='lobby')candidates.push({at:r.auto_start_at??r.activity_at+1800000,action:r.auto_start_at?'auto_start':'idle'});
+  const event=candidates.sort((a,b)=>a.at-b.at)[0];if(!event)return;
+  const command={...event,index:r.index,schedule_version:r.schedule_version};
+  const timer=setTimer(()=>{if(timers.get(r.id)!==timer)return;timers.delete(r.id);void internal(r.id,command).catch(()=>streams.closeAll('unavailable'));},Math.max(0,event.at-now()));timer.unref?.();timers.set(r.id,timer);
  }
  async function commit(old,next,flags={}){
+  old??=rooms.get(next.id);
   if(ratings&&config.battle_modes?.ranked&&(!old||old.players.length!==next.players.length||old.phase==='lobby'&&next.phase==='countdown'))next.public_badges=await ratings.publicBadges(next.players.filter(p=>!p.is_bot).map(p=>p.user_id),next.grade,config);
   if(next.phase==='lobby'){const eligible=(next.visibility==='public'||next.open_slots)&&next.kind!=='class'&&!startReasons(next,now()).length;
    const at=eligible?(next.auto_start_at??now()+flexConfig(config).public_start_ms):null;if(at!==next.auto_start_at){next.auto_start_at=at;next.schedule_version++;}}
-  await store.save(next,flags);rooms.set(next.id,next);if(!terminal(next))for(const p of activePlayers(next).filter(p=>!p.is_bot))studentRooms.set(p.user_id,next.id);schedule(next);publish(next,old?.phase!==next.phase,old?.phase==='lobby'||next.phase==='lobby');return next;
+  await store.save(next,flags);
+  if(flags.openKeys?.length||flags.openSync){
+   // Phát câu đã commit; đặt mốc thời gian sau commit đó, trước công bố.
+   const at=now();
+   if(next.play_started_at==null){next.play_started_at=at;if(next.time_limit==='total')next.ends_at=at+next.total_minutes*60000;}
+   for(const key of flags.openKeys||[]){const p=next.progress[key];p.opened_at=at;p.deadline=next.time_limit==='total'?null:at+next.questions[p.cursor].seconds*1000;}
+   if(flags.openSync){next.opened_at=at;next.deadline=at+next.questions[next.index].seconds*1000;next.close_at=next.deadline+500;}
+   await store.stampOpening?.(next,flags.openKeys||[]);
+  }
+  rooms.set(next.id,next);if(!terminal(next))for(const p of activePlayers(next).filter(p=>!p.is_bot))studentRooms.set(p.user_id,next.id);schedule(next);publish(next,old?.phase!==next.phase,old?.phase==='lobby'||next.phase==='lobby',flags.privateKeys);return next;
  }
- async function finish(r,reason,status='finished'){
+ async function finish(r,reason,status='finished',flags={}){
   r.status=status;r.phase=status;r.end_reason=reason;r.ended_at=now();r.schedule_version++;r.vote=null;
   const ranked=standings(r);for(const p of r.players){const s=ranked.find(s=>s.user_id===p.user_id);Object.assign(p,{points:s?.points||0,correct:s?.correct||0,rank:s?.rank||null});}
-  await commit(rooms.get(r.id),r);
+  await commit(rooms.get(r.id),r,{...flags,noPlayers:false});
   for(const p of r.players)if(studentRooms.get(p.user_id)===r.id)studentRooms.delete(p.user_id);
   safety.closed(r.id,now());
   const timer=setTimer(()=>{if(terminal(rooms.get(r.id)||{}))rooms.delete(r.id);},600000);timer.unref?.();
   return r;
  }
  async function advance(r){
+  if(r.pacing==='self')return self.open(r);
   if(r.asked_count>=r.questions.length)return finish(r,'completed');
   r.index=r.asked_count;r.asked_count++;r.phase='question';r.schedule_version++;r.opened_at=now();r.paused_ms=0;r.next_votes=[];
   r.deadline=now()+r.questions[r.index].seconds*1000;r.close_at=r.deadline+500;
   r.bot_plans={};for(const p of activePlayers(r).filter(p=>p.is_bot))r.bot_plans[p.user_id]=bots.plan(r,p,config,random);
-  return commit(rooms.get(r.id),r);
+  return commit(rooms.get(r.id),r,{openSync:true});
  }
- async function closeQuestion(r){if(r.phase!=='question')return r;r.phase='reveal';r.reveal_at=now();r.schedule_version++;r.next_votes=[];return commit(rooms.get(r.id),r);}
+ async function closeQuestion(r){if(r.phase!=='question'||r.pacing==='self')return r;settleFastest(r);r.phase='reveal';r.reveal_at=now();r.schedule_version++;r.next_votes=[];return commit(rooms.get(r.id),r,{settleIndex:r.scoring==='speed'?r.index:null});}
  async function voteRound(r,stage,choices){r.vote={stage,options:choices,voters:activePlayers(r).map(p=>p.user_id),ballots:{},deadline:now()+30000,extended:false};r.schedule_version++;}
  async function decideVote(r,force=false){
   const decision=voteDecision(r.vote,now(),random,force);
@@ -89,10 +112,11 @@ export function createRooms({store,deck,safety,streams,identity,normalizeScope,o
  }
  async function begin(r,data={}){
   admission();const reasons=startReasons(r,now());if(reasons.length)fail(reasons.join('; '),409);
-  if(!r.auto_match&&config.battle_modes?.ranked&&rankConfig(config).self_created&&['duel','ffa'].includes(r.kind)){
+  if(rankEligible(r)&&!r.auto_match&&config.battle_modes?.ranked&&rankConfig(config).self_created&&['duel','ffa'].includes(r.kind)){
    const d=rankConfig(config),{topics}=await learning.forStudent(r.host_id,r.grade),scope={...r.scope,topic_ids:topics.filter(t=>inScope(t,r.scope)).map(t=>t.id)},width=scopeWidth(scope,topics),eligible=width!=='lesson'&&!r.single_lesson&&activePlayers(r).length<=d.max_players&&d.ranked_lengths.includes(r.question_count);
    const ranked=Object.fromEntries(activePlayers(r).map(p=>[p.user_id,eligible&&Boolean(p.rank_requested)]));r.match_meta={rank_enabled:Object.values(ranked).some(Boolean),ranked,width,subject_ids:r.scope.subject_ids||[r.scope.subject_id],rank_rules:d};
   }
+  if(!rankEligible(r)){r.match_meta={...r.match_meta,rank_enabled:false,ranked:{}};for(const p of r.players)p.rank_requested=false;}
   r.questions=await deck.draw(r);r.scope.roster_ids=activePlayers(r).map(p=>p.user_id);r.scope.show_top3=r.kind==='class'&&Boolean(data.show_top3);r.show_top3=r.scope.show_top3;
   if(r.has_bots)await bots.prepare(r,config);
   r.phase='countdown';r.status='playing';r.started_at=now();r.countdown_at=now()+(r.auto_match?flexConfig(config).countdown_ms:3000);r.auto_start_at=null;r.schedule_version++;
@@ -100,10 +124,13 @@ export function createRooms({store,deck,safety,streams,identity,normalizeScope,o
  async function internal(id,command){return queue.run(id,async()=>{
   const original=rooms.get(id);if(!original||terminal(original)||!timerCurrent(original,command))return false;
   const r=structuredClone(original);
+  if(totalExpired(r,now()))return finish(r,'total_timeout');
+  if(command.action==='self_tick')return self.tick(r);
   if(command.action==='bot_answer'){
    const p=r.players.find(p=>p.is_bot&&p.user_id===command.user_id);if(!p||p.left_at||r.phase!=='question'||now()>r.close_at||r.answers.some(a=>a.idx===r.index&&a.user_id===p.user_id))return false;
    const a={room_id:id,idx:r.index,user_id:p.user_id,bot_slot:p.bot_slot,client_id:randomUUID(),response:command.response,score:gradeQuestion(r.questions[r.index],command.response).score,ms:Math.max(0,now()-r.opened_at-r.paused_ms),skipped:false,received_at:now(),schedule_version:r.schedule_version};
-   await store.botAnswer(a);original.answers.push(a);publish(original);
+   Object.assign(a,answerPoints(r,r.questions[r.index],a.score,a.ms));
+   await store.botAnswer(a);original.answers.push(a);schedule(original);publish(original);
    if(activePlayers(original).every(p=>original.answers.some(a=>a.idx===original.index&&a.user_id===p.user_id)))void internal(id,{action:'close',index:original.index,schedule_version:original.schedule_version});return true;
   }
   if(command.action==='auto_start'&&r.phase==='lobby'&&r.auto_start_at<=now()){if(startReasons(r,now()).length)return false;await begin(r);return commit(original,r,{questions:true});}
@@ -119,6 +146,7 @@ export function createRooms({store,deck,safety,streams,identity,normalizeScope,o
   r.players.push({user_id:user.id,display_name:short+(same?' '+(same+1):''),class_name:info.class_name,team:null,ready:false,joined_at:now(),left_at:null});
  }
  async function createCore(user,data,members=[user]){
+  data=normalizeModes(data,config);
   admission();feature(data.kind==='duel'&&data.auto_match?(data.bot_difficulty?'bot':'matchmaking'):({duel:'duel_code',team:'team',ffa:'ffa',class:'class'})[data.kind]);if(data.visibility==='public'||data.open_slots)feature('lobby');if(data.content_mode==='vote')feature('vote');
   if(data.ranked&&!data.auto_match){feature('ranked');if(!rankConfig(config).self_created||!['duel','ffa'].includes(data.kind))fail('Phòng tự tạo hiện không tính hạng',403);}
   if(rooms.size&&[...rooms.values()].filter(r=>!terminal(r)).length>=(config.battle_limits?.rooms||120))fail('Đã đạt giới hạn phòng',503);
@@ -127,7 +155,7 @@ export function createRooms({store,deck,safety,streams,identity,normalizeScope,o
   if(data.content_mode==='fixed'&&(!scope.subject_id&&!scope.subject_ids?.length||await deck.count(info.grade,scope)<data.question_count))fail('Phạm vi chưa đủ câu');
   for(const member of members){if(studentRooms.has(member.id))fail('Em đang trong một phòng khác',409);await safety.assertAvailable(member.id);}
   let code;do{code=String(randomInt(100000,1000000));}while([...rooms.values()].some(r=>!terminal(r)&&r.code===code));
-  const r={...data,id:randomUUID(),run_id:randomUUID(),version:0,schedule_version:0,code,host_id:user.id,grade:info.grade,class_id:data.kind==='class'?data.class_id:null,scope,status:'lobby',phase:'lobby',index:-1,asked_count:0,players:[],questions:[],answers:[],time_factors:{multiple_choice:1,true_false:1.5,short_answer:1.5,matching:1.5},created_at:now(),activity_at:now()};
+  const r={...data,rules_version:'1.4',progress:{},id:randomUUID(),run_id:randomUUID(),version:0,schedule_version:0,code,host_id:user.id,grade:info.grade,class_id:data.kind==='class'?data.class_id:null,scope,status:'lobby',phase:'lobby',index:-1,asked_count:0,players:[],questions:[],answers:[],time_factors:{multiple_choice:1,true_false:1.5,short_answer:1.5,matching:1.5},created_at:now(),activity_at:now()};
   try{
    if(data.kind!=='class')for(const member of members){const p=await player(member,r);if(await safety.blockedWith(member.id,r.players.map(p=>p.user_id)))fail('Không thể cùng phòng với người đã chặn',403);addPlayer(r,member,p);}
    r.single_lesson=data.scope?.topic_ids?.length===1&&!data.scope.chapter;if(data.ranked&&r.players[0])r.players[0].rank_requested=true;
@@ -154,7 +182,8 @@ export function createRooms({store,deck,safety,streams,identity,normalizeScope,o
   if(r.phase==='lobby'&&r.kind!=='class'&&isHost(r,user))r.host_id=activePlayers(r)[0]?.user_id||r.host_id;
   if(!activePlayers(r).filter(p=>!p.is_bot).length)await finish(r,reason,r.status==='lobby'?'closed':'finished');else await commit(original,r);
   matchmaking?.exclude(user.id,id);studentRooms.delete(user.id);streams.closeUser(user.id,reason,id);safety.record(id,'leave',user.id,{reason},now());
-  if(r.phase==='question'&&activePlayers(r).every(p=>r.answers.some(a=>a.idx===r.index&&a.user_id===p.user_id)))void internal(id,{action:'close',index:r.index,schedule_version:r.schedule_version});
+  if(r.pacing==='self'&&r.phase==='question'&&self.completed(r))await finish(r,'completed');
+  if(r.pacing!=='self'&&r.phase==='question'&&activePlayers(r).every(p=>r.answers.some(a=>a.idx===r.index&&a.user_id===p.user_id)))void internal(id,{action:'close',index:r.index,schedule_version:r.schedule_version});
   return r;
  });}
  async function command(user,id,action,data={},receivedAt=now()){return queue.run(id,async()=>{
@@ -164,19 +193,27 @@ export function createRooms({store,deck,safety,streams,identity,normalizeScope,o
    if(old){if(old.client_id===data.client_id)return receipt(old);fail('Câu này em đã chốt',409,{receipt:receipt(old)});}
    if(config.battle_emergency_stop)fail('Đấu đang dừng khẩn cấp',403);
    await safety.assertAvailable(user.id);const p=original.players.find(p=>p.user_id===user.id);
+   if(terminal(original))modeError('BATTLE_QUESTION_CLOSED','Ván đã kết thúc',409);
+   if(totalExpired(original,receivedAt)){await finish(structuredClone(original),'total_timeout');modeError('BATTLE_TOTAL_EXPIRED','Đã hết thời gian toàn ván',409);}
+   if(original.pacing==='self'){
+    if(!p||p.left_at)fail('Em không còn trong phòng',403);
+    const a=await self.submit(structuredClone(original),user.id,data,receivedAt);return receipt(a);
+   }
    if(!p||p.left_at||original.phase!=='question'||original.index!==data.index||receivedAt>original.close_at||receivedAt<original.opened_at)fail('Câu đã đóng hoặc đang tạm dừng',409);
    const graded=data.skip?{score:0}:gradeQuestion(original.questions[data.index],data.response);if(graded.score==null)fail('Câu không tự chấm được',409);
    const a={room_id:id,idx:data.index,user_id:user.id,client_id:data.client_id,response:data.skip?null:data.response,skipped:Boolean(data.skip),score:graded.score,received_at:receivedAt,ms:Math.max(0,receivedAt-original.opened_at-original.paused_ms)};
-   await store.answer(a);original.answers.push(a);publish(original);
+   Object.assign(a,answerPoints(original,original.questions[data.index],a.score,a.ms));
+   await store.answer(a);original.answers.push(a);publish(original,false,false,[user.id]);
    if(activePlayers(original).every(p=>original.answers.some(a=>a.idx===original.index&&a.user_id===p.user_id)))void internal(id,{action:'close',index:original.index,schedule_version:original.schedule_version});
    return receipt(a);
   }
+  if(!terminal(original)&&totalExpired(original,receivedAt)){await finish(structuredClone(original),'total_timeout');modeError('BATTLE_TOTAL_EXPIRED','Đã hết thời gian toàn ván',409);}
   if(terminal(original))fail('Ván đã kết thúc',409);if(config.battle_emergency_stop)fail('Đấu đang dừng khẩn cấp',403);await safety.assertAvailable(user.id);
   const r=structuredClone(original),p=r.players.find(p=>p.user_id===user.id),host=isHost(r,user);r.activity_at=now();
   if(['ready','team','vote','nominate','visibility'].includes(action)&&r.phase!=='lobby')fail('Chỉ dùng trong phòng chờ',409);
   if(['start','pause','resume','end'].includes(action)&&!host)fail('Chỉ chủ phòng được điều khiển',403);
   if(action==='visibility'){if(!host)fail('Chỉ chủ phòng đổi chế độ',403);if(r.auto_match||r.kind==='class')fail('Không đổi chế độ phòng này',409);if(data.visibility==='public'||data.open_slots)feature('lobby');r.visibility=data.visibility;r.open_slots=data.open_slots;r.schedule_version++;}
-  else if(action==='ready'){if(!p)fail('Chỉ người chơi sẵn sàng',403);if(data.ranked!==undefined){if(data.ranked){feature('ranked');if(!rankConfig(config).self_created||!['duel','ffa'].includes(r.kind))fail('Phòng tự tạo hiện không tính hạng',403);}p.rank_requested=data.ranked;}p.ready=data.ready;}
+  else if(action==='ready'){if(!p)fail('Chỉ người chơi sẵn sàng',403);if(data.ranked!==undefined){if(data.ranked){feature('ranked');if(!rankConfig(config).self_created||!['duel','ffa'].includes(r.kind))fail('Phòng tự tạo hiện không tính hạng',403);}p.rank_requested=rankEligible(r)&&data.ranked;}p.ready=data.ready;}
   else if(action==='team'){feature('team');if(r.kind!=='team'||!p)fail('Không phải phòng đội',409);p.team=data.team;p.ready=false;}
   else if(action==='nominate'){
    feature('vote');if(!p)fail('Chỉ người chơi đề cử',403);
@@ -190,6 +227,15 @@ export function createRooms({store,deck,safety,streams,identity,normalizeScope,o
   else if(action==='start'){
    await begin(r,data);
    await commit(original,r,{questions:true});return roomDto(r,user,now());
+  }
+  else if(action==='pause'&&r.pacing==='self'){
+   if(r.kind!=='class'||r.phase!=='question')fail('Chỉ giáo viên tạm dừng ván đang chơi',409);self.pause(r);
+  }
+  else if(action==='resume'&&r.pacing==='self'){
+   if(r.kind!=='class'||r.phase!=='paused')fail('Phòng không tạm dừng',409);self.resume(r);await commit(original,r,{progressKeys:Object.keys(r.progress),noPlayers:true});return roomDto(r,user,now());
+  }
+  else if(action==='next'&&r.pacing==='self'){
+   if(!p)fail('Chỉ người chơi chuyển câu của mình',403);await self.next(r,user.id,data.expected_cursor);return roomDto(rooms.get(id),user,now());
   }
   else if(action==='pause'){
    if(r.kind!=='class'||r.phase!=='question'||now()>=r.deadline)fail('Chỉ tạm dừng câu đang mở trước hạn',409);
@@ -211,7 +257,7 @@ export function createRooms({store,deck,safety,streams,identity,normalizeScope,o
   await commit(original,r);if(action==='emote'||action==='team')safety.record(id,action,user.id,action==='team'?{team:data.team}:{kind:data.kind},now());
   return roomDto(r,user,now());
  });}
- async function snapshot(user,id,result=false){const r=await get(id);access(r,user,!result);if(result&&!terminal(r))fail('Ván chưa kết thúc',409);return roomDto(r,user,now());}
+ async function snapshot(user,id,result=false,dtoOptions={}){const r=await get(id);access(r,user,!result);if(result&&!terminal(r))fail('Ván chưa kết thúc',409);return roomDto(r,user,now(),dtoOptions);}
  async function lobby(user){
   let cached=lobbyIdentities.get(user.id);if(!cached||now()-cached.at>=60000){cached={at:now(),info:await identity(user)};if(lobbyIdentities.size>=2400)lobbyIdentities.delete(lobbyIdentities.keys().next().value);lobbyIdentities.set(user.id,cached);}
   const info=cached.info,blocked=new Set(await safety.blockedIds(user.id)),items=[];
@@ -231,7 +277,7 @@ export function createRooms({store,deck,safety,streams,identity,normalizeScope,o
   leave:(user,id,reason)=>locks.run([user.id],()=>leaveUnlocked(user,id,reason)),leaveUnlocked,
   suspend:userId=>locks.run([userId],async()=>{matchmaking?.removeUnlocked(userId);const id=studentRooms.get(userId);if(id)await leaveUnlocked({id:userId,role:'student'},id,'suspended');streams.closeUser(userId,'suspended');}),
   start:async cfg=>{await store.recover();await configure(cfg);periodic();},
-  dispose:()=>{goldenHours?.dispose();clearTimer(housekeeping);for(const t of timers.values())clearTimer(t);timers.clear();for(const list of botTimers.values())for(const t of list)clearTimer(t);botTimers.clear();matchmaking?.clear();},
+  dispose:()=>{goldenHours?.dispose();clearTimer(housekeeping);for(const t of timers.values())clearTimer(t);timers.clear();matchmaking?.clear();},
   history:async user=>Promise.all((await store.history(user)).map(id=>snapshot(user,id,true))),
  };
 }

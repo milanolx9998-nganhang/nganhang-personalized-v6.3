@@ -120,7 +120,7 @@ export default function ResultView({ snapshot, roomId }) {
       return <span className="arena-chip">— Chưa chốt (0 điểm)</span>;
     }
     const sc = typeof q.score === 'number' ? q.score : 0;
-    const pts = Math.round(sc * 100);
+    const pts = typeof q.points === 'number' ? Math.round(q.points) : Math.round(sc * 100);
     if (sc >= 1) {
       return <span className="arena-chip arena-chip--live">✓ Đúng (+{pts} điểm)</span>;
     }

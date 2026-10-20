@@ -22,5 +22,5 @@ export function createBots(db=pool){return {
   ) SELECT question_id,count(*)::int AS n,avg(score)::float8 AS rate FROM samples GROUP BY question_id`,[ids,room.grade])).rows;
   room.bot_stats=Object.fromEntries(rows.map(s=>[s.question_id,s]));
  },
- plan(room,bot,cfg,random=Math.random){const q=room.questions[room.index],p=botProbability(q,room.bot_stats?.[q.question_id],bot.difficulty,cfg);return {response:botResponse(q,p,random),delay:botDelay(q.seconds,cfg,random)};}
+ plan(room,bot,cfg,random=Math.random){const q=room.questions[room.pacing==='self'?room.progress[bot.user_id].cursor:room.index],p=botProbability(q,room.bot_stats?.[q.question_id],bot.difficulty,cfg);return {response:botResponse(q,p,random),delay:botDelay(q.seconds,cfg,random)};}
 };}

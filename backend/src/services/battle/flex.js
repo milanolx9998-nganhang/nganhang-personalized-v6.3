@@ -1,3 +1,4 @@
+import {rankEligible,defaultAxes} from './modes.js';
 import {pool} from '../../db/pool.js';
 import {flexConfig} from './settings.js';
 
@@ -49,6 +50,7 @@ export function scopeWidth(scope,topics){
  return 'chapter';
 }
 export function roomFits(e,r,now,cfg){
+ if(!rankEligible(r)||!defaultAxes(r))return false;
  if(cfg?.battle_modes?.lobby===false&&!r.auto_match)return false;
  if(r.phase!=='lobby'||r.vote||r.content_mode!=='fixed'||r.grade!==e.grade||!(r.visibility==='public'||r.open_slots||r.auto_match)||r.players.filter(p=>!p.left_at).length>=r.capacity||!e.current.kinds.includes(r.kind)||!e.current.lengths.includes(r.question_count)||r.seconds!==flexConfig(cfg).seconds)return false;
  const ids=e.topics.filter(t=>inScope(t,r.scope)).map(t=>t.id);
