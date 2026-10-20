@@ -210,3 +210,10 @@ Codex viết dở backend ghép trận linh hoạt + máy + giờ vàng + rank +
 **Còn mở:** Đấu trên web thật **vẫn đang bật** — chờ anh Hiếu bảo tắt. Codex hết hạn mức 2 lần; 18:55 hẹn Codex tự rà phần còn thiếu (S1 ghi tiến độ theo hàng, S2, đo tải 40×15). Chưa deploy V6.9.3. Câu hỏi chờ anh Hiếu: thang Nhanh tay 600+400/+100, mốc phút 3/5/10/15/20.
 
 **Việc tiếp:** Codex rà (18:55) → Claude review/commit → anh Hiếu duyệt → "up main" ngoài giờ học (migration v693 cần ngừng nhận ván mới và chờ ván đang chơi kết thúc trước khi deploy).
+
+## 2026-10-20 chiều — Tắt Đấu trên web thật; Thi theo phút nhận số phút tùy chọn
+
+**Yêu cầu:** anh Hiếu: "tắt" Đấu trên web thật; thang Nhanh tay ok; "phút tùy chọn được không".
+**Thay đổi:** web thật `battle_enabled=false` (qua trang quản trị, máy chủ xác nhận). `66ebbf7`: `total_minutes` số nguyên 1–90 (modes.js, CHECK trong migration v693 — chưa deploy nên sửa tại chỗ), PlayModePicker thêm ô nhập phút cạnh nút nhanh, API.md, unit test.
+**Kiểm:** unit 214/214; integration v693 7/7; Playwright: nhập 7 phút → phòng "Thi theo phút · 7 phút". DB thử đã đổi ràng buộc tương ứng.
+**Việc tiếp:** 18:55 Codex tự rà V6.9.3; sau đó anh Hiếu duyệt → "up main" ngoài giờ học.
