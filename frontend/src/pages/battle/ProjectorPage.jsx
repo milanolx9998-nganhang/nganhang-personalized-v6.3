@@ -9,6 +9,7 @@ import ConnectionBanner from './components/ConnectionBanner.jsx';
 import CountdownOverlay from './components/CountdownOverlay.jsx';
 import ScopeLabel from './components/ScopeLabel.jsx';
 import { QuestionSolutionDetail } from './components/RevealPanel.jsx';
+import ProjectorSelfPaced from './components/ProjectorSelfPaced.jsx';
 
 const MC_SHAPES = { A: '▲', B: '●', C: '■', D: '◆' };
 const MC_COLOR_CLASSES = {
@@ -195,6 +196,15 @@ export default function ProjectorPage() {
   );
 
   const snapshot = streamSnapshot || fallbackResult;
+
+  // Phòng Tự chơi: màn chiếu đọc luồng riêng /projector/stream (không có tiến độ chi tiết từng học sinh)
+  const selfLive =
+    streamSnapshot?.pacing === 'self' &&
+    ['countdown', 'question', 'paused'].includes(streamSnapshot?.phase);
+  const { snapshot: projectorSnapshot, offsetMs: projectorOffsetMs } = useBattleStream(
+    roomId ? `/api/battle/rooms/${encodeURIComponent(roomId)}/projector/stream` : null,
+    { enabled: Boolean(selfLive) }
+  );
 
   // Nếu ván đã kết thúc và luồng đóng, nạp kết quả từ GET /rooms/:id/result
   useEffect(() => {
@@ -729,6 +739,25 @@ export default function ProjectorPage() {
 
     return null;
   };
+
+  if (selfLive && projectorSnapshot) {
+    return (
+      <div className="arena-proj-page">
+        <ConnectionBanner status={streamStatus} stopReason={stopReason} />
+        {errorMsg && <div className="arena-alert arena-alert--error" role="alert">{errorMsg}</div>}
+        <ProjectorSelfPaced
+          projector={projectorSnapshot}
+          offsetMs={projectorOffsetMs}
+          busy={busyAction}
+          onPause={handlePause}
+          onResume={handleResume}
+          onEnd={() => {
+            if (window.confirm('Kết thúc ván cho cả lớp ngay bây giờ?')) handleConfirmEndRoom();
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="arena-proj-page">

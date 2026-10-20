@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Rich } from '../../practice/Rich.jsx';
 import { battleApi } from '../battleApi.js';
 import { QuestionSolutionDetail } from './RevealPanel.jsx';
+import { ResultScoreSummary } from './SpeedPoints.jsx';
 
 const END_REASON_TEXT = {
   host_ended: 'Chủ phòng hoặc thầy cô đã kết thúc sớm ván đấu.',
@@ -207,6 +208,10 @@ export default function ResultView({ snapshot, roomId }) {
         <div className="arena-alert arena-alert--error" role="alert">
           <span>{actionError}</span>
         </div>
+      )}
+
+      {me && (snapshot.scoring === 'speed' || snapshot.pacing === 'self') && (
+        <ResultScoreSummary me={me} scoring={snapshot.scoring} />
       )}
 
       {/* (1) KHỐI 1: CÂU EM CẦN XEM LẠI + NÚT CHÍNH LUYỆN LẠI CÁC CÂU VỪA SAI */}

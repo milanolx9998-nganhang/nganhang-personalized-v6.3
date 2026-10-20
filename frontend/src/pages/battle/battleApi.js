@@ -360,3 +360,22 @@ export const battleApiFlex = {
     return api.get('/api/practice/classes');
   },
 };
+
+export const battleApiModes = {
+  // 1. Chuyển sang câu tiếp theo ở chế độ Tự chơi (bắt buộc gửi expected_cursor)
+  nextSelf(roomId, expectedCursor) {
+    return api.post(`${BASE}/rooms/${encodeURIComponent(roomId)}/next`, {
+      expected_cursor: Number(expectedCursor),
+    });
+  },
+
+  // 2. Lấy snapshot HTTP hiện tại của phòng (cùng hợp đồng với SSE /rooms/:id/stream)
+  getRoom(roomId) {
+    return api.get(`${BASE}/rooms/${encodeURIComponent(roomId)}`);
+  },
+
+  // 3. Lấy dữ liệu màn chiếu 16:9 riêng cho giáo viên chủ phòng lớp (không lộ câu hỏi/đáp án cá nhân)
+  getProjector(roomId) {
+    return api.get(`${BASE}/rooms/${encodeURIComponent(roomId)}/projector`);
+  },
+};

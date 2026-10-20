@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth.js';
 import { battleApi, battleApiFlex, formatRoomCode } from './battleApi.js';
 import { useBattleStream } from './useBattleStream.js';
@@ -9,6 +9,7 @@ import ScopeLabel from './components/ScopeLabel.jsx';
 import CreateRoomSheet from './components/CreateRoomSheet.jsx';
 import FindMatchSheet from './components/FindMatchSheet.jsx';
 import MatchWaiting from './components/MatchWaiting.jsx';
+import PlayModePicker from './components/PlayModePicker.jsx';
 
 import '../../styles/arena.css';
 
@@ -46,6 +47,11 @@ export default function ArenaLobby() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isStaff = user?.role === 'teacher' || user?.role === 'admin';
+  const location = useLocation();
+  // Plan 1.2: giáo viên dùng "Quiz lớp" (/practice/quiz); tab Đấu là Đấu trường của học sinh
+  useEffect(() => {
+    if (isStaff && location.pathname === '/practice/battle') navigate('/practice/quiz', { replace: true });
+  }, [isStaff, location.pathname, navigate]);
 
   // Trạng thái chung từ /api/battle/me
   const [meData, setMeData] = useState(null);
@@ -90,6 +96,14 @@ export default function ArenaLobby() {
   const [tTopicIds, setTTopicIds] = useState([]);
   const [tQuestionCount, setTQuestionCount] = useState(10);
   const [tSeconds, setTSeconds] = useState(30);
+  const [tPlayMode, setTPlayMode] = useState({
+    pacing: 'sync',
+    scoring: 'accuracy',
+    time_limit: 'per_question',
+    total_minutes: null,
+    reveal_policy: 'instant',
+    show_live_board: true,
+  });
   const [teacherOptions, setTeacherOptions] = useState(null);
   const [loadingTeacherOptions, setLoadingTeacherOptions] = useState(false);
   const [busyCreateClassRoom, setBusyCreateClassRoom] = useState(false);
@@ -141,6 +155,8 @@ export default function ArenaLobby() {
         rawModes.leaderboard ?? meData?.leaderboard_enabled ?? false
       ),
       bot: Boolean(rawModes.bot ?? meData?.bot_enabled ?? true),
+      self_paced: Boolean(rawModes.self_paced ?? false),
+      speed_scoring: Boolean(rawModes.speed_scoring ?? false),
     };
   }, [meData]);
 
@@ -485,6 +501,18 @@ export default function ArenaLobby() {
         seconds: clampedSeconds,
         content_mode: 'fixed',
         visibility: 'code',
+        // Chỉ gửi trục khác mặc định (payload cũ giữ luật V6.9.2)
+        ...(tPlayMode.pacing !== 'sync' ? { pacing: tPlayMode.pacing } : {}),
+        ...(tPlayMode.scoring !== 'accuracy' ? { scoring: tPlayMode.scoring } : {}),
+        ...(tPlayMode.time_limit !== 'per_question'
+          ? { time_limit: tPlayMode.time_limit, total_minutes: tPlayMode.total_minutes }
+          : {}),
+        ...(tPlayMode.pacing === 'self' && tPlayMode.reveal_policy !== 'instant'
+          ? { reveal_policy: tPlayMode.reveal_policy }
+          : {}),
+        ...(tPlayMode.pacing === 'self' && tPlayMode.show_live_board === false
+          ? { show_live_board: false }
+          : {}),
       });
       if (created?.id) {
         navigate(
@@ -539,10 +567,10 @@ export default function ArenaLobby() {
               <div>
                 <span className="arena-chip arena-chip--amber">DÀNH CHO GIÁO VIÊN</span>
                 <h1 className="arena-title-lg" style={{ marginTop: '6px' }}>
-                  Đấu Trường Lớp Học · Mở phòng trực tiếp
+                  Quiz lớp · Mở phòng trực tiếp
                 </h1>
                 <p className="arena-subtitle">
-                  Xin chào {user?.full_name || 'Thầy/Cô'}. Mở phòng chiếu 16:9 để cả lớp cùng thi đua kiến thức.
+                  Xin chào {user?.full_name || 'Thầy/Cô'}. Mở quiz cho cả lớp: cùng nhịp, tự chơi hoặc thi theo phút, chiếu lên màn hình 16:9.
                 </p>
               </div>
 
@@ -823,6 +851,19 @@ export default function ArenaLobby() {
                   </div>
                 </div>
               </div>
+
+              {(flags.self_paced || flags.speed_scoring) && (
+                <div style={{ marginTop: '20px' }}>
+                  <div className="arena-field-label">7. Cách chơi &amp; tính điểm</div>
+                  <PlayModePicker
+                    value={tPlayMode}
+                    onChange={setTPlayMode}
+                    flags={flags}
+                    kind="class"
+                    isTeacher
+                  />
+                </div>
+              )}
 
               <div style={{ marginTop: '20px' }}>
                 <button

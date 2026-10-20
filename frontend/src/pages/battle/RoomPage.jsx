@@ -19,6 +19,7 @@ import EmoteBar from './components/EmoteBar.jsx';
 import RevealPanel from './components/RevealPanel.jsx';
 import ResultView from './components/ResultView.jsx';
 import ScopeLabel from './components/ScopeLabel.jsx';
+import SelfPacedPlay from './components/SelfPacedPlay.jsx';
 
 const SUBMIT_RETRY_DELAYS_MS = [1000, 2000, 4000, 4000, 4000];
 
@@ -611,6 +612,23 @@ export default function RoomPage() {
             </div>
           )}
           <ResultView snapshot={snapshot} userId={user?.id} roomId={roomId} />
+        </div>
+      </div>
+    );
+  }
+
+  // ===== TỰ CHƠI (pacing self): mỗi học sinh một nhịp, không có reveal chung =====
+  if (snapshot?.pacing === 'self' && (phase === 'question' || phase === 'paused')) {
+    return (
+      <div className="arena-page">
+        <ConnectionBanner status={streamStatus} stopReason={stopReason} />
+        <div className="arena-container">
+          <SelfPacedPlay
+            snapshot={snapshot}
+            roomId={roomId}
+            offsetMs={offsetMs}
+            onError={(msg) => setErrorMsg(msg)}
+          />
         </div>
       </div>
     );

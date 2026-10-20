@@ -1,6 +1,6 @@
 import {hasAnyCapability} from '../hooks/useAuth.js';
 export const staffGroups=[
- {id:'learning',label:'Học sinh & Học tập',description:'Theo dõi lớp và hành trình học tập trong phạm vi được giao.',children:[{to:'/practice',label:'Tiến độ lớp',end:true,capabilities:['learning.read']},{to:'/practice/battle',label:'Đấu cả lớp',capabilities:['learning.read']},{to:'/practice/students',label:'Học sinh & hồ sơ',capabilities:['student.read']}]},
+ {id:'learning',label:'Học sinh & Học tập',description:'Theo dõi lớp và hành trình học tập trong phạm vi được giao.',children:[{to:'/practice',label:'Tiến độ lớp',end:true,capabilities:['learning.read']},{to:'/practice/quiz',label:'Quiz lớp',capabilities:['learning.read']},{to:'/practice/students',label:'Học sinh & hồ sơ',capabilities:['student.read']}]},
  // Một lối vào chính: giáo viên nghĩ "ngân hàng câu hỏi", không nghĩ theo từng màn hình rời rạc.
  // Các route sâu vẫn dùng được và vẫn nằm trong nhóm này để ai quen đường cũ không bị mất lối.
  // V6.6.7.4: chương trình (Chủ đề/Outcome, YCCĐ, Bài) của mọi môn nạp / sửa / công bố ở MỘT trang "Chương trình môn học".

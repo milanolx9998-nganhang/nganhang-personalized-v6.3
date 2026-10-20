@@ -68,6 +68,7 @@ export default function App() {
           <Route path="practice/new" element={<PracticeBuilder/>}/>
           <Route path="practice/attempts/:id" element={<Player/>}/>
           <Route path="practice/battle" element={<ArenaLobby/>}/>
+          <Route path="practice/quiz" element={<ArenaLobby/>}/>
           <Route path="practice/battle/rooms/:id" element={<BattleRoom/>}/>
           <Route path="practice/assignments" element={<Assignments/>}/>
           <Route path="practice/shared/:token" element={<SharedAssignment/>}/>
