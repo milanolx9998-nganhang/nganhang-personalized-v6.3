@@ -198,3 +198,15 @@ Codex viết dở backend ghép trận linh hoạt + máy + giờ vàng + rank +
 **Còn mở:** ô "Mã môn" của Giờ vàng trong AdminBattle là số thô (nên đổi thành chọn môn); chưa có test trình duyệt cố định; thứ tự trang kết quả (ôn câu sai trước bục vinh danh) giữ theo kế hoạch "Đúng là chính".
 
 **Việc tiếp:** anh Hiếu duyệt ảnh; viết test trình duyệt cố định từ `backend/scripts/_tmp-battle-ui.mjs`; dọn server/DB thử khi xong; merge `main` chỉ khi anh Hiếu bảo "up".
+
+## 2026-10-20 — V6.9.2 lên web thật; sửa lớp học sinh; V6.9.3 "Quiz lớp" (Tự chơi, Thi theo phút, Nhanh tay)
+
+**Yêu cầu:** "up main" và thử trên studylab.io.vn; sau đó: chế độ giống Quizizz (tự chơi / giáo viên điều khiển), điểm nhanh tay, thi theo phút; tách "Đấu trường" (giống Bufopia) và "Quiz lớp" (giống Quizizz); giao Codex + Gemini (Argon).
+
+**Thay đổi:** `main` = `68a64ff` rồi `8da8b84` (deploy CI thành công). `8da8b84` sửa nhận diện lớp học sinh khi năm học nhập từ danh sách không có ngày (web thật chặn `hs_demo1`). Plan `docs/thiet-ke/CHE_DO_CHOI_V693.md` 1.0 → phản biện Codex (`phan-bien/V693_CODEX_PHAN_BIEN.md`, B1–B8) → Phụ lục 1.1 → Phụ lục 1.2 (tách Đấu trường/Quiz lớp, anh Hiếu chốt). `08195b8` UI Gemini lượt 5 (PlayModePicker, SelfPacedPlay, ProjectorSelfPaced, SpeedPoints) + nối: menu giáo viên "Quiz lớp" `/practice/quiz` (giáo viên vào `/practice/battle` tự chuyển). `4b8e461` backend Codex (migration v693, modes/selfPaced/modeStorage, chặn rank 4 nơi, trục mới chỉ cho `kind:class`, cờ `self_paced`/`speed_scoring` mặc định tắt) + sửa UI (điểm từng câu, nhãn chế độ, Quiz lớp không ghi "tính hạng").
+
+**Kiểm:** unit 214/214; security 27/27; integration v693 7/7; integration toàn bộ 194/198 — 3 bài trình duyệt hỏng do build lại frontend giữa lúc chạy (chạy lại pilot+v63: 84/84) + V6661 tải (cũ). Trình duyệt (server thử 3196, DB clone đã nâng v693): giáo viên mở Thi theo phút 5 phút + Nhanh tay, 2 học sinh (1 mobile 390 px, tràn 0) tự chơi 7 câu, màn chiếu bảng trực tiếp, kết thúc, kết quả 6842 điểm = 4200 + 2642. Trên web thật: Đấu đã bật (class, duel_code, lobby, matchmaking, bot) để anh Hiếu thử, màn chiếu và luồng SSE qua Cloudflare chạy.
+
+**Còn mở:** Đấu trên web thật **vẫn đang bật** — chờ anh Hiếu bảo tắt. Codex hết hạn mức 2 lần; 18:55 hẹn Codex tự rà phần còn thiếu (S1 ghi tiến độ theo hàng, S2, đo tải 40×15). Chưa deploy V6.9.3. Câu hỏi chờ anh Hiếu: thang Nhanh tay 600+400/+100, mốc phút 3/5/10/15/20.
+
+**Việc tiếp:** Codex rà (18:55) → Claude review/commit → anh Hiếu duyệt → "up main" ngoài giờ học (migration v693 cần ngừng nhận ván mới và chờ ván đang chơi kết thúc trước khi deploy).

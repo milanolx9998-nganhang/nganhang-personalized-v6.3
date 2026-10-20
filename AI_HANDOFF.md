@@ -2,13 +2,13 @@
 
 ## Handoff snapshot
 - Status: in_progress
-- Last completed: V6.9 "Đấu" — backend đủ (ghép linh hoạt, máy, giờ vàng, rank, kiểu phòng), UI Gemini 1–4c đã nối route; chạy thử trình duyệt mọi luồng chính và sửa lỗi tích hợp (`7ee43ea`, `8754b72`); luật rank khi bỏ trận theo anh Hiếu 19/10.
-- In progress: chờ anh Hiếu duyệt ảnh giao diện.
-- Exact next action: viết test trình duyệt cố định (`backend/test/integration/v69-battle-ui.test.js`) từ kịch bản tạm `backend/scripts/_tmp-battle-ui.mjs`; đổi ô "Mã môn" Giờ vàng trong AdminBattle sang chọn môn.
-- Blockers / decisions needed: merge `main`/deploy chỉ khi anh Hiếu bảo "up" (ngoài giờ học).
-- Latest verification: unit 203/203, security 27/27, integration 189/190 (V6661 tải, lỗi cũ khi chạy song song), build OK, Playwright trên server thử 3196.
-- Last safe commit: 8754b72 (nhánh `feat-v69-battle`)
-- Working tree notes: chưa commit và không commit — `backend/scripts/_tmp-battle-{sandbox,prep,ui}.mjs` (kịch bản thử), `.claude/`; DB clone `nganhang_battle_ui_tmp` còn giữ để thử tiếp (xoá khi xong).
+- Last completed: V6.9.2 đã lên web thật (`main` = `8da8b84`, deploy CI thành công). V6.9.3 "Quiz lớp" (Tự chơi, Thi theo phút, Nhanh tay; tách khỏi Đấu trường theo plan 1.2) đã commit `4b8e461` trên `feat-v69-battle`, chưa deploy.
+- In progress: 18:55 20/10 Codex tự rà V6.9.3 so với Phụ lục 1.1/1.2 (phiên `01a156fe-0b03-7492-b58e-2db099f6666f`).
+- Exact next action: review kết quả rà của Codex, chạy test, commit; anh Hiếu duyệt; "up main" ngoài giờ học (tắt nhận ván mới trước khi deploy vì migration v693 + restart → ván đang chơi thành interrupted).
+- Blockers / decisions needed: Đấu trên web thật ĐANG BẬT (class, duel_code, lobby, matchmaking, bot) để thử — tắt khi anh Hiếu bảo. Chờ anh Hiếu: thang Nhanh tay 600+400/+100, mốc phút 3/5/10/15/20. Cờ `self_paced`/`speed_scoring` mặc định tắt.
+- Latest verification: unit 214/214, security 27/27, integration v693 7/7, pilot+v63 84/84 (toàn bộ 194/198 do build giữa lúc chạy + V6661 cũ), Playwright luồng Quiz lớp trên server thử 3196.
+- Last safe commit: 4b8e461 (nhánh `feat-v69-battle`, đã push); `main` = 8da8b84.
+- Working tree notes: không commit — `backend/scripts/_tmp-battle-{sandbox,prep,ui}.mjs`, `.claude/`; DB clone `nganhang_battle_ui_tmp` (đã nâng v693) giữ để thử tiếp, server thử 3196 đang chạy nền trong phiên.
 
 ## Bàn giao mới nhất — 18/10/2026: backend Đấu V6.9
 
