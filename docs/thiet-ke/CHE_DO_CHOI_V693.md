@@ -152,3 +152,23 @@ Phản biện: `docs/thiet-ke/phan-bien/V693_CODEX_PHAN_BIEN.md` (B1–B8, S1–
 9. **Hẹn giờ và ghi DB (S1, S2):** một timer gameplay cho mỗi phòng, hẹn tới sự kiện gần nhất (hạn câu từng người, auto-next, bot, hạn tổng); callback chỉ đẩy lệnh vào hàng phòng, đọc lại trạng thái và phiên bản rồi đặt lịch mới. Lưu tiến độ theo hàng người thay đổi (không upsert cả lớp mỗi lượt); timeout đồng loạt ghi theo lô. Bảng công khai phát tối đa 1 lần/giây, tách khỏi phản hồi riêng (ACK, câu tiếp trả ngay qua HTTP và SSE riêng người). Bot dùng câu theo con trỏ của bot; hẹn giờ bot theo thời gian hoạt động còn lại (sửa luôn lỗi pause ở `sync`).
 10. **Nghiệm thu bổ sung (S6):** đủ các ca tranh chấp Codex liệt kê (hai tab, mất ACK, A nhanh/B chậm kiểm toàn bộ JSON, rank không ghi với tổ hợp khác, kill switch, hồi quy payload cũ + lịch sử cũ), cộng tải 40×15 và giữ ngưỡng §23.9 cũ.
 11. **Thứ tự (S7):** (1) schema + hợp đồng DTO/API viết vào `docs/API.md` trước khi code giao diện → (2) `self + accuracy + per_question` đủ reconnect/restart/lịch sử/Luyện lại → (3) thời gian tổng, pause, bot lệch nhịp → (4) Nhanh tay + quyết toán nhanh nhất + chặn rank → (5) màn chiếu/bảng giáo viên. Có cờ `battle_modes.self_paced` và `battle_modes.speed_scoring` (mặc định tắt). Ước lượng 17–26 ngày công.
+
+---
+
+## Phụ lục 1.2 — Tách "Đấu trường" và "Quiz lớp" (anh Hiếu chốt 20/10/2026)
+
+Anh Hiếu đồng ý tách ở tầng sản phẩm, dùng chung lõi. Phụ lục này thắng Phụ lục 1.1 khi mâu thuẫn.
+
+| | **Đấu trường** (giống Bufopia) | **Quiz lớp** (giống Quizizz/Wayground) |
+|---|---|---|
+| Ai mở | Học sinh | Giáo viên/quản trị (phòng `kind:"class"`) |
+| Vào | Tìm đối thủ, phòng mã, sảnh, đấu máy | Mã phòng (ô "Có mã phòng?" dùng chung), màn chiếu |
+| Trục cho phép | Chỉ `sync + accuracy + per_question` | Mọi tổ hợp hợp lệ ở Phụ lục 1.1 |
+| Hạng (LP) | Có (luật cũ) | Không |
+| Giao diện riêng | Bảng hạng, huy hiệu | Màn chiếu, bảng trực tiếp, tiến độ lớp |
+
+Quyết định:
+1. **Backend:** `pacing:self`, `scoring:speed`, `time_limit:total`, `reveal_policy:deferred`, `show_live_board:false` chỉ nhận ở `kind:"class"`; phòng học sinh (`duel/ffa/team`), ghép trận, rematch phòng học sinh gửi trục khác mặc định → 400 `BATTLE_MODE_INVALID`. (Thay quy tắc "self cho duel/ffa/class" ở 1.1.) "Thách bạn" kiểu Challenge Friends cho học sinh: đợt sau, đi vào Quiz lớp, không vào Đấu trường.
+2. **Giao diện:** menu giáo viên thêm mục **"Quiz lớp"** (route `/practice/quiz`), chuyển form mở phòng lớp hiện ở tab Đấu sang đây, kèm `PlayModePicker`. Tab "Đấu" của học sinh giữ như V6.9.2 (không có bảng chọn cách chơi). Học sinh vào phòng Quiz lớp bằng mã ở tab Đấu (hoặc thẻ phòng lớp được ghim); phòng `pacing:self` hiển thị bằng `SelfPacedPlay`.
+3. Tên hiển thị tạm: "Đấu trường" / "Quiz lớp" — anh Hiếu có thể đổi.
+4. Hàng đợi việc sau Quiz lớp: câu chuộc lỗi, báo cáo theo câu cho giáo viên, giao về nhà, Thách bạn, phòng cho người ngoài.
