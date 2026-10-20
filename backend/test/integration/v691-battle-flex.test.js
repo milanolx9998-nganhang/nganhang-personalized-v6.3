@@ -155,6 +155,12 @@ test('V691: giờ vàng CRUD đúng quyền khối/môn, banner và lịch nới
  assert.equal(expect(await req('GET','/battle/lobby',undefined,students[0])).golden_hours.length,0);
  expect(await req('GET','/battle/leaderboard',undefined,students[0]),403);const rank=expect(await req('GET','/battle/rank',undefined,students[0]));assert.ok(rank.rating.hidden);assert.equal(rank.mmr,undefined);expect(await req('PATCH','/battle/rank',{hidden:false},students[0]),409);
 });
+test('V69: năm học nhập từ danh sách chưa có ngày vẫn nhận lớp của học sinh',async()=>{
+ const y=(await db.query('SELECT y.* FROM school_years y JOIN classes c ON c.school_year_id=y.id WHERE c.id=$1',[classId])).rows[0];
+ await db.query('UPDATE school_years SET start_date=NULL,end_date=NULL WHERE id=$1',[y.id]);
+ try{assert.ok(expect(await req('GET','/battle/options',undefined,students[0])).subjects.length);}
+ finally{await db.query('UPDATE school_years SET start_date=$2,end_date=$3 WHERE id=$1',[y.id,y.start_date,y.end_date]);}
+});
 test('V692: giới hạn LP bền vững, chuỗi thắng, khiên mạng, trần máy/ngày, mùa reset mềm',async()=>{
  const {createRatings}=await import('../../src/services/battle/ratings.js'),{rankDefaults}=await import('../../src/services/battle/settings.js'),service=createRatings(db);
  const season='test-'+Date.now(),rules={...rankDefaults,season,placement_bonus:0,mmr_k:0},cfg={battle_rank:rules};

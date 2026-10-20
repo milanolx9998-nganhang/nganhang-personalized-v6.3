@@ -28,8 +28,10 @@ export async function battleIdentity(user,classId=null,subjectId=null){
  if(user.role==='student'){
   const rows=(await pool.query(`SELECT c.id AS class_id,c.name AS class_name,c.grade FROM class_memberships m JOIN classes c ON c.id=m.class_id JOIN school_years y ON y.id=c.school_year_id
    WHERE m.student_id=$1 AND m.ended_at IS NULL AND m.valid_from<=CURRENT_DATE AND (m.valid_to IS NULL OR m.valid_to>=CURRENT_DATE)
-   AND (CURRENT_DATE BETWEEN y.start_date AND y.end_date OR y.active AND y.start_date IS NULL AND y.end_date IS NULL)`,[user.id])).rows;
-  if(rows.length!==1)fail('Cần đúng một lớp đang học trong năm hiện tại; hãy liên hệ giáo viên',403);return rows[0];
+   AND (y.start_date IS NULL OR y.start_date<=CURRENT_DATE) AND (y.end_date IS NULL OR y.end_date>=CURRENT_DATE)
+   ORDER BY m.valid_from DESC,m.id DESC LIMIT 1`,[user.id])).rows;
+  // Năm học nhập từ danh sách có thể chưa có ngày: ngày trống không chặn (như access/policy.js); nhiều lớp thì lấy lớp mới nhất như bản đồ bài học.
+  if(!rows.length)fail('Em chưa có lớp đang học trong năm hiện tại; hãy liên hệ giáo viên',403);return rows[0];
  }
  if(!classId)return {staff:true};
  const row=(await pool.query('SELECT id AS class_id,name AS class_name,grade FROM classes WHERE id=$1',[classId])).rows[0];if(!row)fail('Không tìm thấy lớp',404);
