@@ -225,3 +225,11 @@ Codex viết dở backend ghép trận linh hoạt + máy + giờ vàng + rank +
 **Kiểm:** unit 217/217; integration v69 + v691/v692 + v693 28/28. Tải cục bộ: 600/600 đáp án, 0 trùng; ACK p50 409 ms, p95 592 ms, p99 660 ms — **chưa đạt cổng §23.9 (p95 ≤ 300 ms)** khi 40 em chốt cùng một lúc.
 **Còn mở (theo báo cáo Codex):** tối ưu hàng lệnh phòng/ghi metadata để đạt cổng tải; lỗi giữa hai giao dịch mở câu chưa có cơ chế hội tụ; timer gặp lỗi DB đóng SSE thay vì thử lại; bot chưa hỗ trợ Thi theo phút; một số ca S6 chưa kiểm đầu cuối; chưa đo 300 HS qua Caddy. Codex hết hạn mức 3 lần trong 2 ngày.
 **Việc tiếp:** anh Hiếu quyết: deploy V6.9.3 (cờ mới tắt, thử 1 lớp) hay tối ưu tải trước.
+
+## 2026-10-21 chiều — Tối ưu tải V6.9.3 và deploy
+
+**Yêu cầu:** anh Hiếu chọn "B": tối ưu tốc độ trước, "tối ưu xong push"; hỏi Supabase tự host có nhanh hơn bản free không.
+**Thay đổi:** `d734a67` — `accessResolver.listEffectiveCapabilities` trả thẳng mọi quyền false cho học sinh/tài khoản khóa (trước đó duyệt mọi quyền × mọi ngữ cảnh mỗi request; test `access-v65` kiểm giả định); Đấu Tự chơi lưu gọn, `BEGIN; SET LOCAL` một lượt, bỏ tra biên nhận DB thừa (chỉ khi 23505), tra tạm khóa song song, sao chép nông thay structuredClone. Ghi chú vào `phan-bien/V693_CODEX_RA_SOAT_2026-10-21.md`.
+**Kiểm:** unit 218/218, security 27/27, integration 198/199 (V6661 cũ); tải 40×15: ACK p95 592 → ~230 ms (đạt ≤ 300), next p95 ~252 ms. Deploy `main` = `d734a67`, run 39563273633 Verify + Deploy thành công, health ok.
+**Còn mở:** chưa đọc lại cấu hình Đấu trên web thật sau deploy (phiên admin trong trình duyệt hết hạn); cờ `self_paced`/`speed_scoring` mặc định tắt; Đấu đã tắt từ 20/10. Chưa đo 300 HS qua Caddy; cân nhắc `DB_POOL_IDLE_MS`.
+**Việc tiếp:** anh Hiếu đăng nhập admin → bật Đấu + cờ Quiz lớp khi muốn thử với một lớp.

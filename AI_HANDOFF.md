@@ -1,13 +1,13 @@
 # AI HANDOFF
 
 ## Handoff snapshot
-- Status: in_progress
-- Last completed: V6.9.2 đã lên web thật (`main` = `8da8b84`, deploy CI thành công). V6.9.3 "Quiz lớp" (Tự chơi, Thi theo phút, Nhanh tay; tách khỏi Đấu trường theo plan 1.2) đã commit `4b8e461` trên `feat-v69-battle`, chưa deploy.
-- In progress: không — Codex đã rà xong V6.9.3 (báo cáo `docs/thiet-ke/phan-bien/V693_CODEX_RA_SOAT_2026-10-21.md`).
-- Exact next action: chờ anh Hiếu chọn: (a) deploy V6.9.3 ngoài giờ học, cờ `self_paced`/`speed_scoring` tắt, bật thử cho 1 lớp; hoặc (b) tối ưu tải trước (ACK p95 592 ms khi 40 em chốt cùng lúc, cổng §23.9 là 300 ms).
-- Blockers / decisions needed: không. Đấu trên web thật đã TẮT (20/10, theo anh Hiếu). Anh Hiếu duyệt thang Nhanh tay 600+400/+100; Thi theo phút nhận số phút tùy chọn 1–90 (`66ebbf7`). Cờ `self_paced`/`speed_scoring` mặc định tắt.
-- Latest verification: unit 217/217; integration v69 + v691/v692 + v693 28/28; tải cục bộ 40×15: 600/600 đáp án, 0 trùng, ACK p95 592 ms (chưa đạt cổng).
-- Last safe commit: 7c571bd (nhánh `feat-v69-battle`, đã push); `main` = 8da8b84.
+- Status: completed
+- Last completed: V6.9.3 "Quiz lớp" + tối ưu tải đã deploy (`main` = `d734a67`, run 39563273633 thành công, 21/10 14:39).
+- In progress: không.
+- Exact next action: khi anh Hiếu muốn thử: đăng nhập admin → /admin/battle → bật Đấu, cờ `class`, `self_paced`, `speed_scoring` → giáo viên mở "Quiz lớp" (/practice/quiz) cho một lớp; theo dõi rồi mới mở rộng.
+- Blockers / decisions needed: không. Đấu trên web thật đang tắt (từ 20/10). Cờ Quiz lớp mặc định tắt.
+- Latest verification: unit 218/218, security 27/27, integration 198/199 (V6661 cũ), tải 40×15 ACK p95 ~230 ms; deploy CI thành công, health ok.
+- Last safe commit: d734a67 (`main` và `feat-v69-battle`).
 - Working tree notes: không commit — `backend/scripts/_tmp-battle-{sandbox,prep,ui}.mjs`, `.claude/`; DB clone `nganhang_battle_ui_tmp` (đã nâng v693) giữ để thử tiếp, server thử 3196 đang chạy nền trong phiên.
 
 ## Bàn giao mới nhất — 18/10/2026: backend Đấu V6.9
