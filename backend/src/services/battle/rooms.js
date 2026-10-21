@@ -71,6 +71,9 @@ export function createRooms({store,deck,safety,streams,identity,normalizeScope,o
   const command={...event,index:r.index,schedule_version:r.schedule_version};
   const timer=setTimer(()=>{if(timers.get(r.id)!==timer)return;timers.delete(r.id);void internal(r.id,command).catch(()=>streams.closeAll('unavailable'));},Math.max(0,event.at-now()));timer.unref?.();timers.set(r.id,timer);
  }
+ // Tự chơi: chốt/chuyển câu chỉ đổi tiến độ một người và thêm đáp án; sao chép nông phần đó thay vì nhân bản cả phòng
+ // (players sao chép từng phần tử vì finish() ghi điểm vào từng người).
+ const selfCopy=(o,key)=>({...o,progress:{...o.progress,...(o.progress?.[key]?{[key]:{...o.progress[key]}}:{})},answers:[...o.answers],bot_plans:o.bot_plans&&{...o.bot_plans},players:o.players.map(p=>({...p}))});
  async function commit(old,next,flags={}){
   old??=rooms.get(next.id);
   if(ratings&&config.battle_modes?.ranked&&(!old||old.players.length!==next.players.length||old.phase==='lobby'&&next.phase==='countdown'))next.public_badges=await ratings.publicBadges(next.players.filter(p=>!p.is_bot).map(p=>p.user_id),next.grade,config);
@@ -79,11 +82,12 @@ export function createRooms({store,deck,safety,streams,identity,normalizeScope,o
   await store.save(next,flags);
   if(flags.openKeys?.length||flags.openSync){
    // Phát câu đã commit; đặt mốc thời gian sau commit đó, trước công bố.
-   const at=now();
+   const at=now(),firstOpen=next.play_started_at==null;
    if(next.play_started_at==null){next.play_started_at=at;if(next.time_limit==='total')next.ends_at=at+next.total_minutes*60000;}
    for(const key of flags.openKeys||[]){const p=next.progress[key];p.opened_at=at;p.deadline=next.time_limit==='total'?null:at+next.questions[p.cursor].seconds*1000;}
    if(flags.openSync){next.opened_at=at;next.deadline=at+next.questions[next.index].seconds*1000;next.close_at=next.deadline+500;}
-   await store.stampOpening?.(next,flags.openKeys||[]);
+   // Lưu gọn chỉ cần mốc của người vừa mở câu; lần mở đầu ván vẫn ghi play_started_at/ends_at của phòng.
+   await store.stampOpening?.(next,flags.openKeys||[],{room:!flags.lean||firstOpen||Boolean(flags.openSync)});
   }
   // Callback bảng có thể chạy khi giao dịch đang await. Không ghi đè cache/phiên bản mới bằng bản clone cũ.
   const current=rooms.get(next.id);
@@ -194,30 +198,36 @@ export function createRooms({store,deck,safety,streams,identity,normalizeScope,o
   if(r.pacing!=='self'&&r.phase==='question'&&activePlayers(r).every(p=>r.answers.some(a=>a.idx===r.index&&a.user_id===p.user_id)))void internal(id,{action:'close',index:r.index,schedule_version:r.schedule_version});
   return r;
  });}
- async function command(user,id,action,data={},receivedAt=now()){return queue.run(id,async()=>{
+ async function command(user,id,action,data={},receivedAt=now()){
+  // Tra tạm khóa song song trong lúc chờ hàng lệnh phòng (không phụ thuộc trạng thái phòng).
+  const suspended=action==='answer'||action==='next'?Promise.resolve().then(()=>safety.suspension?safety.suspension(user.id):safety.assertAvailable(user.id).then(()=>null)).then(s=>({s}),error=>({error})):null;
+  return queue.run(id,async()=>{
   const original=await get(id);access(original,user,action!=='answer');
   if(action==='answer'){
-   const old=original.answers.find(a=>a.idx===data.index&&a.user_id===user.id)||await store.receipt(id,data.index,user.id);
+   // Phòng trong RAM có đủ đáp án (tạo mới hoặc load() đọc toàn bộ); DB chỉ tra lại khi trùng khóa chính.
+   const old=original.answers.find(a=>a.idx===data.index&&a.user_id===user.id);
    if(old){if(old.client_id===data.client_id)return receipt(old);fail('Câu này em đã chốt',409,{receipt:receipt(old)});}
+   const stored=async e=>{if(e?.cause?.code!=='23505')throw e;const db=await store.receipt(id,data.index,user.id);if(!db)throw e;if(db.client_id===data.client_id)return receipt(db);fail('Câu này em đã chốt',409,{receipt:receipt(db)});};
    if(config.battle_emergency_stop)fail('Đấu đang dừng khẩn cấp',403);
-   await safety.assertAvailable(user.id);const p=original.players.find(p=>p.user_id===user.id);
+   {const {s,error}=await suspended;if(error)throw error;if(s)fail('Tính năng Đấu đang tạm khóa với tài khoản này',403);}const p=original.players.find(p=>p.user_id===user.id);
    if(terminal(original))modeError('BATTLE_QUESTION_CLOSED','Ván đã kết thúc',409);
    if(totalExpired(original,receivedAt)){await finish(structuredClone(original),'total_timeout');modeError('BATTLE_TOTAL_EXPIRED','Đã hết thời gian toàn ván',409);}
    if(original.pacing==='self'){
     if(!p||p.left_at)fail('Em không còn trong phòng',403);
-    const a=await self.submit(structuredClone(original),user.id,data,receivedAt);return receipt(a);
+    try{const a=await self.submit(selfCopy(original,user.id),user.id,data,receivedAt);return receipt(a);}catch(e){return stored(e);}
    }
    if(!p||p.left_at||original.phase!=='question'||original.index!==data.index||receivedAt>original.close_at||receivedAt<original.opened_at)fail('Câu đã đóng hoặc đang tạm dừng',409);
    const graded=data.skip?{score:0}:gradeQuestion(original.questions[data.index],data.response);if(graded.score==null)fail('Câu không tự chấm được',409);
    const a={room_id:id,idx:data.index,user_id:user.id,client_id:data.client_id,response:data.skip?null:data.response,skipped:Boolean(data.skip),score:graded.score,received_at:receivedAt,ms:Math.max(0,receivedAt-original.opened_at-original.paused_ms)};
    Object.assign(a,answerPoints(original,original.questions[data.index],a.score,a.ms));
-   await store.answer(a);original.answers.push(a);publish(original,false,false,[user.id]);
+   try{await store.answer(a);}catch(e){return stored(e);}original.answers.push(a);publish(original,false,false,[user.id]);
    if(activePlayers(original).every(p=>original.answers.some(a=>a.idx===original.index&&a.user_id===p.user_id)))void internal(id,{action:'close',index:original.index,schedule_version:original.schedule_version});
    return receipt(a);
   }
   if(!terminal(original)&&totalExpired(original,receivedAt)){await finish(structuredClone(original),'total_timeout');modeError('BATTLE_TOTAL_EXPIRED','Đã hết thời gian toàn ván',409);}
-  if(terminal(original))fail('Ván đã kết thúc',409);if(config.battle_emergency_stop)fail('Đấu đang dừng khẩn cấp',403);await safety.assertAvailable(user.id);
-  const r=structuredClone(original),p=r.players.find(p=>p.user_id===user.id),host=isHost(r,user);r.activity_at=now();
+  if(terminal(original))fail('Ván đã kết thúc',409);if(config.battle_emergency_stop)fail('Đấu đang dừng khẩn cấp',403);
+  if(suspended){const {s,error}=await suspended;if(error)throw error;if(s)fail('Tính năng Đấu đang tạm khóa với tài khoản này',403);}else await safety.assertAvailable(user.id);
+  const r=action==='next'&&original.pacing==='self'?selfCopy(original,user.id):structuredClone(original),p=r.players.find(p=>p.user_id===user.id),host=isHost(r,user);r.activity_at=now();
   if(['ready','team','vote','nominate','visibility'].includes(action)&&r.phase!=='lobby')fail('Chỉ dùng trong phòng chờ',409);
   if(['start','pause','resume','end'].includes(action)&&!host)fail('Chỉ chủ phòng được điều khiển',403);
   if(action==='visibility'){if(!host)fail('Chỉ chủ phòng đổi chế độ',403);if(r.auto_match||r.kind==='class')fail('Không đổi chế độ phòng này',409);if(data.visibility==='public'||data.open_slots)feature('lobby');r.visibility=data.visibility;r.open_slots=data.open_slots;r.schedule_version++;}

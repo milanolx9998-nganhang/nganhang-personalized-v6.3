@@ -79,3 +79,19 @@ test('V65: giải thích quyền có nguồn và DENY khớp',()=>{
  assert.equal(d.sources[0].type,'POSITION');assert.equal(d.capability,'student.reset_password');
  assert.equal(decide(a,'made.up',{classId:101}).allowed,false);
 });
+
+// PERF V6.9.3: listEffectiveCapabilities trả thẳng "mọi quyền false" cho học sinh / tài khoản khóa.
+// Lối tắt chỉ đúng khi policy từ chối họ ở mọi quyền × mọi ngữ cảnh và mọi ngân hàng — kiểm tra giả định đó.
+test('Học sinh và tài khoản khóa bị từ chối ở mọi quyền × mọi ngữ cảnh (cơ sở cho lối tắt hiệu năng)',async()=>{
+ const {CAPABILITIES}=await import('../../src/services/access/catalog.js');
+ const {contextsFor}=await import('../../src/services/accessResolver.js');
+ const users=[{id:9,role:'student',access_managed:true},{id:10,role:'teacher',access_managed:true,is_active:false},{id:11,role:'admin',access_managed:true,is_active:false}];
+ for(const user of users){
+  const a=buildAccess({user,positions:[pos('HOMEROOM',{class_ids:[101]},'CLASS'),pos('SUBJECT_TEACHER',{subject_ids:[5]},'CUSTOM')],overrides:[],org,now});
+  const contexts=contextsFor(a);assert.ok(contexts.length>10);
+  for(const key of CAPABILITIES){
+   if(key.startsWith('bank.'))for(const b of org.banks)assert.equal(bankDecision(a,key.split('.')[1],b).allowed,false,`${user.role} ${key} bank ${b.id}`);
+   else for(const c of contexts)assert.equal(decide(a,key,c).allowed,false,`${user.role} ${key} ${JSON.stringify(c)}`);
+  }
+ }
+});

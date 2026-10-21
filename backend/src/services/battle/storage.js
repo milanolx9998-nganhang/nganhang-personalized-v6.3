@@ -8,14 +8,16 @@ export async function battleTx(work,db=pool){
  let timedOut=false,timer;
  const acquiring=db.connect().then(c=>{if(timedOut){c.release();return null;}return c;});
  const client=await Promise.race([acquiring,new Promise((_,reject)=>{timer=setTimeout(()=>{timedOut=true;const e=new Error('Hệ thống đang bận, thử lại');e.status=503;reject(e);},2000);})]).finally(()=>clearTimeout(timer));
- try{await client.query('BEGIN');await client.query("SET LOCAL statement_timeout='3s'");const result=await work(client);await client.query('COMMIT');return result;}
+ try{await client.query("BEGIN; SET LOCAL statement_timeout='3s'");const result=await work(client);await client.query('COMMIT');return result;}
  catch(e){await client.query('ROLLBACK').catch(()=>{});if(e.status)throw e;throw Object.assign(new Error('Chưa lưu được dữ liệu ván, hãy thử lại',{cause:e}),{status:503});}
  finally{client.release();}
 }
 export function createStorage(db=pool){
  const ratings=createRatings(db);
  const transaction=fn=>battleTx(fn,db);
- async function save(room,{create=false,questions=false,progressKeys=[],answers=[],settleIndex=null,noPlayers=false}={}){return transaction(async c=>{
+ async function save(room,{create=false,questions=false,progressKeys=[],answers=[],settleIndex=null,noPlayers=false,lean=false,askedChanged=false}={}){return transaction(async c=>{
+  // Tự chơi: chốt/chuyển câu của một người chỉ đổi tiến độ + đáp án; không ghi lại thông tin phòng.
+  if(lean){if(askedChanged)await c.query('UPDATE battle_rooms SET asked_count=$2 WHERE id=$1 AND asked_count<$2',[room.id,room.asked_count]);await writeProgress(c,room,progressKeys);for(const a of answers)await writeAnswer(c,a);return;}
   if(create)await c.query(`INSERT INTO battle_rooms(id,code,run_id,kind,visibility,host_id,class_id,grade,subject_id,branch_id,scope,content_mode,capacity,question_count,seconds,time_factors,rematch_of,created_at)
    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,[room.id,room.code,room.run_id,room.kind,room.visibility,room.host_id,room.class_id,room.grade,room.scope.subject_id,room.scope.branch_id,room.scope,room.content_mode,room.capacity,room.question_count,room.seconds,room.time_factors,room.rematch_of||null,new Date(room.created_at)]);
   await c.query('UPDATE battle_rooms SET host_id=$2,scope=$3,subject_id=$4,branch_id=$5,status=$6,asked_count=$7,end_reason=$8,started_at=$9,ended_at=$10 WHERE id=$1',[room.id,room.host_id,room.scope,room.scope.subject_id,room.scope.branch_id,room.status,room.asked_count,room.end_reason||null,room.started_at?new Date(room.started_at):null,room.ended_at?new Date(room.ended_at):null]);
@@ -47,7 +49,7 @@ export function createStorage(db=pool){
   return {...r,phase:r.status,index:r.asked_count-1,version:1,schedule_version:0,show_top3:Boolean(r.scope.show_top3)};
  }
  return {save,load,answer:a=>transaction(c=>writeAnswer(c,a)),botAnswer:a=>transaction(c=>writeAnswer(c,a)),
-  stampOpening:(r,keys=[])=>transaction(async c=>{await writeModeRoom(c,r);await writeProgress(c,r,keys);}),
+  stampOpening:(r,keys=[],{room=true}={})=>transaction(async c=>{if(room)await writeModeRoom(c,r);await writeProgress(c,r,keys);}),
   receipt:async(roomId,index,userId)=>{const a=(await db.query('SELECT * FROM battle_answers WHERE room_id=$1 AND idx=$2 AND user_id=$3',[roomId,index,userId])).rows[0];return a?{...a,score:Number(a.score),received_at:+new Date(a.received_at)}:null;},
   recover:()=>transaction(async c=>{await c.query('SELECT open_slots,match_meta,pacing,scoring,time_limit,gameplay FROM battle_rooms LIMIT 0');await c.query('SELECT 1 FROM battle_player_progress LIMIT 0');await c.query('SELECT 1 FROM battle_bot_players,battle_bot_answers,battle_golden_hours,battle_ratings,battle_rating_events LIMIT 0');const runId=randomUUID();await c.query("UPDATE battle_rooms SET status='closed',end_reason='restart',ended_at=now(),run_id=$1 WHERE status='lobby'",[runId]);await c.query("UPDATE battle_rooms SET status='interrupted',end_reason='restart',ended_at=now(),run_id=$1 WHERE status='playing'",[runId]);}),
   history:async user=>(await db.query("SELECT r.id FROM battle_rooms r WHERE r.status IN('finished','interrupted','closed') AND (EXISTS(SELECT 1 FROM battle_players p WHERE p.room_id=r.id AND p.user_id=$1) OR r.kind='class' AND r.host_id=$1) ORDER BY r.ended_at DESC LIMIT 10",[user.id])).rows.map(r=>r.id),

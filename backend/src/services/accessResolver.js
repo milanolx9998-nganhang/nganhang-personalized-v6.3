@@ -50,8 +50,11 @@ export function contextsFor(access){
  return out;
 }
 export async function listEffectiveCapabilities(user,client=pool){
- const a=await getEffectiveAccess(user,client),contexts=contextsFor(a),capabilities={};
- for(const key of CAPABILITIES)capabilities[key]=key.startsWith('bank.')?a.org.banks.some(b=>bankDecision(a,key.split('.')[1],b).allowed):contexts.some(c=>decide(a,key,c).allowed);
+ const a=await getEffectiveAccess(user,client),capabilities={};
+ // Học sinh / tài khoản khóa: decide() và bankDecision() luôn từ chối ngay, nên khỏi duyệt mọi quyền × mọi ngữ cảnh
+ // (môn × khối + lớp × môn…, có thể hàng nghìn) ở mỗi request. Kết quả giữ nguyên: mọi quyền false.
+ if(a.user.role==='student'||a.user.is_active===false)for(const key of CAPABILITIES)capabilities[key]=false;
+ else{const contexts=contextsFor(a);for(const key of CAPABILITIES)capabilities[key]=key.startsWith('bank.')?a.org.banks.some(b=>bankDecision(a,key.split('.')[1],b).allowed):contexts.some(c=>decide(a,key,c).allowed);}
  return {account_type:a.user.role==='student'?'STUDENT':'STAFF',positions:a.positions,position_labels:[...new Set(a.grants.filter(g=>g.type==='POSITION'||g.type==='LEGACY').filter(g=>g.id!=='legacy-bank').map(g=>POSITION_LABELS[g.position]).filter(Boolean))],capabilities,capability_scopes:a.grants.map(g=>({capability:g.capability,scope:g.scope,type:g.type})),access_version:a.user.access_version,access_managed:a.user.access_managed};
 }
 export function requireAnyCapability(...capabilities){

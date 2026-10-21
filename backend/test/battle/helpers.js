@@ -8,7 +8,7 @@ export function question(type='multiple_choice',index=0){
 export function fixture(overrides={}){
  let time=1000;const calls=[],timers=new Map(),saved=new Map();let serial=0;
  const store={save:async r=>{calls.push('save');saved.set(r.id,structuredClone(r));},load:async id=>structuredClone(saved.get(id)),receipt:async()=>null,answer:async a=>{calls.push('commit_answer');},botAnswer:async()=>{calls.push('commit_bot_answer');},recover:async()=>{calls.push('recover');},history:async()=>[]};
- const safety={assertAvailable:async()=>{},blockedWith:async()=>false,blockedIds:async()=>[],blockedPairs:async()=>[],record:()=>{},closed:()=>{},purgeExpired:async()=>{},prune:()=>{}};
+ const safety={assertAvailable:async()=>{},suspension:async()=>null,blockedWith:async()=>false,blockedIds:async()=>[],blockedPairs:async()=>[],record:()=>{},closed:()=>{},purgeExpired:async()=>{},prune:()=>{}};
  const streams={publish:()=>{},configure:()=>{},closeUser:()=>{},closeAll:()=>{},envelope:()=>({})};
  const manager=createRooms({store,safety,streams,deck:{count:async()=>20,draw:async()=>Array.from({length:7},(_,i)=>question(['multiple_choice','true_false','short_answer','matching'][i%4],i))},identity:async()=>{calls.push('identity');return {grade:9,class_id:1,class_name:'9A'};},normalizeScope:async(_g,s)=>s,options:async()=>({subjects:[{id:1,name:'KHTN'}]}),now:()=>time,setTimer:(f,ms)=>{const id=++serial;timers.set(id,{f,ms});return id;},clearTimer:id=>timers.delete(id),...overrides});
  const config={...defaults,battle_enabled:true,battle_modes:Object.fromEntries(Object.keys(defaults.battle_modes).map(k=>[k,true]))};

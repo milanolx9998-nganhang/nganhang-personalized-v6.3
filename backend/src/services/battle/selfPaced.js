@@ -29,7 +29,7 @@ export function createSelfPaced({now,commit,finish,bots,getConfig,random}){
  const completed=r=>activePlayers(r).every(p=>r.progress[p.user_id]?.phase==='done');
  async function save(r,flags){
   if(completed(r))return finish(r,'completed','finished',flags);
-  return commit(null,r,{...flags,noPlayers:true,privateKeys:flags.progressKeys});
+  return commit(null,r,{...flags,noPlayers:true,lean:true,privateKeys:flags.progressKeys});
  }
  async function submit(r,key,data,at){const a=answer(r,key,data,at);await save(r,{progressKeys:[key],answers:[a]});return a;}
  async function next(r,key,expected){
@@ -38,7 +38,7 @@ export function createSelfPaced({now,commit,finish,bots,getConfig,random}){
   if(r.phase!=='question'||p.phase!=='feedback')modeError('BATTLE_QUESTION_CLOSED','Chưa thể chuyển câu',409);
   // Đồng hồ được kiểm tra lại sau thời gian chờ DB; không phát câu sau hạn.
   if(totalExpired(r,now()))return finish(r,'total_timeout');
-  issue(r,key);return save(r,{progressKeys:[key],openKeys:[key]});
+  const asked=r.asked_count;issue(r,key);return save(r,{progressKeys:[key],openKeys:[key],askedChanged:r.asked_count!==asked});
  }
  function events(r){
   if(r.phase!=='question')return [];
@@ -56,7 +56,7 @@ export function createSelfPaced({now,commit,finish,bots,getConfig,random}){
  async function tick(r){
   if(r.phase!=='question')return r;
   if(totalExpired(r,now()))return finish(r,'total_timeout');
-  const due=events(r).filter(e=>e.at<=now()),keys=new Set(),opened=[],answers=[];
+  const due=events(r).filter(e=>e.at<=now()),keys=new Set(),opened=[],answers=[],asked=r.asked_count;
   for(const e of due){
    if(keys.has(e.key))continue;
    const p=r.progress[e.key];
@@ -68,7 +68,7 @@ export function createSelfPaced({now,commit,finish,bots,getConfig,random}){
    keys.add(e.key);
   }
   if(!keys.size)return r;
-  return save(r,{progressKeys:[...keys],openKeys:opened,answers});
+  return save(r,{progressKeys:[...keys],openKeys:opened,answers,askedChanged:r.asked_count!==asked});
  }
  function pause(r){r.pause_at=now();r.phase='paused';r.schedule_version++;}
  function resume(r){

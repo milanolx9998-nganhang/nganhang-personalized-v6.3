@@ -61,3 +61,12 @@ Số hàng tiến độ kỳ vọng/đã xác minh ở lượt đầu: **1.720**
 Trước deploy phải backup và kiểm đúng schema nguồn. Migration v693 mới là additive, nhưng không đồng nghĩa không khóa bảng; CHECK trên bảng hiện có cần thời gian kiểm dữ liệu. Nếu database đã chạy v693 trước `66ebbf7`, migration tracking/nhánh IF NOT EXISTS không tự đổi CHECK enum phút cũ sang 1–90: cần migration tiếp theo có kiểm soát. Không chạy migration sửa tại chỗ trên nguồn trong phiên này.
 
 Tắt nhận ván mới, đợi ván đang chơi kết thúc rồi restart. `recover()` chuyển phòng playing thành interrupted, không tiếp tục timer; không hứa giữ ván đang chơi xuyên restart. `self_paced` và `speed_scoring` mặc định false; migration giữ giá trị đã tồn tại trong settings, nên cần kiểm cấu hình thực tế, không suy từ default. `battle_enabled=false` ngừng nhận ván mới, khác emergency stop dừng ván hiện tại. Chỉ bật có chủ đích sau test/CI đúng commit và nghiệm thu tải phù hợp. Trạng thái “Đấu đang tắt trên web” trong handoff cũ chưa được xác minh lại trong phiên không mạng này.
+
+## Cập nhật sau tối ưu (Claude, 21/10/2026 chiều)
+
+Anh Hiếu chọn tối ưu trước khi deploy. Đo trong server cho thấy hàng lệnh phòng chỉ ~5 ms/lượt; phần lớn thời gian nằm ở CPU xác thực mỗi request (`listEffectiveCapabilities` duyệt mọi quyền × mọi ngữ cảnh — môn × khối + lớp × môn… — kể cả với học sinh).
+
+- `accessResolver.listEffectiveCapabilities`: học sinh / tài khoản khóa trả thẳng mọi quyền `false` (policy vốn từ chối họ ngay ở `decide`/`bankDecision`); test `access-v65` kiểm giả định trên mọi quyền × ngữ cảnh × ngân hàng.
+- Đấu: lưu gọn cho Tự chơi (chỉ tiến độ + đáp án, `asked_count` khi đổi; mốc mở câu không ghi lại phòng), `BEGIN; SET LOCAL` một lượt, bỏ tra biên nhận DB thừa (chỉ tra khi trùng khóa chính 23505), tra tạm khóa song song khi chờ hàng lệnh, sao chép nông thay `structuredClone` cả phòng cho chốt/chuyển câu Tự chơi.
+- Kết quả 40×15 (chấm thật): ACK p50 409 → ~165 ms, **p95 592 → ~230 ms (đạt ≤ 300)**, p99 660 → ~250 ms; next p95 640 → ~252 ms; tổng 17,8 → 6,6 s. `/battle/me` đơn lẻ 7,7 → 4,8 ms.
+- Vẫn chưa đo 300 học sinh qua Caddy trên máy thật; loạt request đầu sau khi pool rảnh (mặc định đóng kết nối sau 30 s) chậm hơn do mở lại kết nối — cân nhắc `DB_POOL_IDLE_MS` trên máy chủ.
