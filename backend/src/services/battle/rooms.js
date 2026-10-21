@@ -39,9 +39,14 @@ export function createRooms({store,deck,safety,streams,identity,normalizeScope,o
  function publish(r,immediate=false,lobbyChanged=false,privateKeys){
   r.version++;
   if(usesPrivateProgress(r)&&r.phase!=='lobby'){
-   const refresh=()=>{const current=rooms.get(r.id);if(!current)return;current.public_board_snapshot=publicBoard(current);current.board_at=now();current.board_version=(current.board_version||0)+1;current.version++;};
+   const refresh=()=>{
+    const current=rooms.get(r.id);if(!current)return false;
+    const remaining=1000-(now()-(current.board_at??-Infinity));
+    if(remaining>0){streams.publishBoard?.(r.id,remaining,refresh);return false;}
+    current.public_board_snapshot=publicBoard(current);current.board_at=now();current.board_version=(current.board_version||0)+1;current.version++;return true;
+   };
    const delay=Math.max(0,1000-(now()-(r.board_at??-Infinity)));
-   if(delay===0||terminal(r)){refresh();streams.publish(r.id,true);}
+   if(delay===0){streams.cancelBoard?.(r.id);refresh();streams.publish(r.id,true);}
    else {streams.publishBoard?.(r.id,delay,refresh);if(immediate)streams.publish(r.id,true);else for(const key of privateKeys||[])streams.publishPrivate?.(r.id,key);if(r.kind==='class')streams.publishPrivate?.(r.id,r.host_id);}
   }else streams.publish(r.id,immediate);
   if(lobbyChanged)streams.publish('lobby');
@@ -80,6 +85,9 @@ export function createRooms({store,deck,safety,streams,identity,normalizeScope,o
    if(flags.openSync){next.opened_at=at;next.deadline=at+next.questions[next.index].seconds*1000;next.close_at=next.deadline+500;}
    await store.stampOpening?.(next,flags.openKeys||[]);
   }
+  // Callback bảng có thể chạy khi giao dịch đang await. Không ghi đè cache/phiên bản mới bằng bản clone cũ.
+  const current=rooms.get(next.id);
+  if(current){next.version=Math.max(next.version,current.version);for(const key of ['public_board_snapshot','board_at','board_version'])if(current[key]!==undefined)next[key]=current[key];}
   rooms.set(next.id,next);if(!terminal(next))for(const p of activePlayers(next).filter(p=>!p.is_bot))studentRooms.set(p.user_id,next.id);schedule(next);publish(next,old?.phase!==next.phase,old?.phase==='lobby'||next.phase==='lobby',flags.privateKeys);return next;
  }
  async function finish(r,reason,status='finished',flags={}){
@@ -229,7 +237,7 @@ export function createRooms({store,deck,safety,streams,identity,normalizeScope,o
    await commit(original,r,{questions:true});return roomDto(r,user,now());
   }
   else if(action==='pause'&&r.pacing==='self'){
-   if(r.kind!=='class'||r.phase!=='question')fail('Chỉ giáo viên tạm dừng ván đang chơi',409);self.pause(r);
+   if(r.kind!=='class'||r.phase!=='question')fail('Chỉ giáo viên tạm dừng ván đang chơi',409);self.pause(r);await commit(original,r,{noPlayers:true});return roomDto(r,user,now());
   }
   else if(action==='resume'&&r.pacing==='self'){
    if(r.kind!=='class'||r.phase!=='paused')fail('Phòng không tạm dừng',409);self.resume(r);await commit(original,r,{progressKeys:Object.keys(r.progress),noPlayers:true});return roomDto(r,user,now());
@@ -271,7 +279,7 @@ export function createRooms({store,deck,safety,streams,identity,normalizeScope,o
  function periodic(){housekeeping=setTimer(async()=>{try{await safety.purgeExpired();safety.prune(now());}catch{/* Lỗi dọn không được làm ngừng nhận đáp án. */}finally{periodic();}},3600000);housekeeping.unref?.();}
  return {rooms,studentRooms,locks,queue,feature,admission,access,get,create,createUnlocked,join,joinUnlocked,command,snapshot,lobby,internal,configure,getConfig:()=>config,
   refreshBadges:async userId=>{for(const [id,r] of rooms)if(!terminal(r)&&r.players.some(p=>p.user_id===userId))await queue.run(id,async()=>{const current=rooms.get(id);current.public_badges=await ratings.publicBadges(current.players.filter(p=>!p.is_bot).map(p=>p.user_id),current.grade,config);publish(current);});streams.publish('lobby');},
-  disconnected:(user,id)=>queue.run(id,async()=>{const original=rooms.get(id);if(!original||terminal(original)||!original.players.some(p=>p.user_id===user.id))return;const r=structuredClone(original);r.players.find(p=>p.user_id===user.id).disconnected=true;r.match_meta={...r.match_meta,disconnected:{...r.match_meta?.disconnected,[user.id]:true}};await commit(original,r);},{internal:true}),
+  disconnected:(user,id)=>queue.run(id,async()=>{const original=rooms.get(id);if(!original||terminal(original)||!original.players.some(p=>p.user_id===user.id))return;const r=structuredClone(original);r.players.find(p=>p.user_id===user.id).disconnected=true;r.match_meta={...r.match_meta,disconnected:{...r.match_meta?.disconnected,[user.id]:true}};await commit(original,r,{noPlayers:true});},{internal:true}),
   setMatchmaking:value=>{matchmaking=value;},
   byCode:code=>[...rooms.values()].find(r=>!terminal(r)&&r.code===code)?.id,
   leave:(user,id,reason)=>locks.run([user.id],()=>leaveUnlocked(user,id,reason)),leaveUnlocked,

@@ -13,6 +13,7 @@ import {connectStream} from '../battle/sseClient.js';
 import {createStorage} from '../../src/services/battle/storage.js';
 import {createRooms} from '../../src/services/battle/rooms.js';
 import {createRatings} from '../../src/services/battle/ratings.js';
+import {signToken} from '../../src/middleware/auth.js';
 const source=process.env.DB_NAME;
 if(!source?.startsWith('nganhang_personalized'))throw Error('Cần database nguồn personalized để sao chép');
 if(!['localhost','127.0.0.1','::1'].includes(process.env.DB_HOST||'localhost'))throw Error('Bộ V693 chỉ cho phép PostgreSQL local; không truy cập mạng');
@@ -62,7 +63,7 @@ test.before(async()=>{
  await launch();admin=await login('admin');teacher=await login('teacher');students=await Promise.all(['one','two','three'].map(login));outsider=await login('outside');wrongGrade=await login('other_grade');
  const bank=expect(await req('GET','/practice/banks')).find(b=>b.kind==='school');
  const templates=[{type:'multiple_choice',options:['A','B','C','D'].map(id=>({id,text:id})),answer:{correct:'B'}},{type:'true_false',statements:['a','b','c','d'].map(id=>({id,text:id})),answer:{values:{a:true,b:false,c:true,d:false}}},{type:'short_answer',answer:{numeric:2.5,unit:'m',tolerance:.1}},{type:'matching',left:[{id:'a',text:'A'},{id:'b',text:'B'}],right:[{id:'1',text:'Một'},{id:'2',text:'Hai'}],answer:{pairs:{a:'1',b:'2'}}}];
- for(let i=0;i<7;i++){const q=expect(await req('POST','/practice/questions',{...templates[i%4],subject_id:subjectId,topic_id:topicId,grade:9,outcome_id:outcome,yccd_id:yccd,cognitive_level:i<3?1:i<6?2:3,stem:'Câu V693 '+i,explanation:'Giải thích V693 '+i,bank_id:bank.id}),201);for(const status of ['pending_review','approved','active'])expect(await req('POST',`/practice/questions/${q.id}/workflow`,{status}));}
+ for(let i=0;i<15;i++){const q=expect(await req('POST','/practice/questions',{...templates[i%4],subject_id:subjectId,topic_id:topicId,grade:9,outcome_id:outcome,yccd_id:yccd,cognitive_level:i<3?1:i<6?2:3,stem:'Câu V693 '+i,explanation:'Giải thích V693 '+i,bank_id:bank.id}),201);for(const status of ['pending_review','approved','active'])expect(await req('POST',`/practice/questions/${q.id}/workflow`,{status}));}
  expect(await req('POST','/battle/admin/settings',{battle_enabled:true,battle_emergency_stop:false,battle_modes:modes}));
 });
 test.after(async()=>{if(created)await cleanupIntegration({server,db,adminPool,name,dump,uploadsDir});else{await db?.end();await adminPool.end();}});
@@ -193,4 +194,45 @@ test('V693 API: recover interrupted, biên nhận sau restart và dữ liệu l�
  for(const token of students.slice(0,2))expect(await req('POST',prefix(legacy.id)+'/leave',{},token));await stream.close();
  await db.query('UPDATE battle_answers SET base_points=NULL,speed_points=NULL,fastest_points=NULL WHERE room_id=$1',[legacy.id]);await stop();await launch();
  const old=expect(await req('GET',prefix(legacy.id)+'/result',undefined,students[0]));assert.equal(old.me.points,100);assert.equal(old.me.accuracy_sum,1);assert.equal(old.questions.length,1);
+});
+
+test('V693 tải HTTP/SSE + PostgreSQL clone: lớp 40 học sinh × 15 câu, đo ACK và số hàng ghi',async()=>{
+ const fixtures=Array.from({length:40},(_,i)=>({username:'v693_load_'+i,full_name:'Kiểm thử L'+i}));
+ const users=(await db.query(`INSERT INTO users(username,full_name,password_hash,role,must_change_password)
+ SELECT x.username,x.full_name,$1,'student',false FROM jsonb_to_recordset($2) AS x(username text,full_name text) RETURNING *`,[await bcrypt.hash(pw,10),JSON.stringify(fixtures)])).rows;
+ const userIds=users.map(u=>u.id),tokens=users.map(signToken),streams=[];
+ await db.query("INSERT INTO student_profiles(user_id,student_code) SELECT id,'V693-LOAD-'||id FROM users WHERE id=ANY($1::int[])",[userIds]);
+ await db.query('INSERT INTO class_memberships(class_id,student_id) SELECT $1,unnest($2::int[])',[classId,userIds]);
+ const q=expect(await req('POST','/battle/rooms',{kind:'class',class_id:classId,scope:{subject_id:subjectId,topic_ids:[topicId]},pacing:'self',time_limit:'total',total_minutes:7,question_count:15,seconds:20},teacher),201);
+ // Chỉ đo trên clone; trigger ghi đếm giúp phát hiện upsert cả lớp trong mỗi lệnh.
+ await db.query(`CREATE TABLE v693_write_audit(table_name text,player_key text,room_id uuid,transaction_id bigint);
+ CREATE FUNCTION v693_count_writes() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+ INSERT INTO v693_write_audit VALUES(TG_TABLE_NAME,COALESCE(to_jsonb(NEW)->>'player_key',to_jsonb(NEW)->>'user_id'),NEW.room_id,txid_current()); RETURN NEW; END $$;
+ CREATE TRIGGER v693_count_players AFTER UPDATE ON battle_players FOR EACH ROW EXECUTE FUNCTION v693_count_writes();
+ CREATE TRIGGER v693_count_progress AFTER INSERT OR UPDATE ON battle_player_progress FOR EACH ROW EXECUTE FUNCTION v693_count_writes()`);
+ const latency=[],nextLatency=[];let report;
+ try{
+  for(const token of tokens)expect(await req('POST','/battle/rooms/join',{code:q.code},token));
+  for(const token of tokens)streams.push(await connectStream(origin,prefix(q.id)+'/stream',token));
+  expect(await req('POST',prefix(q.id)+'/start',{},teacher));await Promise.all(streams.map(s=>s.waitFor(r=>r.phase==='question')));
+  await db.query('TRUNCATE v693_write_audit');const start=performance.now();
+  for(let index=0;index<15;index++){
+   await Promise.all(tokens.map(async token=>{const at=performance.now();const ack=expect(await req('POST',prefix(q.id)+'/answer',{index,client_id:crypto.randomUUID(),skip:true},token));latency.push(performance.now()-at);assert.equal(ack.received,true);}));
+   if(index<14)await Promise.all(tokens.map(async token=>{const at=performance.now();const state=expect(await req('POST',prefix(q.id)+'/next',{expected_cursor:index},token));nextLatency.push(performance.now()-at);assert.equal(state.my_progress.cursor,index+1);}));
+  }
+  const elapsed=performance.now()-start;await Promise.all(streams.map(s=>s.waitFor(r=>r.status==='finished')));
+  const counts=(await db.query('SELECT count(*)::int AS n,count(DISTINCT (idx,user_id))::int AS distinct_n FROM battle_answers WHERE room_id=$1',[q.id])).rows[0];assert.deepEqual(counts,{n:600,distinct_n:600});
+  const writes=(await db.query('SELECT table_name,count(*)::int AS n,count(DISTINCT transaction_id)::int AS transactions FROM v693_write_audit WHERE room_id=$1 GROUP BY table_name',[q.id])).rows;
+  assert.equal(writes.find(w=>w.table_name==='battle_players').n,40,'Chỉ quyết toán cuối ván ghi cả lớp');
+  assert.equal(writes.find(w=>w.table_name==='battle_player_progress').n,1720,'600 chốt + 560 lần mở (hai giao dịch/hàng)');
+  const multi=(await db.query("SELECT transaction_id,count(*)::int AS n FROM v693_write_audit WHERE room_id=$1 AND table_name='battle_player_progress' GROUP BY transaction_id HAVING count(*)>1",[q.id])).rows;assert.equal(multi.length,0);
+  for(const stream of streams){const times=[...new Set(stream.snapshots.filter(s=>s.board_at!=null).map(s=>s.board_at))];for(let i=1;i<times.length;i++)assert.ok(times[i]-times[i-1]>=1000,'Bảng không được đổi nhanh hơn 1 Hz');}
+  const percentile=(values,p)=>Math.round([...values].sort((a,b)=>a-b)[Math.ceil(values.length*p)-1]*100)/100;
+  report={at:new Date().toISOString(),transport:'HTTP + 40 SSE, loopback; PostgreSQL clone; có trigger đếm ghi',players:40,questions:15,answers:counts.n,duplicates:counts.n-counts.distinct_n,elapsed_ms:Math.round(elapsed),ack_ms:{p50:percentile(latency,.5),p95:percentile(latency,.95),p99:percentile(latency,.99),max:Math.round(Math.max(...latency))},next_ms:{p95:percentile(nextLatency,.95),p99:percentile(nextLatency,.99)},writes,board_rate_check:'pass',release_gate_23_9:false};
+  fs.writeFileSync(path.join(artifacts,'v693-load-40x15.json'),JSON.stringify(report,null,2));
+  console.log('V693_LOAD '+JSON.stringify(report));
+ }finally{
+  await Promise.all(streams.map(s=>s.close()));
+  await db.query('DROP TRIGGER IF EXISTS v693_count_players ON battle_players; DROP TRIGGER IF EXISTS v693_count_progress ON battle_player_progress; DROP FUNCTION IF EXISTS v693_count_writes(); DROP TABLE IF EXISTS v693_write_audit');
+ }
 });

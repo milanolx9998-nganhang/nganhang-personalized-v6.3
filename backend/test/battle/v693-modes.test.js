@@ -4,7 +4,7 @@ import {randomUUID} from 'node:crypto';
 import {fixture,question} from './helpers.js';
 import {normalizeModes,modeDefaults,answerPoints,rankEligible,settleFastest} from '../../src/services/battle/modes.js';
 import {standings} from '../../src/services/battle/engine.js';
-import {roomDto} from '../../src/services/battle/dto.js';
+import {roomDto,publicBoard} from '../../src/services/battle/dto.js';
 import {createRatings} from '../../src/services/battle/ratings.js';
 import {createStreams} from '../../src/services/battle/stream.js';
 import {EventEmitter} from 'node:events';
@@ -108,4 +108,31 @@ test('V693: 40 người × 15 câu, một timer gameplay, ghi theo người và 
  const save=f.store.save;f.store.save=async(room,o)=>{if(!room.ended_at){assert.equal(o.noPlayers,true);assert.equal(o.progressKeys.length,1);}await save(room,o);};
  for(let idx=0;idx<15;idx++)for(const u of users){await f.manager.command(u,r.id,'answer',{index:idx,client_id:randomUUID(),response:'B'});if(idx<14)await f.manager.command(u,r.id,'next',{expected_cursor:idx});if(f.manager.rooms.get(r.id).status==='playing')assert.equal(f.timers.size,1);}
  assert.equal(f.manager.rooms.get(r.id).answers.length,600);assert.equal(f.manager.rooms.get(r.id).status,'finished');
+});
+
+test('V693: callback bảng chạy giữa giao dịch không bị clone cũ ghi đè; kết thúc không vượt 1 Hz',async()=>{
+ const f=await setup();let pending;f.streams.publishBoard=(_id,delay,refresh)=>{pending={delay,refresh};};f.streams.cancelBoard=()=>{pending=null;};
+ f.setTime(4100);await answer(f);assert.equal(pending.delay,900);
+ const save=f.store.save;let release,entered;const started=new Promise(r=>{entered=r;});
+ f.store.save=async(r,o)=>{await save(r,o);entered();await new Promise(r=>{release=r;});};
+ const next=f.manager.command(f.users[0],f.id,'next',{expected_cursor:0});await started;
+ f.setTime(5000);assert.equal(pending.refresh(),true);const version=f.live().version,boardVersion=f.live().board_version;
+ f.setTime(5100);release();await next;f.store.save=save;
+ assert.ok(f.live().version>version);assert.equal(f.live().board_version,boardVersion);assert.equal(f.live().board_at,5000);assert.equal(pending.delay,900);
+ await f.manager.command(f.host,f.id,'end');assert.equal(f.live().board_at,5000);assert.equal(pending.refresh(),false);
+ f.setTime(6000);assert.equal(pending.refresh(),true);assert.equal(f.live().board_at,6000);
+});
+
+test('V693: pause và mất SSE không upsert lại người chơi; timeout đồng loạt ghi tiến độ một lô',async()=>{
+ const f=await setup(),writes=[],save=f.store.save;f.store.save=async(r,o)=>{writes.push(o);await save(r,o);};
+ await f.manager.disconnected(f.users[0],f.id);assert.equal(writes.at(-1).noPlayers,true);
+ await f.manager.command(f.host,f.id,'pause');assert.equal(writes.at(-1).noPlayers,true);await f.manager.command(f.host,f.id,'resume');
+ f.setTime(f.live().progress[1].deadline);await f.manager.internal(f.id,{action:'self_tick',index:-1,schedule_version:f.live().schedule_version});
+ assert.deepEqual(writes.at(-1).progressKeys,[1,2]);assert.equal(writes.at(-1).answers.length,2);assert.equal(writes.at(-1).noPlayers,true);
+});
+
+test('V693: deferred không lộ điểm qua thứ tự tên trên bảng công khai',async()=>{
+ const f=await setup({reveal_policy:'deferred'});await answer(f);await answer(f,f.users[1],{skip:false,response:'B'});
+ const board=publicBoard(f.live());assert.deepEqual(board.map(p=>p.name),['1','2']);assert.ok(board.every(p=>!('points'in p)));
+ await f.manager.command(f.host,f.id,'end');assert.deepEqual(publicBoard(f.live()).map(p=>p.name),['2','1']);
 });

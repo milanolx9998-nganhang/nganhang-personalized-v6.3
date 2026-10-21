@@ -27,7 +27,8 @@ export function createStreams({now=Date.now,setTimer=setTimeout,clearTimer=clear
  }
  return {open,publish,
   publishPrivate:(key,userId)=>{for(const c of clients)if(c.key===key&&c.user.id===userId&&!c.projector)void send(c);},
-  publishBoard:(key,delay,refresh)=>{if(boards.has(key))return;const t=setTimer(()=>{boards.delete(key);refresh();publish(key,true);},delay);t.unref?.();boards.set(key,t);},
+  cancelBoard:key=>{clearTimer(boards.get(key));boards.delete(key);},
+  publishBoard:(key,delay,refresh)=>{if(boards.has(key))return;const t=setTimer(()=>{if(boards.get(key)!==t)return;boards.delete(key);if(refresh()!==false)publish(key,true);},delay);t.unref?.();boards.set(key,t);},
   configure:values=>Object.assign(limits,values),envelope:()=>({run_id:runId,version,server_now:now()}),closeUser:(id,reason,key)=>{for(const c of clients)if(c.user.id===id&&(!key||c.key===key))close(c,reason);},closeAll:reason=>{for(const c of clients)close(c,reason);for(const t of boards.values())clearTimer(t);boards.clear();},dispose:()=>{for(const c of clients)close(c,'shutdown');for(const t of pending.values())clearTimer(t);pending.clear();for(const t of boards.values())clearTimer(t);boards.clear();},stats:()=>({streams:clients.size})};
 }
 export const streams=createStreams();

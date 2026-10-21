@@ -62,7 +62,10 @@ export function lobbyCard(room){return {id:room.id,label:room.has_bots?'Đấu v
 export const usesPrivateProgress=r=>r.pacing==='self'||r.scoring==='speed'||r.reveal_policy==='deferred'||r.show_live_board===false;
 export function publicBoard(r){
  const through=r.pacing==='self'||r.phase==='reveal'||terminal(r)?r.asked_count:Math.max(0,r.asked_count-1);
- return standings(r,through).map(p=>({name:p.name,submitted:r.answers.filter(a=>a.user_id===p.user_id&&!a.timed_out&&a.idx<issuedFor(r,p.user_id)).length,total:r.question_count,...(r.reveal_policy!=='deferred'||terminal(r)?{points:shownPoints(p.points)}:{})}));
+ const hidden=r.reveal_policy==='deferred'&&!terminal(r),rows=standings(r,through);
+ // Không tiết lộ thứ hạng gián tiếp qua thứ tự tên khi đang giấu điểm.
+ if(hidden)rows.sort((a,b)=>r.players.findIndex(p=>p.user_id===a.user_id)-r.players.findIndex(p=>p.user_id===b.user_id));
+ return rows.map(p=>({name:p.name,submitted:r.answers.filter(a=>a.user_id===p.user_id&&!a.timed_out&&a.idx<issuedFor(r,p.user_id)).length,total:r.question_count,...(!hidden?{points:shownPoints(p.points)}:{})}));
 }
 const stats=p=>Object.fromEntries(['points','accuracy_sum','fully_correct','submitted','issued','total','base_points','speed_points','fastest_points'].map(k=>[k,Number(p[k]||0)]));
 export function roomDto(room,viewer,now,{projector=false}={}){
