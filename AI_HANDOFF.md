@@ -3,11 +3,11 @@
 ## Handoff snapshot
 - Status: in_progress
 - Last completed: V6.9.2 đã lên web thật (`main` = `8da8b84`, deploy CI thành công). V6.9.3 "Quiz lớp" (Tự chơi, Thi theo phút, Nhanh tay; tách khỏi Đấu trường theo plan 1.2) đã commit `4b8e461` trên `feat-v69-battle`, chưa deploy.
-- In progress: 18:55 20/10 Codex tự rà V6.9.3 so với Phụ lục 1.1/1.2 (phiên `01a156fe-0b03-7492-b58e-2db099f6666f`).
-- Exact next action: review kết quả rà của Codex, chạy test, commit; anh Hiếu duyệt; "up main" ngoài giờ học (tắt nhận ván mới trước khi deploy vì migration v693 + restart → ván đang chơi thành interrupted).
+- In progress: không — Codex đã rà xong V6.9.3 (báo cáo `docs/thiet-ke/phan-bien/V693_CODEX_RA_SOAT_2026-10-21.md`).
+- Exact next action: chờ anh Hiếu chọn: (a) deploy V6.9.3 ngoài giờ học, cờ `self_paced`/`speed_scoring` tắt, bật thử cho 1 lớp; hoặc (b) tối ưu tải trước (ACK p95 592 ms khi 40 em chốt cùng lúc, cổng §23.9 là 300 ms).
 - Blockers / decisions needed: không. Đấu trên web thật đã TẮT (20/10, theo anh Hiếu). Anh Hiếu duyệt thang Nhanh tay 600+400/+100; Thi theo phút nhận số phút tùy chọn 1–90 (`66ebbf7`). Cờ `self_paced`/`speed_scoring` mặc định tắt.
-- Latest verification: unit 214/214, security 27/27, integration v693 7/7, pilot+v63 84/84 (toàn bộ 194/198 do build giữa lúc chạy + V6661 cũ), Playwright luồng Quiz lớp trên server thử 3196.
-- Last safe commit: 66ebbf7 (nhánh `feat-v69-battle`, đã push); `main` = 8da8b84.
+- Latest verification: unit 217/217; integration v69 + v691/v692 + v693 28/28; tải cục bộ 40×15: 600/600 đáp án, 0 trùng, ACK p95 592 ms (chưa đạt cổng).
+- Last safe commit: 7c571bd (nhánh `feat-v69-battle`, đã push); `main` = 8da8b84.
 - Working tree notes: không commit — `backend/scripts/_tmp-battle-{sandbox,prep,ui}.mjs`, `.claude/`; DB clone `nganhang_battle_ui_tmp` (đã nâng v693) giữ để thử tiếp, server thử 3196 đang chạy nền trong phiên.
 
 ## Bàn giao mới nhất — 18/10/2026: backend Đấu V6.9

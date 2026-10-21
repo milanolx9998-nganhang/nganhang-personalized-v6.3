@@ -217,3 +217,11 @@ Codex viết dở backend ghép trận linh hoạt + máy + giờ vàng + rank +
 **Thay đổi:** web thật `battle_enabled=false` (qua trang quản trị, máy chủ xác nhận). `66ebbf7`: `total_minutes` số nguyên 1–90 (modes.js, CHECK trong migration v693 — chưa deploy nên sửa tại chỗ), PlayModePicker thêm ô nhập phút cạnh nút nhanh, API.md, unit test.
 **Kiểm:** unit 214/214; integration v693 7/7; Playwright: nhập 7 phút → phòng "Thi theo phút · 7 phút". DB thử đã đổi ràng buộc tương ứng.
 **Việc tiếp:** 18:55 Codex tự rà V6.9.3; sau đó anh Hiếu duyệt → "up main" ngoài giờ học.
+
+## 2026-10-21 — V6.9.3: Codex tự rà, đo tải 40×15
+
+**Yêu cầu:** hẹn giờ cho Codex rà V6.9.3 so với Phụ lục 1.1/1.2 và phản biện; Claude review, test, commit.
+**Thay đổi:** `0051f12` bảng trực tiếp ≤ 1 Hz, thứ tự bảng ở chế độ Thi đua không lộ hạng, lưu tạm dừng của giáo viên. `7c571bd` báo cáo rà `docs/thiet-ke/phan-bien/V693_CODEX_RA_SOAT_2026-10-21.md`, dựng lại bảng cuối khi phòng đã rời RAM, test tải 40 HS × 15 câu chấm thật (`artifacts/v693-load-40x15.json`, không commit).
+**Kiểm:** unit 217/217; integration v69 + v691/v692 + v693 28/28. Tải cục bộ: 600/600 đáp án, 0 trùng; ACK p50 409 ms, p95 592 ms, p99 660 ms — **chưa đạt cổng §23.9 (p95 ≤ 300 ms)** khi 40 em chốt cùng một lúc.
+**Còn mở (theo báo cáo Codex):** tối ưu hàng lệnh phòng/ghi metadata để đạt cổng tải; lỗi giữa hai giao dịch mở câu chưa có cơ chế hội tụ; timer gặp lỗi DB đóng SSE thay vì thử lại; bot chưa hỗ trợ Thi theo phút; một số ca S6 chưa kiểm đầu cuối; chưa đo 300 HS qua Caddy. Codex hết hạn mức 3 lần trong 2 ngày.
+**Việc tiếp:** anh Hiếu quyết: deploy V6.9.3 (cờ mới tắt, thử 1 lớp) hay tối ưu tải trước.
