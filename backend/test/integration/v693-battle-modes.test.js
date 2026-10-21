@@ -185,7 +185,7 @@ test('V693 DB: thưởng nhanh nhất rollback cùng pha reveal, kết thúc gi�
 test('V693 API: recover interrupted, biên nhận sau restart và dữ liệu lịch sử NULL tương thích',async()=>{
  const q=await quiz({},admin),state=await snapshot(q.id),body={index:0,client_id:crypto.randomUUID(),response:responses[state.question.type]},ack=expect(await req('POST',prefix(q.id)+'/answer',body,students[0]));
  expect(await req('POST',prefix(q.id)+'/next',{expected_cursor:0},students[0]));await q.stream.close();await stop();await launch();
- const result=expect(await req('GET',prefix(q.id)+'/result',undefined,students[1]));assert.equal(result.status,'interrupted');assert.equal(result.questions.length,1);noFuture(result,deckSnapshot,1);assert.deepEqual(expect(await req('POST',prefix(q.id)+'/answer',body,students[0])),ack);
+ const result=expect(await req('GET',prefix(q.id)+'/result',undefined,students[1]));assert.equal(result.status,'interrupted');assert.equal(result.questions.length,1);assert.equal(result.public_board.length,2);assert.equal(result.public_board.reduce((sum,p)=>sum+p.submitted,0),1);noFuture(result,deckSnapshot,1);assert.deepEqual(expect(await req('POST',prefix(q.id)+'/answer',body,students[0])),ack);
  // Phòng cũ không gửi trục: vẫn sync, và điểm NULL đọc theo score*100 sau reload.
  const legacy=expect(await req('POST','/battle/rooms',{kind:'duel',scope:{subject_id:subjectId,topic_ids:[topicId]},seconds:20},students[0]),201);assert.equal(legacy.pacing,'sync');assert.equal(legacy.scoring,'accuracy');
  expect(await req('POST','/battle/rooms/join',{code:legacy.code},students[1]));for(const token of students.slice(0,2))expect(await req('POST',prefix(legacy.id)+'/ready',{ready:true},token));
@@ -215,20 +215,22 @@ test('V693 tải HTTP/SSE + PostgreSQL clone: lớp 40 học sinh × 15 câu, đ
   for(const token of tokens)expect(await req('POST','/battle/rooms/join',{code:q.code},token));
   for(const token of tokens)streams.push(await connectStream(origin,prefix(q.id)+'/stream',token));
   expect(await req('POST',prefix(q.id)+'/start',{},teacher));await Promise.all(streams.map(s=>s.waitFor(r=>r.phase==='question')));
+  const playQuestions=(await createStorage(db).load(q.id)).questions;
   await db.query('TRUNCATE v693_write_audit');const start=performance.now();
   for(let index=0;index<15;index++){
-   await Promise.all(tokens.map(async token=>{const at=performance.now();const ack=expect(await req('POST',prefix(q.id)+'/answer',{index,client_id:crypto.randomUUID(),skip:true},token));latency.push(performance.now()-at);assert.equal(ack.received,true);}));
+   const response=responses[playQuestions[index].content.type];assert.notEqual(response,undefined);
+   await Promise.all(tokens.map(async token=>{const at=performance.now();const ack=expect(await req('POST',prefix(q.id)+'/answer',{index,client_id:crypto.randomUUID(),response},token));latency.push(performance.now()-at);assert.equal(ack.received,true);}));
    if(index<14)await Promise.all(tokens.map(async token=>{const at=performance.now();const state=expect(await req('POST',prefix(q.id)+'/next',{expected_cursor:index},token));nextLatency.push(performance.now()-at);assert.equal(state.my_progress.cursor,index+1);}));
   }
   const elapsed=performance.now()-start;await Promise.all(streams.map(s=>s.waitFor(r=>r.status==='finished')));
-  const counts=(await db.query('SELECT count(*)::int AS n,count(DISTINCT (idx,user_id))::int AS distinct_n FROM battle_answers WHERE room_id=$1',[q.id])).rows[0];assert.deepEqual(counts,{n:600,distinct_n:600});
+  const counts=(await db.query('SELECT count(*)::int AS n,count(DISTINCT (idx,user_id))::int AS distinct_n,count(*) FILTER (WHERE score=1 AND NOT skipped)::int AS correct_n FROM battle_answers WHERE room_id=$1',[q.id])).rows[0];assert.deepEqual(counts,{n:600,distinct_n:600,correct_n:600});
   const writes=(await db.query('SELECT table_name,count(*)::int AS n,count(DISTINCT transaction_id)::int AS transactions FROM v693_write_audit WHERE room_id=$1 GROUP BY table_name',[q.id])).rows;
   assert.equal(writes.find(w=>w.table_name==='battle_players').n,40,'Chỉ quyết toán cuối ván ghi cả lớp');
   assert.equal(writes.find(w=>w.table_name==='battle_player_progress').n,1720,'600 chốt + 560 lần mở (hai giao dịch/hàng)');
   const multi=(await db.query("SELECT transaction_id,count(*)::int AS n FROM v693_write_audit WHERE room_id=$1 AND table_name='battle_player_progress' GROUP BY transaction_id HAVING count(*)>1",[q.id])).rows;assert.equal(multi.length,0);
   for(const stream of streams){const times=[...new Set(stream.snapshots.filter(s=>s.board_at!=null).map(s=>s.board_at))];for(let i=1;i<times.length;i++)assert.ok(times[i]-times[i-1]>=1000,'Bảng không được đổi nhanh hơn 1 Hz');}
   const percentile=(values,p)=>Math.round([...values].sort((a,b)=>a-b)[Math.ceil(values.length*p)-1]*100)/100;
-  report={at:new Date().toISOString(),transport:'HTTP + 40 SSE, loopback; PostgreSQL clone; có trigger đếm ghi',players:40,questions:15,answers:counts.n,duplicates:counts.n-counts.distinct_n,elapsed_ms:Math.round(elapsed),ack_ms:{p50:percentile(latency,.5),p95:percentile(latency,.95),p99:percentile(latency,.99),max:Math.round(Math.max(...latency))},next_ms:{p95:percentile(nextLatency,.95),p99:percentile(nextLatency,.99)},writes,board_rate_check:'pass',release_gate_23_9:false};
+  report={at:new Date().toISOString(),transport:'HTTP + 40 SSE, loopback; PostgreSQL clone; có trigger đếm ghi',workload:'self + accuracy + total; 40 đáp án đúng đồng loạt mỗi vòng, đủ TN/ĐS/TLN/GN',players:40,questions:15,answers:counts.n,fully_correct:counts.correct_n,duplicates:counts.n-counts.distinct_n,elapsed_ms:Math.round(elapsed),ack_ms:{p50:percentile(latency,.5),p95:percentile(latency,.95),p99:percentile(latency,.99),max:Math.round(Math.max(...latency))},next_ms:{p95:percentile(nextLatency,.95),p99:percentile(nextLatency,.99)},writes,board_rate_check:'pass',release_gate_23_9:false};
   fs.writeFileSync(path.join(artifacts,'v693-load-40x15.json'),JSON.stringify(report,null,2));
   console.log('V693_LOAD '+JSON.stringify(report));
  }finally{

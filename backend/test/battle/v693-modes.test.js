@@ -135,4 +135,8 @@ test('V693: deferred không lộ điểm qua thứ tự tên trên bảng công 
  const f=await setup({reveal_policy:'deferred'});await answer(f);await answer(f,f.users[1],{skip:false,response:'B'});
  const board=publicBoard(f.live());assert.deepEqual(board.map(p=>p.name),['1','2']);assert.ok(board.every(p=>!('points'in p)));
  await f.manager.command(f.host,f.id,'end');assert.deepEqual(publicBoard(f.live()).map(p=>p.name),['2','1']);
+ // Cache chỉ ở RAM; đọc lịch sử/restart vẫn phải có bảng cuối và đúng chính sách tắt bảng.
+ delete f.live().public_board_snapshot;
+ const historical=roomDto(f.live(),f.users[0],5000);assert.deepEqual(historical.public_board.map(p=>[p.name,p.points]),[['2',100],['1',0]]);
+ f.live().show_live_board=false;assert.equal(roomDto(f.live(),f.users[0],5000).public_board,undefined);
 });

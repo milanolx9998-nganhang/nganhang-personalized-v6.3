@@ -139,6 +139,8 @@ Power-ups (2X, 50-50, Time Freeze…), Strike & Shield, meme, nhạc, Qbit/coins
 
 Phản biện: `docs/thiet-ke/phan-bien/V693_CODEX_PHAN_BIEN.md` (B1–B8, S1–S7, Q1–Q4). Phụ lục này **thay thế** các mục 3–11 ở chỗ mâu thuẫn.
 
+**Cập nhật đã được anh Hiếu duyệt sau phụ lục:** commit `66ebbf7` cho phép `total_minutes` là mọi số nguyên **1–90**, thay tập mốc `{3,5,10,15,20}` ở mục 8 bên dưới; các mốc cũ chỉ còn là nút chọn nhanh. Thang Nhanh tay 600 + 0–400, thưởng nhanh nhất +100 được giữ. Migration v693 sửa tại chỗ trước triển khai; database đã từng chạy bản v693 với CHECK cũ cần được kiểm tra và nâng ràng buộc riêng, không coi chạy lại migration là tự sửa được.
+
 **Phạm vi V6.9.3:** (A) giáo viên điều khiển ván + chọn cách chơi; Tự chơi; Thi theo phút; Nhanh tay. **Ngoài phạm vi:** (B) duyệt phòng học sinh tạo (thiết kế riêng nếu anh Hiếu cần — các yêu cầu S4 giữ làm đầu vào), người ngoài (S5), Redemption (B8 — backend từ chối `redemption:true`), Tự chơi cho phòng đội (Q4 — `self` chỉ cho `duel`, `ffa`, `class`).
 
 1. **Trạng thái từng người (B1).** Bảng mới `battle_player_progress(room_id, player_key, cursor, issued_count, phase question|feedback|done, opened_at, deadline, paused_ms, progress_version, updated_at)`; `player_key` = user id hoặc `bot:<slot>`. Tách `progress_version` (người) khỏi `schedule_version` (phòng). Nộp câu: một giao dịch ghi đáp án + điểm + tiến độ sau chấm → commit → cập nhật RAM → ACK. Mở câu: ghi tiến độ (issued_count) trước khi trả nội dung. Biên nhận `(room, người, câu, client_id)` tra **trước** kiểm tra pha; khác `client_id` → 409. `POST /rooms/:id/next` ở `self` bắt buộc `{expected_cursor}`; sai → 409 kèm tiến độ hiện tại. Restart giữ hành vi `recover()` → `interrupted` (không tự tiếp tục ván).

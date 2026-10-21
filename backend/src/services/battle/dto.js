@@ -84,7 +84,8 @@ export function roomDto(room,viewer,now,{projector=false}={}){
  if(usesPrivateProgress(room)){
   if(room.phase!=='lobby')delete out.players;
   delete out.distribution;delete out.teams;delete out.answered_count;delete out.badges;
-  if(room.show_live_board!==false){out.public_board=room.public_board_snapshot||[];out.board_version=room.board_version||0;out.board_at=room.board_at??null;}
+  // Phòng lịch sử đã rời RAM không còn cache bảng; dựng lại từ dữ liệu đã chốt.
+  if(room.show_live_board!==false){out.public_board=room.public_board_snapshot||(ended?publicBoard(room):[]);out.board_version=room.board_version||0;out.board_at=room.board_at??null;}
   if(room.reveal_policy==='deferred'&&!ended){
    if(out.question)out.question={index:room.index,total:room.question_count,...questionDto(room.questions[room.index])};
    if(out.my_answer)delete out.my_answer.score;
