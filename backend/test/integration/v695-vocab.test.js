@@ -141,3 +141,44 @@ test('V695 Quiz lớp từ vựng: tự chơi, Từ em sai, thống kê từng t
  const storage=createStorage(db),again=await storage.load(quiz.id);again.ended_at=again.ended_at||Date.now();await storage.save(again,{noPlayers:true});
  assert.equal(delta(await sums(),ids.two,'seen'),7);
 });
+
+test('V695 thống kê từ hay sai cho giáo viên và dạng câu mới: sau trận của hai học sinh, GV đúng lớp thấy từ sai, GV lớp khác 403, HS 403',async()=>{
+ const scope={content:'vocab',subject_id:en,vocab_set_ids:[setA],vocab_kinds:['EN4']};
+ const quiz=expect(await req('POST','/battle/rooms',{kind:'class',class_id:classId,scope,pacing:'self',seconds:30,question_count:10},teacher),201);
+ for(const token of students.slice(0,2))expect(await req('POST','/battle/rooms/join',{code:quiz.code},token));
+ const stream=await connectStream(origin,prefix(quiz.id)+'/stream',students[0]);
+ try{
+  expect(await req('POST',prefix(quiz.id)+'/start',{},teacher));await stream.waitFor(s=>s.phase==='question');
+  const room=await createStorage(db).load(quiz.id);assert.equal(room.questions.length,10);
+  assert.ok(room.questions.every(q=>q.content.type==='short_answer'),'Chọn EN4 sinh câu short_answer');
+  for(let i=0;i<10;i++){
+   const ans=room.questions[i].content.answer.aliases[0];
+   expect(await req('POST',prefix(quiz.id)+'/answer',{index:i,client_id:crypto.randomUUID(),response:i===0?ans.toUpperCase()+' ':'sai_chinh_ta'},students[0]));
+   expect(await req('POST',prefix(quiz.id)+'/answer',{index:i,client_id:crypto.randomUUID(),response:'sai_chinh_ta'},students[1]));
+   if(i<9)for(const token of students.slice(0,2))expect(await req('POST',prefix(quiz.id)+'/next',{expected_cursor:i},token));
+  }
+ }finally{await stream.close();}
+ assert.ok([200,409].includes((await req('POST',prefix(quiz.id)+'/end',{},teacher)).status));
+ // Quyền truy cập /api/vocab/stats: học sinh 403, giáo viên lớp khác 403, giáo viên thiếu class_id 403.
+ const otherClass=(await db.query("SELECT id FROM classes WHERE name='8-V695'")).rows[0].id;
+ const hash=(await db.query('SELECT password_hash FROM users WHERE id=$1',[ids.teacher])).rows[0].password_hash;
+ const otherTeacherId=(await db.query("INSERT INTO users(username,password_hash,full_name,role,must_change_password) VALUES('v695_teacher_other',$1,'GV lớp khác','teacher',false) RETURNING id",[hash])).rows[0].id;
+ await db.query('INSERT INTO teacher_class_assignments(teacher_id,class_id,subject_id) VALUES($1,$2,$3)',[otherTeacherId,otherClass,en]);
+ const otherTeacher=await login('teacher_other');
+ expect(await req('GET',`/vocab/stats?set_id=${setA}&class_id=${classId}`,undefined,students[0]),403);
+ expect(await req('GET',`/vocab/stats?set_id=${setA}&class_id=${otherClass}`,undefined,teacher),403);
+ expect(await req('GET',`/vocab/stats?set_id=${setA}&class_id=${classId}`,undefined,otherTeacher),403);
+ expect(await req('GET',`/vocab/stats?set_id=${setA}`,undefined,teacher),403);
+ // Giáo viên đúng lớp thấy danh sách từ hay sai (seen>=3, sắp theo tỉ lệ sai giảm dần, không lộ tên học sinh).
+ const stats=expect(await req('GET',`/vocab/stats?set_id=${setA}&class_id=${classId}`,undefined,teacher));
+ assert.equal(stats.set.id,setA);assert.ok(stats.rows.length>=5,'Các từ đạt seen>=3 phải hiện ra');
+ for(let i=0;i<stats.rows.length;i++){
+  const r=stats.rows[i];
+  assert.ok(r.entry_id&&r.term&&r.meaning_vi);assert.ok(r.seen>=3);assert.ok(r.students>=2);assert.ok(r.wrong_rate>0&&r.wrong_rate<=1);
+  assert.equal('student_id' in r||('full_name' in r),false,'Không lộ thông tin học sinh');
+  if(i>0)assert.ok(stats.rows[i-1].wrong_rate>r.wrong_rate||(stats.rows[i-1].wrong_rate===r.wrong_rate&&stats.rows[i-1].seen>=r.seen),'Sắp theo wrong_rate giảm dần, đồng hạng seen giảm dần');
+ }
+ // Admin xem được toàn trường không cần class_id.
+ const allStats=expect(await req('GET',`/vocab/stats?set_id=${setA}&limit=5`,undefined,admin));
+ assert.ok(allStats.rows.length>0&&allStats.rows.length<=5);
+});

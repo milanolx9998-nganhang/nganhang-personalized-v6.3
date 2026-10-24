@@ -312,3 +312,10 @@ Codex viết dở backend ghép trận linh hoạt + máy + giờ vàng + rank +
 **Kiểm:** unit vocab-generator 5/5; integration V69/V693/V694 20/20 + V695 3/3 (lần đầu V695 lỗi do cổng 3131 bị chiếm, chạy lại đạt); build frontend đạt.
 **9router:** `http://localhost:20128/v1` (khoá không lưu); `codex exec -m antigravity-cli -c model_provider="nr" -c model_providers.nr.base_url=... -c model_providers.nr.env_key=NR_KEY -c model_providers.nr.wire_api="responses"` chạy được; `/v1/messages` và `/v1/responses` đều 200.
 **Còn mở:** nạp 1.404 từ Bufopia + 2.209 từ HSK lên web thật (cần phiên admin trong khung trình duyệt), bật cờ vocab; bản sửa này chưa lên main; dọn server thử 3196 + DB `nganhang_battle_ui_tmp`.
+
+## 2026-10-24 đêm — V6.9.5 giai đoạn 3 (phần 1): 3 dạng câu từ vựng mới (EN3, EN4, ZH5) + thống kê "Từ hay sai" cho giáo viên
+
+**Yêu cầu:** bổ sung 3 dạng câu từ vựng mới (`EN3` điền từ vào câu ví dụ, `EN4` gõ chính tả theo nghĩa, `ZH5` chọn thanh điệu cho từ 1 chữ Hán), mặc định chỉ trộn dạng cũ và chỉ đưa dạng mới vào khi chọn rõ; thêm API `GET /api/vocab/stats` và tab "Từ hay sai" trong `VocabBank.jsx` cho giáo viên theo lớp.
+**Tệp đã đổi:** `backend/src/services/vocab/generator.js`, `backend/src/services/vocab/bank.js`, `backend/src/routes/vocab.js`, `backend/src/routes/battle.js`, `frontend/src/pages/battle/battleApi.js`, `frontend/src/pages/vocab/VocabBank.jsx`, `frontend/src/styles/vocab.css`, `docs/API.md`, `backend/test/battle/vocab-generator.test.js`, `backend/test/integration/v695-vocab.test.js`, `docs/thiet-ke/phan-bien/TRIEN_KHAI_VOCAB_P3.md`.
+**Kiểm:** `npm test` 238/238 (+ matrixBalancer 8/8, riêng `vocab-generator.test.js` 7/7); `npm run test:security` 27/27; `v695-vocab.test.js` 4/4; `v693-battle-modes.test.js` 8/8; build frontend đạt (1.036 modules). Không chạm migration cũ hay DB nguồn.
+**Việc kế tiếp:** phần còn lại của V6.9.5 giai đoạn 3 (luyện từ vựng một mình cho học sinh ưu tiên từ hay sai, EN6 nghe chọn từ) và duyệt đẩy `main`.

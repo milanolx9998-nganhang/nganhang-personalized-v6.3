@@ -1,5 +1,6 @@
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {api,uploadFile,downloadFile} from '../../api/client.js';
+import {useAuth} from '../../hooks/useAuth.js';
 import {ErrorBox} from '../practice/shared.jsx';
 import '../../styles/vocab.css';
 // Ngân hàng từ vựng: tách khỏi ngân hàng câu hỏi; máy sinh câu Đấu từ vựng từ các bộ ở đây.
@@ -76,17 +77,39 @@ function EntryRow({entry,zh,onSaved}){
 }
 
 export default function VocabBank(){
- const [subjects,setSubjects]=useState(null),[subject,setSubject]=useState(null),[sets,setSets]=useState([]),[setId,setSetId]=useState(null),[entries,setEntries]=useState(null),[q,setQ]=useState(''),[page,setPage]=useState(1),[error,setError]=useState(''),[adding,setAdding]=useState(''),[addBusy,setAddBusy]=useState(false);
+ const {user}=useAuth(),isAdmin=user?.role==='admin';
+ const [subjects,setSubjects]=useState(null),[subject,setSubject]=useState(null),[sets,setSets]=useState([]),[setId,setSetId]=useState(null),[tab,setTab]=useState('entries'),[entries,setEntries]=useState(null),[q,setQ]=useState(''),[page,setPage]=useState(1),[error,setError]=useState(''),[adding,setAdding]=useState(''),[addBusy,setAddBusy]=useState(false);
+ const [teacherClasses,setTeacherClasses]=useState([]),[classId,setClassId]=useState(''),[stats,setStats]=useState(null),[statsBusy,setStatsBusy]=useState(false),[statsError,setStatsError]=useState('');
  const loadSubjects=useCallback(async()=>{try{const list=(await api.get(BASE+'/subjects')).subjects;setSubjects(list);setSubject(s=>s?list.find(x=>x.id===s.id)||list[0]:list[0]||null);}catch(e){setError(e.message);}},[]);
  const subjectId=subject?.id;
- const wanted=useRef({subject:null,set:null,page:1,q:''});
- wanted.current={subject:subjectId,set:setId,page,q};
+ const wanted=useRef({subject:null,set:null,page:1,q:'',classId:'',tab:'entries'});
+ wanted.current={subject:subjectId,set:setId,page,q,classId,tab};
  const loadSets=useCallback(async()=>{if(!subjectId)return;try{const list=(await api.get(BASE+'/sets?subject_id='+subjectId)).sets;if(wanted.current.subject===subjectId)setSets(list);}catch(e){setError(e.message);}},[subjectId]);
  const loadEntries=useCallback(async()=>{if(!setId)return setEntries(null);try{const res=await api.get(`${BASE}/entries?set_id=${setId}&page=${page}${q.trim()?'&q='+encodeURIComponent(q.trim()):''}`);const w=wanted.current;if(w.set===setId&&w.page===page&&w.q===q)setEntries(res);}catch(e){setError(e.message);}},[setId,page,q]);
+ const loadStats=useCallback(async()=>{
+  if(!setId||(!isAdmin&&!classId))return setStats(null);
+  setStatsBusy(true);setStatsError('');
+  try{
+   const res=await api.get(`${BASE}/stats?set_id=${setId}${classId?'&class_id='+encodeURIComponent(classId):''}`);
+   if(wanted.current.set===setId&&wanted.current.classId===classId)setStats(res);
+  }catch(e){if(wanted.current.set===setId&&wanted.current.classId===classId)setStatsError(e.message);}
+  finally{if(wanted.current.set===setId&&wanted.current.classId===classId)setStatsBusy(false);}
+ },[setId,classId,isAdmin]);
  useEffect(()=>{loadSubjects();},[loadSubjects]);
+ useEffect(()=>{
+  let cancelled=false;
+  api.get('/api/practice/classes').then(res=>{
+   if(cancelled)return;
+   const list=Array.isArray(res)?res:res?.classes||res?.items||[];
+   setTeacherClasses(list);
+   if(list.length)setClassId(prev=>prev||String(list[0].id));
+  }).catch(()=>{});
+  return ()=>{cancelled=true;};
+ },[]);
  useEffect(()=>{setSetId(null);loadSets();},[loadSets]); // đổi môn thì đóng bộ đang mở
  useEffect(()=>{const t=setTimeout(loadEntries,250);return ()=>clearTimeout(t);},[loadEntries]);
- const refresh=()=>{loadSubjects();loadSets();loadEntries();};
+ useEffect(()=>{if(tab==='stats')loadStats();},[tab,loadStats]);
+ const refresh=()=>{loadSubjects();loadSets();loadEntries();if(tab==='stats')loadStats();};
  async function addSet(){if(addBusy)return;setAddBusy(true);setError('');try{const s=await api.post(BASE+'/sets',{subject_id:subject.id,name:adding.trim(),kind:isZh(subject)?'hsk':'topic'});setAdding('');await loadSets();setSetId(s.id);}catch(e){setError(e.message);}finally{setAddBusy(false);}}
  const zh=isZh(subject),current=sets.find(s=>s.id===setId);
  return <div className="vocab-page">
@@ -102,11 +125,44 @@ export default function VocabBank(){
    </aside>
    <section className="practice-card vocab-main">
     {current?<>
-     <div className="vocab-main__head"><h2>{current.name}</h2><input type="search" placeholder={zh?'Tìm chữ Hán, pinyin, nghĩa…':'Tìm từ, nghĩa…'} value={q} onChange={e=>{setQ(e.target.value);setPage(1);}}/></div>
-     {entries&&<><div className="table-scroll vocab-table"><table><thead><tr><th>{zh?'Chữ Hán':'Từ'}</th><th>{zh?'Pinyin':'IPA'}</th>{zh&&<th>Hán Việt</th>}<th>Loại từ</th><th>Nghĩa</th><th>Ví dụ</th><th></th></tr></thead>
-      <tbody>{entries.entries.map(e=><EntryRow key={e.id} entry={e} zh={zh} onSaved={refresh}/>)}</tbody></table></div>
-      {!entries.entries.length&&<p className="vocab-muted">Không có từ phù hợp.</p>}
-      {entries.total>entries.page_size&&<div className="vocab-pager"><button className="btn secondary" disabled={page<=1} onClick={()=>setPage(p=>p-1)}>‹ Trước</button><span>Trang {page}/{Math.ceil(entries.total/entries.page_size)} · {entries.total} từ</span><button className="btn secondary" disabled={page*entries.page_size>=entries.total} onClick={()=>setPage(p=>p+1)}>Sau ›</button></div>}</>}
+     <div className="vocab-main__head">
+      <h2>{current.name}</h2>
+      <div className="vocab-chips" role="tablist" aria-label="Chế độ xem bộ từ">
+       <button type="button" role="tab" aria-selected={tab==='entries'} className={tab==='entries'?'active':''} onClick={()=>setTab('entries')}>Danh sách từ ({current.entry_count})</button>
+       <button type="button" role="tab" aria-selected={tab==='stats'} className={tab==='stats'?'active':''} onClick={()=>setTab('stats')}>Từ hay sai</button>
+      </div>
+      {tab==='entries'&&<input type="search" placeholder={zh?'Tìm chữ Hán, pinyin, nghĩa…':'Tìm từ, nghĩa…'} value={q} onChange={e=>{setQ(e.target.value);setPage(1);}}/>}
+     </div>
+     {tab==='entries'?<>
+      {entries&&<><div className="table-scroll vocab-table"><table><thead><tr><th>{zh?'Chữ Hán':'Từ'}</th><th>{zh?'Pinyin':'IPA'}</th>{zh&&<th>Hán Việt</th>}<th>Loại từ</th><th>Nghĩa</th><th>Ví dụ</th><th></th></tr></thead>
+       <tbody>{entries.entries.map(e=><EntryRow key={e.id} entry={e} zh={zh} onSaved={refresh}/>)}</tbody></table></div>
+       {!entries.entries.length&&<p className="vocab-muted">Không có từ phù hợp.</p>}
+       {entries.total>entries.page_size&&<div className="vocab-pager"><button className="btn secondary" disabled={page<=1} onClick={()=>setPage(p=>p-1)}>‹ Trước</button><span>Trang {page}/{Math.ceil(entries.total/entries.page_size)} · {entries.total} từ</span><button className="btn secondary" disabled={page*entries.page_size>=entries.total} onClick={()=>setPage(p=>p+1)}>Sau ›</button></div>}</>}
+     </>:<div className="vocab-stats">
+      <div className="vocab-stats__bar">
+       <label>Lớp học
+        <select value={classId} onChange={e=>setClassId(e.target.value)} disabled={!isAdmin&&!teacherClasses.length}>
+         {isAdmin&&<option value="">Toàn trường</option>}
+         {teacherClasses.map(c=><option key={c.id} value={String(c.id)}>Lớp {c.name} (Khối {c.grade}{c.student_count?` · ${c.student_count} HS`:''})</option>)}
+        </select>
+       </label>
+       <button type="button" className="btn secondary" disabled={statsBusy||(!isAdmin&&!classId)} onClick={loadStats}>{statsBusy?'Đang tải…':'Làm mới'}</button>
+      </div>
+      <ErrorBox error={statsError}/>
+      {!isAdmin&&!teacherClasses.length?<p className="vocab-muted">Tài khoản chưa được phân công lớp dạy.</p>
+       :statsBusy?<p className="vocab-muted" role="status">Đang tải thống kê từ hay sai…</p>
+       :!stats?.rows?.length?<p className="vocab-muted">Chưa đủ dữ liệu: cần ít nhất 3 lượt trả lời mỗi từ</p>
+       :<div className="table-scroll vocab-table"><table><thead><tr><th>{zh?'Chữ Hán':'Từ'}</th><th>{zh?'Pinyin':'IPA'}</th><th>Nghĩa</th><th>Tỉ lệ sai</th><th>Lượt gặp</th><th>Số HS</th><th></th></tr></thead>
+        <tbody>{stats.rows.map(r=><tr key={r.entry_id}>
+         <td lang={zh?'zh':'en'} className="vocab-term">{r.term}</td>
+         <td>{r.reading||'—'}</td>
+         <td>{r.meaning_vi}</td>
+         <td><strong className="vocab-wrong-rate">{Math.round(Number(r.wrong_rate||0)*100)}%</strong> <small className="vocab-muted">({r.seen-r.correct}/{r.seen})</small></td>
+         <td>{r.seen}</td>
+         <td>{r.students}</td>
+         <td className="vocab-actions"><button type="button" className="btn secondary" onClick={()=>{setTab('entries');setQ(r.term);setPage(1);}}>Xem trong bộ</button></td>
+        </tr>)}</tbody></table></div>}
+     </div>}
     </>:<p className="vocab-muted">Chọn một bộ để xem và sửa từ.</p>}
     <ImportPanel subject={subject} onDone={refresh}/>
    </section>

@@ -425,14 +425,17 @@ export const battleApiVocab = {
 export const VOCAB_KIND_LABELS = {
   EN1: 'Từ → nghĩa',
   EN2: 'Nghĩa → từ',
+  EN3: 'Điền từ vào câu ví dụ',
+  EN4: 'Gõ chính tả theo nghĩa',
   EN5: 'Ghép cặp',
   ZH1: 'Chữ Hán → nghĩa',
   ZH2: 'Nghĩa → chữ Hán',
   ZH3: 'Chữ Hán → pinyin',
   ZH4: 'Pinyin → chữ Hán',
+  ZH5: 'Chọn thanh điệu',
   ZH6: 'Ghép cặp',
 };
-export const VOCAB_KINDS = { en: ['EN1', 'EN2', 'EN5'], zh: ['ZH1', 'ZH2', 'ZH3', 'ZH4', 'ZH6'] };
+export const VOCAB_KINDS = { en: ['EN1', 'EN2', 'EN3', 'EN4', 'EN5'], zh: ['ZH1', 'ZH2', 'ZH3', 'ZH4', 'ZH5', 'ZH6'] };
 
 // Lựa chọn chưa chốt giữ qua F5 trong cùng tab (như client_id của đáp án): chỉ là bản nháp trên máy, chốt mới tính.
 const draftKey = (roomId, index) => `battle-draft:${roomId}:${index}`;

@@ -5,7 +5,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import {z} from 'zod';
-import {overview,listSets,createSet,updateSet,listEntries,updateEntry,parseVocabFile,previewImport,confirmImport,templateWorkbook} from '../services/vocab/bank.js';
+import {overview,listSets,createSet,updateSet,listEntries,updateEntry,vocabStats,parseVocabFile,previewImport,confirmImport,templateWorkbook} from '../services/vocab/bank.js';
 const r=Router(),wrap=fn=>async(req,res,next)=>{try{await fn(req,res);}catch(e){next(e);}};
 const temp=path.resolve(process.env.UPLOAD_DIR||'uploads','private-imports');fs.mkdirSync(temp,{recursive:true});
 const upload=multer({storage:multer.diskStorage({destination:temp,filename:(_r,file,cb)=>cb(null,crypto.randomUUID()+path.extname(file.originalname).toLowerCase())}),limits:{fileSize:5*1024*1024,files:1},fileFilter:(_req,file,cb)=>cb(null,['.csv','.json','.xlsx'].includes(path.extname(file.originalname).toLowerCase()))});
@@ -15,6 +15,7 @@ r.get('/sets',wrap(async(req,res)=>res.json({sets:await listSets(req.user,z.coer
 r.post('/sets',wrap(async(req,res)=>res.status(201).json(await createSet(req.user,req.body))));
 r.patch('/sets/:id',wrap(async(req,res)=>res.json(await updateSet(req.user,id(req),req.body))));
 r.get('/entries',wrap(async(req,res)=>res.json(await listEntries(req.user,req.query))));
+r.get('/stats',wrap(async(req,res)=>res.json(await vocabStats(req.user,req.query))));
 r.patch('/entries/:id',wrap(async(req,res)=>res.json(await updateEntry(req.user,id(req),req.body))));
 r.delete('/entries/:id',wrap(async(req,res)=>res.json(await updateEntry(req.user,id(req),{status:'retired'}))));
 r.post('/import/preview',upload.single('file'),wrap(async(req,res)=>{try{

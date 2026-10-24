@@ -5,7 +5,7 @@ import XLSX from 'xlsx';
 import {z} from 'zod';
 import {pool,tx} from '../../db/pool.js';
 import {fail,log} from '../practice/config.js';
-import {staff,subjectAccess} from '../practice/authorization.js';
+import {staff,subjectAccess,classAccess} from '../practice/authorization.js';
 import {can} from '../accessResolver.js';
 import {safeZip} from '../practice/importAdapters.js';
 import {clean,fold,isHan,hasToneMarks} from './generator.js';
@@ -140,6 +140,30 @@ export async function updateEntry(user,id,body){
    [id,next.term,next.meaning_vi,next.reading,next.han_viet,next.pos,next.example,next.example_vi,next.confusable_group,next.status,user.id])).rows[0];
   await log(c,user,'VOCAB_ENTRY_UPDATE',id,d);return row;
  });
+}
+export async function vocabStats(user,q){
+ const d=z.object({
+  set_id:z.coerce.number().int().positive(),
+  class_id:z.preprocess(v=>v===''||v==null?undefined:v,z.coerce.number().int().positive().optional()),
+  limit:z.preprocess(v=>v===''||v==null?undefined:v,z.coerce.number().int().min(1).max(100).default(30))
+ }).parse(q);
+ const set=(await pool.query('SELECT * FROM vocab_sets WHERE id=$1',[d.set_id])).rows[0];if(!set)fail('Không tìm thấy bộ từ',404);
+ await subjectOf(user,set.subject_id,pool,false);
+ if(d.class_id)await classAccess(user,d.class_id);
+ else if(user.role!=='admin')fail('Giáo viên cần chọn lớp mình dạy',403);
+ const rows=(await pool.query(`SELECT e.id AS entry_id,e.term,e.reading,e.meaning_vi,
+   sum(st.seen)::int AS seen,sum(st.correct)::int AS correct,
+   round((sum(st.seen)-sum(st.correct))::numeric/sum(st.seen),4)::float8 AS wrong_rate,
+   count(DISTINCT st.student_id)::int AS students
+  FROM vocab_entries e JOIN vocab_student_stats st ON st.entry_id=e.id
+  WHERE e.set_id=$1 AND ($2::int IS NULL OR EXISTS (
+   SELECT 1 FROM class_memberships cm WHERE cm.student_id=st.student_id AND cm.class_id=$2
+    AND cm.ended_at IS NULL AND cm.valid_from<=CURRENT_DATE AND (cm.valid_to IS NULL OR cm.valid_to>=CURRENT_DATE)
+  ))
+  GROUP BY e.id HAVING sum(st.seen)>=3
+  ORDER BY (sum(st.seen)-sum(st.correct))::numeric/sum(st.seen) DESC,sum(st.seen) DESC,e.id ASC
+  LIMIT $3`,[d.set_id,d.class_id??null,d.limit])).rows;
+ return {set,rows};
 }
 export function templateWorkbook(lang='en'){
  const rows=lang==='zh'

@@ -6,7 +6,7 @@
 - In progress: không.
 - Exact next action: 1.657 HS khối 6–9 ĐÃ nhập trên web thật (24/10, mật khẩu = mã HS, KHÔNG bắt đổi mật khẩu). Trước khi phát cho học sinh: bật lại bắt đổi mật khẩu (cần nút hàng loạt theo lớp/khối — chưa làm, đợi anh Hiếu yêu cầu); bật Đấu ở /admin/battle khi muốn dùng.
 - Blockers / decisions needed: cần đăng nhập admin trên web thật (Claude không tự nhập mật khẩu).
-- Latest verification: unit 231/231, pilot 34/34, integration Đấu 34/34; nhập 350 HS trên server thử 16 s; deploy CI 40075103286 thành công.
+- Latest verification: unit 238/238 (+ matrixBalancer 8/8), security 27/27, integration v695-vocab 4/4, v693-battle-modes 8/8, frontend build đạt (24/10: thêm EN3/EN4/ZH5 + thống kê từ hay sai `/api/vocab/stats`).
 - Last safe commit: 6a1b144 (`main` và `feat-v69-battle`).
 - Working tree notes: không commit — `backend/scripts/_tmp-battle-{sandbox,prep,ui}.mjs`, `.claude/`. DB thử `nganhang_battle_ui_tmp` đã XOÁ (24/10, sau khi thử nhập 350 HS thật); cần thử lại thì chạy `_tmp-battle-sandbox.mjs`.
 - Limits: chưa đo 300 SSE qua Caddy/Internet. Nhãn/lớp cache 60 giây, chặn API invalidation hai chiều ngay; nhịp 250 ms dựng chung theo khối rồi chiếu riêng, tiến độ live 5 giây. Cờ lobby tắt vẫn giữ thẻ lớp mình, không đưa thẻ lớp vào subjects.
