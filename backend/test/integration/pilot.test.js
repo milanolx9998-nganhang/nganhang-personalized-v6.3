@@ -285,6 +285,12 @@ test('V4 roster: xem trước không ghi, lỗi/xung đột, xác nhận một l
  const login=await req('POST','/auth/login',{username:codeRow.student_code,password:codeRow.student_code},null);assert.equal(login.status,200,JSON.stringify(login.data));
  assert.equal((await db.query('SELECT must_change_password FROM users WHERE username=$1',[codeRow.student_code])).rows[0].must_change_password,true);
  assert.equal((await db.query("SELECT details->>'password_mode' AS m FROM practice_audit WHERE action='ROSTER_CONFIRMED' AND entity_id=$1",[cp.data.token])).rows[0].m,'student_code');
+ // Quản trị tắt bắt đổi mật khẩu lần đầu (chạy thử): tài khoản mới không bị bắt đổi; giá trị sai kiểu bị từ chối.
+ const freeRow={...row,student_code:'v4free12345678',full_name:'Học sinh không bắt đổi'};
+ const fp=await req('POST','/practice/roster/preview',form([freeRow]));
+ assert.equal((await req('POST','/practice/roster/confirm',{token:fp.data.token,password_mode:'student_code',require_password_change:'no'})).status,400);
+ const fs2=await req('POST','/practice/roster/confirm',{token:fp.data.token,password_mode:'student_code',require_password_change:false});assert.equal(fs2.status,200,JSON.stringify(fs2.data));assert.equal(fs2.data.require_password_change,false);
+ assert.equal((await db.query('SELECT must_change_password FROM users WHERE username=$1',[freeRow.student_code])).rows[0].must_change_password,false);
 });
 test('V4 trình duyệt: lớp → hồ sơ → lịch sử → lượt làm, tự xem, bốn kích thước',{timeout:120000},async()=>{
  const {chromium}=await import('playwright'),browser=await chromium.launch({headless:true});
