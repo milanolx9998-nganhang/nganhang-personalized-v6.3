@@ -193,7 +193,7 @@ export function createRooms({store,deck,safety,streams,identity,normalizeScope,o
   if(studentRooms.has(user.id))fail('Em đang trong một phòng khác',409);
   if(r.kind!=='class'&&await safety.blockedWith(user.id,activePlayers(r).filter(p=>!p.is_bot).map(p=>p.user_id)))fail('Không thể vào phòng này',403);
   const returning=r.players.find(p=>p.user_id===user.id);if(returning)Object.assign(returning,{left_at:null,leave_reason:null,ready:false,rank_requested:false});else addPlayer(r,user,info);r.activity_at=now();
-  try{await commit(original,r);matchmaking?.removeUnlocked(user.id);safety.record(id,'join',user.id,{},now());return r;}catch(e){studentRooms.delete(user.id);throw e;}
+  try{await commit(original,r);matchmaking?.removeUnlocked(user.id);vocabQueue?.removeUnlocked(user.id);safety.record(id,'join',user.id,{},now());return r;}catch(e){studentRooms.delete(user.id);throw e;}
  });}
  const join=(user,id)=>locks.run([user.id],()=>joinUnlocked(user,id));
  async function leaveUnlocked(user,id,reason='left'){return queue.run(id,async()=>{
@@ -316,7 +316,7 @@ export function createRooms({store,deck,safety,streams,identity,normalizeScope,o
   setMatchmaking:value=>{matchmaking=value;},setVocabQueue:value=>{vocabQueue=value;},
   byCode:code=>[...rooms.values()].find(r=>!terminal(r)&&r.code===code)?.id,
   leave:(user,id,reason)=>locks.run([user.id],()=>leaveUnlocked(user,id,reason)),leaveUnlocked,
-  suspend:userId=>locks.run([userId],async()=>{matchmaking?.removeUnlocked(userId);const id=studentRooms.get(userId);if(id)await leaveUnlocked({id:userId,role:'student'},id,'suspended');streams.closeUser(userId,'suspended');}),
+  suspend:userId=>locks.run([userId],async()=>{matchmaking?.removeUnlocked(userId);vocabQueue?.removeUnlocked(userId);const id=studentRooms.get(userId);if(id)await leaveUnlocked({id:userId,role:'student'},id,'suspended');streams.closeUser(userId,'suspended');}),
   start:async cfg=>{await store.recover();await configure(cfg);periodic();},
   dispose:()=>{sharedLobbies.clear();liveProgress.clear();lobbyIdentities.clear();goldenHours?.dispose();clearTimer(housekeeping);for(const t of timers.values())clearTimer(t);timers.clear();matchmaking?.clear();},
   history:async user=>Promise.all((await store.history(user)).map(id=>snapshot(user,id,true))),

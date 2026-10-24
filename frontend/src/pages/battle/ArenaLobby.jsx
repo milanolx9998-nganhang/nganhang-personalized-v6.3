@@ -796,7 +796,7 @@ export default function ArenaLobby() {
               </div>
 
               {tContent === 'vocab' ? (
-                <VocabQuizPicker value={tVocab} onChange={setTVocab} />
+                <VocabQuizPicker key={selectedClassId || 'all'} classId={selectedClassId || undefined} value={tVocab} onChange={setTVocab} />
               ) : (
               <>
               {/* Chọn Phân môn & Cách giới hạn phạm vi */}

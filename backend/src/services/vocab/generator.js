@@ -20,7 +20,7 @@ export function toneVariants(reading){
  chars.forEach((c,i)=>{const hit=MARKED[c];if(!hit)return;const [base,tone]=hit;for(let t=0;t<4;t++)if(t!==tone)out.push(chars.map((x,j)=>j===i?TONES[base][t]:x).join(''));});
  return [...new Set(out)];
 }
-export const languageOf=entries=>entries.some(e=>isHan(e.term))?'zh':'en';
+export const languageOf=entries=>entries.filter(e=>isHan(e.term)).length*2>entries.length?'zh':'en';
 
 function shuffle(list,random){const a=[...list];for(let i=a.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 // Hai dòng xung đột: cùng từ, trùng nghĩa, hoặc cùng nhóm dễ nhầm.
@@ -35,7 +35,7 @@ function distractors(target,pool,show,random,need=3,extra=()=>true){
  for(const tier of tiers){
   for(const e of shuffle(pool.filter(tier),random)){
    if(picked.length>=need)break;
-   const value=fold(show(e));if(!value||seen.has(value)||picked.includes(e)||conflicts(target,e)||!extra(e))continue;
+   const value=fold(show(e));if(!value||seen.has(value)||picked.includes(e)||conflicts(target,e)||!extra(e)||picked.some(p=>conflicts(p,e)))continue;
    seen.add(value);picked.push(e);
   }
  }
@@ -83,6 +83,16 @@ function matching(kind,target,pool,random){
  const left=group.map((e,i)=>({id:'abcd'[i],text:clean(e.term)})),order=shuffle(group.map((_,i)=>i),random),right=order.map((i,k)=>({id:String(k+1),text:clean(group[i].meaning_vi)}));
  const pairs=Object.fromEntries(group.map((_,i)=>[left[i].id,String(order.indexOf(i)+1)]));
  return {content:{type:'matching',stem:zh?'Ghép chữ Hán với nghĩa đúng.':'Ghép từ với nghĩa đúng.',left,right,answer:{pairs},explanation:explain(group)},entries:group,seconds:BASE_SECONDS.matching};
+}
+
+// Đúng/sai theo từng từ của một câu: trắc nghiệm = một từ; câu ghép chấm theo từng cặp (đúng 3/4 cặp thì chỉ 1 từ bị tính sai).
+// Không có đáp án (hết giờ / bỏ qua) thì mọi từ của câu tính là chưa đúng.
+export function entryOutcomes(content,entryIds,response,score){
+ if(content?.type==='matching'&&response&&typeof response==='object'){
+  const lefts=(content.left||[]).map(l=>String(l.id));
+  return Object.fromEntries(entryIds.map((id,i)=>[id,String(response[lefts[i]])===String(content.answer?.pairs?.[lefts[i]])]));
+ }
+ return Object.fromEntries(entryIds.map(id=>[id,Number(score)===1]));
 }
 
 // entries: [{id,set_id,set_name,term,reading,han_viet,pos,meaning_vi,example,example_vi,confusable_group}]

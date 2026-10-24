@@ -191,6 +191,7 @@ export default function SelfPacedPlay({
 
         if (activeCursorRef.current !== cursor) return;
         if (ack?.received) {
+          saveDraftAnswer(roomId, qIdx, null);
           // Chờ snapshot SSE đẩy feedback / đổi phase, không tự đoán đúng sai
           setSubmitState('waiting_snapshot');
         }
@@ -199,6 +200,7 @@ export default function SelfPacedPlay({
 
         // 409 có biên nhận cũ -> coi như đã nhận, chờ snapshot
         if (err?.status === 409 && err?.details?.receipt) {
+          saveDraftAnswer(roomId, qIdx, null);
           setSubmitState('waiting_snapshot');
           return;
         }

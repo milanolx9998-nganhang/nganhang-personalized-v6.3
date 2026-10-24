@@ -3,6 +3,7 @@ import {randomUUID} from 'node:crypto';
 import {pool} from '../../db/pool.js';
 import {fail,log} from '../practice/config.js';
 import {createRatings} from './ratings.js';
+import {entryOutcomes} from '../vocab/generator.js';
 // Giới hạn riêng cho ghi ván; không thay đổi pool dùng bởi tự luyện.
 export async function battleTx(work,db=pool){
  let timedOut=false,timer;
@@ -12,15 +13,26 @@ export async function battleTx(work,db=pool){
  catch(e){await client.query('ROLLBACK').catch(()=>{});if(e.status)throw e;throw Object.assign(new Error('Chưa lưu được dữ liệu ván, hãy thử lại',{cause:e}),{status:503});}
  finally{client.release();}
 }
-// Thống kê từ hay sai: mỗi ván từ vựng chỉ cộng một lần (đánh dấu vocab_stat_rooms); bỏ qua từ đã bị xoá khỏi ngân hàng.
+// Thống kê từ hay sai: mỗi ván từ vựng chỉ cộng một lần (đánh dấu vocab_stat_rooms); chấm theo từng từ (câu ghép theo từng cặp),
+// câu đã phát mà em không trả lời (hết giờ / bỏ qua) tính là chưa đúng; bỏ qua từ đã bị xoá khỏi ngân hàng.
 async function countVocab(c,roomId){
- await c.query(`WITH mark AS (INSERT INTO vocab_stat_rooms(room_id) VALUES($1) ON CONFLICT DO NOTHING RETURNING room_id),
-  x AS (SELECT a.user_id,unnest(q.vocab_entry_ids) AS entry_id,a.score FROM battle_answers a JOIN battle_questions q ON q.room_id=a.room_id AND q.idx=a.idx
-   WHERE a.room_id=$1 AND q.source='vocab' AND EXISTS(SELECT 1 FROM mark))
-  INSERT INTO vocab_student_stats(student_id,entry_id,seen,correct,last_wrong_at)
-  SELECT x.user_id,x.entry_id,count(*),count(*) FILTER (WHERE x.score=1),max(CASE WHEN x.score<1 THEN now() END) FROM x JOIN vocab_entries e ON e.id=x.entry_id GROUP BY 1,2
+ if(!(await c.query('INSERT INTO vocab_stat_rooms(room_id) VALUES($1) ON CONFLICT DO NOTHING RETURNING room_id',[roomId])).rowCount)return;
+ const asked=(await c.query('SELECT asked_count FROM battle_rooms WHERE id=$1',[roomId])).rows[0]?.asked_count||0;
+ const questions=(await c.query("SELECT idx,vocab_entry_ids,content_snapshot FROM battle_questions WHERE room_id=$1 AND source='vocab' AND idx<$2",[roomId,asked])).rows;
+ if(!questions.length)return;
+ const players=(await c.query('SELECT user_id FROM battle_players WHERE room_id=$1',[roomId])).rows.map(r=>r.user_id);
+ const answers=new Map((await c.query('SELECT idx,user_id,response,score FROM battle_answers WHERE room_id=$1',[roomId])).rows.map(a=>[a.idx+':'+a.user_id,a]));
+ const stats=new Map();
+ for(const user of players)for(const q of questions){
+  const a=answers.get(q.idx+':'+user),ok=entryOutcomes(q.content_snapshot,q.vocab_entry_ids,a?.response,a?Number(a.score):0);
+  for(const entry of q.vocab_entry_ids){const key=user+':'+entry,row=stats.get(key)||{user,entry,seen:0,correct:0,wrong:false};row.seen++;if(ok[entry])row.correct++;else row.wrong=true;stats.set(key,row);}
+ }
+ const rows=[...stats.values()];if(!rows.length)return;
+ await c.query(`INSERT INTO vocab_student_stats(student_id,entry_id,seen,correct,last_wrong_at)
+  SELECT x.user_id,x.entry_id,x.seen,x.correct,CASE WHEN x.wrong THEN now() END FROM jsonb_to_recordset($1) AS x(user_id int,entry_id int,seen int,correct int,wrong boolean)
+  JOIN vocab_entries e ON e.id=x.entry_id
   ON CONFLICT(student_id,entry_id) DO UPDATE SET seen=vocab_student_stats.seen+EXCLUDED.seen,correct=vocab_student_stats.correct+EXCLUDED.correct,
-   last_wrong_at=COALESCE(EXCLUDED.last_wrong_at,vocab_student_stats.last_wrong_at),updated_at=now()`,[roomId]);
+   last_wrong_at=COALESCE(EXCLUDED.last_wrong_at,vocab_student_stats.last_wrong_at),updated_at=now()`,[JSON.stringify(rows.map(r=>({user_id:r.user,entry_id:r.entry,seen:r.seen,correct:r.correct,wrong:r.wrong})))]);
 }
 export function createStorage(db=pool){
  const ratings=createRatings(db);

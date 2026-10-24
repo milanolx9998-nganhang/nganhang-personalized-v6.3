@@ -312,6 +312,7 @@ export default function RoomPage() {
         if (activeQuestionIdxRef.current !== qIndex) return;
 
         if (res?.received) {
+          saveDraftAnswer(roomId, qIndex, null);
           setSubmitState('received');
           setSubmitErrorText('');
         }
@@ -320,6 +321,7 @@ export default function RoomPage() {
 
         // 409 kèm details.receipt => câu trả lời đã được máy chủ ghi nhận trước đó
         if (err?.status === 409 && err?.details?.receipt) {
+          saveDraftAnswer(roomId, qIndex, null);
           setSubmitState('received');
           setSubmitErrorText('');
           return;
@@ -721,10 +723,11 @@ export default function RoomPage() {
                     {KIND_LABELS[snapshot.kind] || 'Phòng đấu'}
                   </span>
                   <span className="arena-chip">
-                    {snapshot.question_count || 7} câu · {snapshot.seconds || 30} giây/câu
+                    {snapshot.question_count || 7} câu ·{' '}
+                    {snapshot.scope?.content === 'vocab' ? '10–25 giây/câu' : `${snapshot.seconds || 30} giây/câu`}
                   </span>
                   <span className="arena-chip">
-                    Đúng là chính
+                    {snapshot.scope?.content === 'vocab' ? 'Nhanh tay · không tính hạng' : 'Đúng là chính'}
                   </span>
                 </div>
                 <div className="arena-lobby-scope-line">
@@ -934,7 +937,7 @@ export default function RoomPage() {
 
   // ===== PHA TRONG VÁN ĐẤU (countdown / question / paused / closing) =====
   const question = snapshot?.question;
-  const totalSeconds = Number(snapshot?.seconds) || 30;
+  const totalSeconds = Number(snapshot?.question?.seconds) || Number(snapshot?.seconds) || 30;
   const remainingSec =
     remainingMs !== null ? Math.ceil(remainingMs / 1000) : totalSeconds;
   const timerPercent =

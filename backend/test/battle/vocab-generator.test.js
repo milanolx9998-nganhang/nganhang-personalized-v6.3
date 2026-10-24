@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {generateVocabQuestions,toneVariants,meaningParts,conflicts,languageOf} from '../../src/services/vocab/generator.js';
+import {generateVocabQuestions,toneVariants,meaningParts,conflicts,languageOf,entryOutcomes} from '../../src/services/vocab/generator.js';
 import {mapRow} from '../../src/services/vocab/bank.js';
 import {gradeQuestion} from '../../src/services/practice/grading.js';
 
@@ -50,4 +50,17 @@ test('V695 nhập: ánh xạ cột Bufopia / HSK, tách nghĩa',()=>{
  const row=mapRow({Hanzi:'你好',Pinyin:'nǐ hǎo','Nghĩa':'xin chào',HSK:'HSK1'});
  assert.equal(row.term,'你好');assert.equal(row.reading,'nǐ hǎo');assert.equal(row.meaning_vi,'xin chào');assert.equal(row.level,1);assert.equal(row.set,'');
  assert.deepEqual(meaningParts('to; lớn (kích thước)'),['to','lớn']);
+});
+
+test('V695 chấm theo từng từ: ghép đúng 3/4 cặp chỉ tính sai một từ; hết giờ tính chưa đúng',()=>{
+ const match=generateVocabQuestions(en,{count:10,kinds:['EN5'],random:seeded(9)}).find(q=>q.kind==='EN5');
+ const ids=match.vocab_entry_ids,pairs=match.content.answer.pairs,lefts=match.content.left.map(l=>l.id);
+ assert.deepEqual(Object.values(entryOutcomes(match.content,ids,pairs,1)),[true,true,true,true]);
+ const wrong={...pairs,[lefts[2]]:pairs[lefts[3]],[lefts[3]]:pairs[lefts[2]]};
+ const partial=entryOutcomes(match.content,ids,wrong,0.5);
+ assert.deepEqual(ids.map(id=>partial[id]),[true,true,false,false]);
+ assert.deepEqual(Object.values(entryOutcomes(match.content,ids,undefined,0)),[false,false,false,false]);
+ const mcq=generateVocabQuestions(en,{count:3,kinds:['EN1'],random:seeded(2)})[0];
+ assert.deepEqual(entryOutcomes(mcq.content,mcq.vocab_entry_ids,mcq.content.answer.correct,1),{[mcq.vocab_entry_ids[0]]:true});
+ assert.equal(languageOf([...en.slice(0,10),{id:99,term:'你',meaning_vi:'bạn',set_id:1}]),'en','một chữ Hán lẫn vào bộ Anh không đổi ngôn ngữ cả bộ');
 });

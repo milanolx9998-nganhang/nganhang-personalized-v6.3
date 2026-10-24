@@ -404,8 +404,8 @@ export const battleApiModes = {
 
 // V6.9.5 Đấu từ vựng: bộ từ chơi được và hàng chờ riêng (không qua /match của Đấu bài học).
 export const battleApiVocab = {
-  getSets(subjectId) {
-    return api.get(`${BASE}/vocab/sets${buildQuery({ subject_id: subjectId })}`);
+  getSets(subjectId, classId) {
+    return api.get(`${BASE}/vocab/sets${buildQuery({ subject_id: subjectId, class_id: classId })}`);
   },
   joinMatch(payload) {
     return api.post(`${BASE}/vocab/match`, payload);

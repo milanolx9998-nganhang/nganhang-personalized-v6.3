@@ -12,20 +12,23 @@ export function createVocabQueue({rooms,identity,normalizeScope,deck,safety,stre
  }
  function remove(id){entries.delete(id);if(!entries.size&&timer){clearTimer(timer);timer=null;}streams?.publish('lobby');}
  function arm(){if(timer||!entries.size)return;timer=setTimer(async()=>{timer=null;try{await match();}catch{/* Vé còn nguyên; vòng sau thử lại. */}finally{arm();}},roundMs);timer.unref?.();}
+ // Kiểm tra + đặt vé trong cùng khoá học sinh như tạo phòng / ghép trận, để hai yêu cầu đồng thời không lọt cả hai hàng chờ.
  async function join(user,data){
   rooms.admission();rooms.feature('vocab');
-  if(rooms.studentRooms.has(user.id))fail('Em đang trong một phòng khác',409);
-  if(inOtherQueue(user.id))fail('Hãy rời hàng chờ Đấu bài học trước',409);
   const info=await identity(user),scope=await normalizeScope(info.grade,{...data,content:'vocab'});
   if(await deck.count(info.grade,scope)<questionCount)fail('Bộ từ chưa đủ từ để đấu; hãy chọn thêm bộ');
-  await safety.assertAvailable(user.id);
-  entries.set(user.id,{user,grade:info.grade,scope,at:now()});arm();streams?.publish('lobby');
-  return status(user.id);
+  return rooms.locks.run([user.id],async()=>{
+   if(rooms.studentRooms.has(user.id))fail('Em đang trong một phòng khác',409);
+   if(inOtherQueue(user.id))fail('Hãy rời hàng chờ Đấu bài học trước',409);
+   await safety.assertAvailable(user.id);
+   entries.set(user.id,{user,grade:info.grade,scope,at:now()});arm();streams?.publish('lobby');
+   return status(user.id);
+  });
  }
  const compatible=(a,b)=>a.grade===b.grade&&a.scope.subject_id===b.scope.subject_id&&(overlap(a,b)||waited(a)>=widenMs&&waited(b)>=widenMs);
  async function groupScope(group){
   const common=group[0].scope.vocab_set_ids.filter(id=>group.every(e=>e.scope.vocab_set_ids.includes(id)));
-  const ids=common.length?common:[...new Set(group.flatMap(e=>e.scope.vocab_set_ids))];
+  const ids=(common.length?common:[...new Set(group.flatMap(e=>e.scope.vocab_set_ids))]).slice(0,20);
   const scope=await normalizeScope(group[0].grade,{content:'vocab',subject_id:group[0].scope.subject_id,vocab_set_ids:ids});
   return await deck.count(group[0].grade,scope)>=questionCount?scope:null;
  }
@@ -59,5 +62,5 @@ export function createVocabQueue({rooms,identity,normalizeScope,deck,safety,stre
   return create([e],{bot_difficulty:difficulty});
  }
  function clear(){entries.clear();if(timer){clearTimer(timer);timer=null;}}
- return {join,leave:user=>{remove(user.id);return {left:true};},status,has:id=>entries.has(id),match,toBot,clear,size:()=>entries.size};
+ return {join,leave:user=>{remove(user.id);return {left:true};},removeUnlocked:remove,status,has:id=>entries.has(id),match,toBot,clear,size:()=>entries.size};
 }

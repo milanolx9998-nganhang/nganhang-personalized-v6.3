@@ -105,7 +105,7 @@ r.get('/history',wrap(async(req,res)=>res.json(await battleRooms.history(req.use
 r.post('/rooms/:id/rematch',createLimit,wrap(async(req,res)=>{
  empty.parse(req.body);const old=await battleRooms.get(idSchema.parse(req.params.id));battleRooms.access(old,req.user,false);if(!terminal(old))fail('Ván chưa kết thúc',409);
  if(old.kind==='class'&&req.user.id!==old.host_id)fail('Chỉ giáo viên mở lại ván lớp',403);
- const data=createSchema.parse({...Object.fromEntries(Object.keys(modeDefaults).map(k=>[k,old[k]??modeDefaults[k]])),kind:old.kind,visibility:old.visibility,...(old.class_id?{class_id:old.class_id}:{}),scope:{subject_id:old.scope.subject_id,branch_id:old.scope.branch_id,...(old.scope.chapter?{chapter:old.scope.chapter}:{}),topic_ids:old.scope.topic_ids},content_mode:'fixed',capacity:old.capacity,question_count:old.question_count,seconds:old.seconds});
+ const data=createSchema.parse({...Object.fromEntries(Object.keys(modeDefaults).map(k=>[k,old[k]??modeDefaults[k]])),kind:old.kind,visibility:old.visibility,...(old.class_id?{class_id:old.class_id}:{}),scope:old.scope.content==='vocab'?{content:'vocab',subject_id:old.scope.subject_id,vocab_set_ids:old.scope.vocab_set_ids,...(old.scope.vocab_kinds?{vocab_kinds:old.scope.vocab_kinds}:{})}:{subject_id:old.scope.subject_id,branch_id:old.scope.branch_id,...(old.scope.chapter?{chapter:old.scope.chapter}:{}),topic_ids:old.scope.topic_ids},content_mode:'fixed',capacity:old.capacity,question_count:old.question_count,seconds:old.seconds});
  res.status(201).json(roomDto(await battleRooms.create(req.user,{...data,rematch_of:old.id}),req.user,Date.now()));
 }));
 r.post('/rooms/:id/retry-wrong',wrap(async(req,res)=>{
@@ -120,7 +120,14 @@ const legacyTicket=z.object({kind:z.enum(['duel','ffa']),scope:scopeSchema.defau
 r.post('/match',wrap(async(req,res)=>{student(req);if(vocabQueue.has(req.user.id))fail('Hãy rời hàng chờ Đấu từ vựng trước',409);res.json(await matchmaking.join(req.user,z.union([ticketSchema,legacyTicket]).parse(req.body)));}));
 r.patch('/match',wrap(async(req,res)=>{student(req);z.object({accept:z.literal(true)}).strict().parse(req.body);res.json(await matchmaking.expand(req.user));}));
 const vocabMatchSchema=z.object({subject_id:z.number().int().positive().optional(),vocab_set_ids:z.array(z.number().int().positive()).min(1).max(20)}).strict();
-r.get('/vocab/sets',wrap(async(req,res)=>{const info=await battleIdentity(req.user);const subject=req.query.subject_id?z.coerce.number().int().positive().parse(req.query.subject_id):null;res.json({sets:await playableSets(info.grade??null,subject)});}));
+r.get('/vocab/sets',wrap(async(req,res)=>{
+ const q=z.object({subject_id:z.coerce.number().int().positive().optional(),class_id:z.coerce.number().int().positive().optional()}).passthrough().parse(req.query);
+ let grade;
+ if(req.user.role==='student')grade=(await battleIdentity(req.user)).grade??null;
+ else if(q.class_id){const c=(await pool.query('SELECT grade FROM classes WHERE id=$1',[q.class_id])).rows[0];if(!c)fail('Không tìm thấy lớp',404);grade=c.grade;}
+ else grade=null;
+ res.json({sets:await playableSets(grade,q.subject_id??null)});
+}));
 r.get('/vocab/match',wrap(async(req,res)=>{student(req);res.json({queue:vocabQueue.status(req.user.id)});}));
 r.post('/vocab/match',wrap(async(req,res)=>{student(req);res.json({queue:await vocabQueue.join(req.user,vocabMatchSchema.parse(req.body))});}));
 r.delete('/vocab/match',wrap(async(req,res)=>{student(req);res.json(vocabQueue.leave(req.user));}));

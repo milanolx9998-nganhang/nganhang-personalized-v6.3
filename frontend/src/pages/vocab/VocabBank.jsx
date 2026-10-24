@@ -1,4 +1,4 @@
-import {useCallback,useEffect,useState} from 'react';
+import {useCallback,useEffect,useRef,useState} from 'react';
 import {api,uploadFile,downloadFile} from '../../api/client.js';
 import {ErrorBox} from '../practice/shared.jsx';
 import '../../styles/vocab.css';
@@ -76,16 +76,18 @@ function EntryRow({entry,zh,onSaved}){
 }
 
 export default function VocabBank(){
- const [subjects,setSubjects]=useState(null),[subject,setSubject]=useState(null),[sets,setSets]=useState([]),[setId,setSetId]=useState(null),[entries,setEntries]=useState(null),[q,setQ]=useState(''),[page,setPage]=useState(1),[error,setError]=useState(''),[adding,setAdding]=useState('');
+ const [subjects,setSubjects]=useState(null),[subject,setSubject]=useState(null),[sets,setSets]=useState([]),[setId,setSetId]=useState(null),[entries,setEntries]=useState(null),[q,setQ]=useState(''),[page,setPage]=useState(1),[error,setError]=useState(''),[adding,setAdding]=useState(''),[addBusy,setAddBusy]=useState(false);
  const loadSubjects=useCallback(async()=>{try{const list=(await api.get(BASE+'/subjects')).subjects;setSubjects(list);setSubject(s=>s?list.find(x=>x.id===s.id)||list[0]:list[0]||null);}catch(e){setError(e.message);}},[]);
  const subjectId=subject?.id;
- const loadSets=useCallback(async()=>{if(!subjectId)return;try{setSets((await api.get(BASE+'/sets?subject_id='+subjectId)).sets);}catch(e){setError(e.message);}},[subjectId]);
- const loadEntries=useCallback(async()=>{if(!setId)return setEntries(null);try{setEntries(await api.get(`${BASE}/entries?set_id=${setId}&page=${page}${q.trim()?'&q='+encodeURIComponent(q.trim()):''}`));}catch(e){setError(e.message);}},[setId,page,q]);
+ const wanted=useRef({subject:null,set:null,page:1,q:''});
+ wanted.current={subject:subjectId,set:setId,page,q};
+ const loadSets=useCallback(async()=>{if(!subjectId)return;try{const list=(await api.get(BASE+'/sets?subject_id='+subjectId)).sets;if(wanted.current.subject===subjectId)setSets(list);}catch(e){setError(e.message);}},[subjectId]);
+ const loadEntries=useCallback(async()=>{if(!setId)return setEntries(null);try{const res=await api.get(`${BASE}/entries?set_id=${setId}&page=${page}${q.trim()?'&q='+encodeURIComponent(q.trim()):''}`);const w=wanted.current;if(w.set===setId&&w.page===page&&w.q===q)setEntries(res);}catch(e){setError(e.message);}},[setId,page,q]);
  useEffect(()=>{loadSubjects();},[loadSubjects]);
  useEffect(()=>{setSetId(null);loadSets();},[loadSets]); // đổi môn thì đóng bộ đang mở
  useEffect(()=>{const t=setTimeout(loadEntries,250);return ()=>clearTimeout(t);},[loadEntries]);
  const refresh=()=>{loadSubjects();loadSets();loadEntries();};
- async function addSet(){setError('');try{const s=await api.post(BASE+'/sets',{subject_id:subject.id,name:adding.trim(),kind:isZh(subject)?'hsk':'topic'});setAdding('');await loadSets();setSetId(s.id);}catch(e){setError(e.message);}}
+ async function addSet(){if(addBusy)return;setAddBusy(true);setError('');try{const s=await api.post(BASE+'/sets',{subject_id:subject.id,name:adding.trim(),kind:isZh(subject)?'hsk':'topic'});setAdding('');await loadSets();setSetId(s.id);}catch(e){setError(e.message);}finally{setAddBusy(false);}}
  const zh=isZh(subject),current=sets.find(s=>s.id===setId);
  return <div className="vocab-page">
   <header className="vocab-head"><div><h1>Ngân hàng từ vựng</h1><p className="vocab-muted">Kho từ riêng cho Tiếng Anh / Tiếng Trung, tách khỏi ngân hàng câu hỏi. Đấu từ vựng và Quiz lớp từ vựng tự sinh câu từ các bộ ở đây (mỗi bộ cần ít nhất {MIN} từ).</p></div></header>
@@ -96,7 +98,7 @@ export default function VocabBank(){
    <aside className="practice-card vocab-sets"><h2>Bộ từ</h2>
     {!sets.length&&<p className="vocab-muted">Chưa có bộ nào — nhập tệp bên dưới để tạo.</p>}
     <ul>{sets.map(s=><SetRow key={s.id} set={s} active={s.id===setId} onOpen={()=>{setSetId(s.id);setPage(1);setQ('');}} onSaved={refresh}/>)}</ul>
-    <div className="vocab-add"><input value={adding} maxLength={120} placeholder={zh?'Tên bộ mới, VD: HSK 2':'Tên bộ mới, VD: Unit 3: My friends'} onChange={e=>setAdding(e.target.value)}/><button className="btn secondary" disabled={!adding.trim()} onClick={addSet}>Thêm bộ</button></div>
+    <div className="vocab-add"><input value={adding} maxLength={120} placeholder={zh?'Tên bộ mới, VD: HSK 2':'Tên bộ mới, VD: Unit 3: My friends'} onChange={e=>setAdding(e.target.value)}/><button className="btn secondary" disabled={!adding.trim()||addBusy} onClick={addSet}>{addBusy?'Đang thêm…':'Thêm bộ'}</button></div>
    </aside>
    <section className="practice-card vocab-main">
     {current?<>

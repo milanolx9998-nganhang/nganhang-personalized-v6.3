@@ -6,6 +6,7 @@ import {z} from 'zod';
 import {pool,tx} from '../../db/pool.js';
 import {fail,log} from '../practice/config.js';
 import {staff,subjectAccess} from '../practice/authorization.js';
+import {can} from '../accessResolver.js';
 import {safeZip} from '../practice/importAdapters.js';
 import {clean,fold,isHan,hasToneMarks} from './generator.js';
 
@@ -22,8 +23,8 @@ export function parseVocabFile(file){
  const name=String(file?.originalname||'').toLowerCase();if(!file)fail('Chọn tệp CSV, JSON hoặc XLSX');
  const buffer=fs.readFileSync(file.path);let rows;
  if(name.endsWith('.json')){let data;try{data=JSON.parse(buffer.toString('utf8').replace(/^﻿/,''));}catch{fail('Tệp JSON không đọc được');}rows=Array.isArray(data)?data:Array.isArray(data?.entries)?data.entries:null;if(!rows)fail('JSON cần là danh sách từ');}
- else if(name.endsWith('.csv')){const wb=XLSX.read(buffer.toString('utf8').replace(/^﻿/,''),{type:'string',raw:true});rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:'',raw:false});}
- else if(name.endsWith('.xlsx')){safeZip(buffer);const wb=XLSX.read(buffer,{type:'buffer'});rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:'',raw:false});}
+ else if(name.endsWith('.csv')){const wb=XLSX.read(buffer.toString('utf8').replace(/^﻿/,''),{type:'string',raw:true});if(!wb.SheetNames?.length)fail('Tệp CSV rỗng');rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:'',raw:false});}
+ else if(name.endsWith('.xlsx')){safeZip(buffer);const wb=XLSX.read(buffer,{type:'buffer'});if(!wb.SheetNames?.length)fail('Tệp XLSX không có trang tính');rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:'',raw:false});}
  else fail('Chỉ nhận tệp .csv, .json hoặc .xlsx');
  if(!rows.length||rows.length>5000)fail('Tệp cần từ 1 đến 5000 dòng');
  return rows;
@@ -45,9 +46,11 @@ const setName=r=>r.set||`HSK ${r.level}`;
 const entryKey=(set,r)=>`${fold(set)}|${fold(r.term)}|${clean(r.meaning_vi)}`;
 const FIELDS=['reading','han_viet','pos','example','example_vi'];
 
-async function subjectOf(user,subjectId,client=pool){
+async function subjectOf(user,subjectId,client=pool,write=true){
  staff(user);const s=(await client.query('SELECT id,name,code FROM subjects WHERE id=$1',[subjectId])).rows[0];if(!s)fail('Không tìm thấy môn',404);
- await subjectAccess(user,s.id);return s;
+ await subjectAccess(user,s.id);
+ if(write&&user.role!=='admin'&&!await can(user,'content.write',{subjectId:s.id}))fail('Cần quyền soạn nội dung môn này',403);
+ return s;
 }
 async function inspect(client,subject,rows,defaults){
  const sets=new Map((await client.query('SELECT id,name FROM vocab_sets WHERE subject_id=$1',[subject.id])).rows.map(s=>[fold(s.name),s]));
@@ -55,7 +58,7 @@ async function inspect(client,subject,rows,defaults){
  const seen=new Set();
  return rows.map((raw,i)=>{
   const r=mapRow(raw,defaults),errors=rowErrors(r),k=entryKey(setName(r),r),old=existing.get(k);
-  let status=errors.length?'ERROR':seen.has(k)?'DUPLICATE':!old?'NEW':old.status==='retired'||FIELDS.some(f=>r[f]&&clean(old[f])!==r[f])?'UPDATE':'SAME';seen.add(k);
+  let status=errors.length?'ERROR':seen.has(k)?'DUPLICATE':!old?'NEW':old.status!=='approved'||FIELDS.some(f=>r[f]&&clean(old[f])!==r[f])?'UPDATE':'SAME';seen.add(k);
   return {row:i+2,...r,set:setName(r),new_set:!sets.has(fold(setName(r))),status,errors};
  });
 }
@@ -69,8 +72,11 @@ export async function previewImport(user,{subject_id,rows,source=null,set=null})
 }
 export async function confirmImport(user,token){
  z.string().uuid().parse(token);const p=previews.get(token);if(!p||p.expires<Date.now())fail('Bản xem trước đã hết hạn, hãy tải lại tệp',410);if(p.actor!==user.id)fail('Bản xem trước của người khác',403);
+ previews.delete(token); // lấy token ra khỏi bảng ngay: bấm đúp không chạy hai giao dịch song song
+ let result;
+ try{
  const subject=await subjectOf(user,p.subject_id);
- const result=await tx(async client=>{
+ result=await tx(async client=>{
   const checked=await inspect(client,subject,p.rows,{set:p.set}),sets=new Map((await client.query('SELECT id,name FROM vocab_sets WHERE subject_id=$1',[subject.id])).rows.map(s=>[fold(s.name),s.id]));
   let created=0,updated=0,newSets=0;
   for(const r of checked.filter(r=>['NEW','UPDATE'].includes(r.status))){
@@ -85,36 +91,40 @@ export async function confirmImport(user,token){
   await log(client,user,'VOCAB_IMPORT',token,{subject_id:subject.id,created,updated,new_sets:newSets,source:p.source});
   return {created,updated,new_sets:newSets};
  });
- previews.delete(token);return result;
+ }catch(e){previews.set(token,p);throw e;}
+ return result;
 }
 
 export async function overview(user){
  staff(user);
- return (await pool.query(`SELECT s.id,s.name,s.code,count(DISTINCT v.id)::int AS set_count,count(e.id) FILTER (WHERE e.status='approved')::int AS entry_count
+ const rows=(await pool.query(`SELECT s.id,s.name,s.code,count(DISTINCT v.id)::int AS set_count,count(e.id) FILTER (WHERE e.status='approved')::int AS entry_count
   FROM subjects s LEFT JOIN vocab_sets v ON v.subject_id=s.id LEFT JOIN vocab_entries e ON e.set_id=v.id
   WHERE s.code IN ('TiengAnh','TiengTrung') OR lower(s.name) LIKE 'tiếng anh%' OR lower(s.name) LIKE 'tiếng trung%' OR v.id IS NOT NULL
   GROUP BY s.id ORDER BY s.name`)).rows;
+ const visible=[];for(const s of rows)if(user.role==='admin'||await subjectAccess(user,s.id).then(()=>true,()=>false))visible.push(s);
+ return visible;
 }
 export async function listSets(user,subjectId){
- await subjectOf(user,subjectId);
+ await subjectOf(user,subjectId,pool,false);
  return (await pool.query(`SELECT s.*,count(e.id) FILTER (WHERE e.status='approved')::int AS entry_count,count(e.id) FILTER (WHERE e.status='retired')::int AS retired_count
   FROM vocab_sets s LEFT JOIN vocab_entries e ON e.set_id=s.id WHERE s.subject_id=$1 GROUP BY s.id ORDER BY s.kind,s.level NULLS LAST,s.order_index,s.name`,[subjectId])).rows;
 }
 const setPatch=z.object({name:z.string().trim().min(1).max(120).optional(),kind:z.enum(['topic','unit','hsk']).optional(),level:z.number().int().min(1).max(9).nullable().optional(),grade_min:z.number().int().min(1).max(12).nullable().optional(),grade_max:z.number().int().min(1).max(12).nullable().optional(),topic_id:z.number().int().positive().nullable().optional(),status:z.enum(['active','hidden']).optional(),order_index:z.number().int().min(0).max(100000).optional()}).strict();
+const dupName=e=>{if(e?.code==='23505')fail('Môn này đã có bộ từ trùng tên',409);throw e;};
 export async function createSet(user,body){
  const d=setPatch.extend({subject_id:z.number().int().positive(),name:z.string().trim().min(1).max(120)}).parse(body);await subjectOf(user,d.subject_id);
  return tx(async c=>{const row=(await c.query(`INSERT INTO vocab_sets(subject_id,name,kind,level,grade_min,grade_max,topic_id,status,created_by) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
-  [d.subject_id,d.name,d.kind||'topic',d.level??null,d.grade_min??null,d.grade_max??null,d.topic_id??null,d.status||'active',user.id])).rows[0];await log(c,user,'VOCAB_SET_CREATE',row.id,d);return row;});
+  [d.subject_id,d.name,d.kind||'topic',d.level??null,d.grade_min??null,d.grade_max??null,d.topic_id??null,d.status||'active',user.id])).rows[0];await log(c,user,'VOCAB_SET_CREATE',row.id,d);return row;}).catch(dupName);
 }
 export async function updateSet(user,id,body){
  const d=setPatch.parse(body),old=(await pool.query('SELECT * FROM vocab_sets WHERE id=$1',[id])).rows[0];if(!old)fail('Không tìm thấy bộ từ',404);await subjectOf(user,old.subject_id);
  const next={...old,...d};if(next.grade_min!=null&&next.grade_max!=null&&next.grade_min>next.grade_max)fail('Khối nhỏ nhất phải ≤ khối lớn nhất');
  return tx(async c=>{const row=(await c.query(`UPDATE vocab_sets SET name=$2,kind=$3,level=$4,grade_min=$5,grade_max=$6,topic_id=$7,status=$8,order_index=$9,updated_at=now() WHERE id=$1 RETURNING *`,
-  [id,next.name,next.kind,next.level,next.grade_min,next.grade_max,next.topic_id,next.status,next.order_index])).rows[0];await log(c,user,'VOCAB_SET_UPDATE',id,d);return row;});
+  [id,next.name,next.kind,next.level,next.grade_min,next.grade_max,next.topic_id,next.status,next.order_index])).rows[0];await log(c,user,'VOCAB_SET_UPDATE',id,d);return row;}).catch(dupName);
 }
 export async function listEntries(user,q){
  const d=z.object({set_id:z.coerce.number().int().positive(),q:z.string().max(100).optional(),status:z.enum(['approved','draft','retired']).optional(),page:z.coerce.number().int().min(1).max(1000).default(1)}).parse(q);
- const set=(await pool.query('SELECT * FROM vocab_sets WHERE id=$1',[d.set_id])).rows[0];if(!set)fail('Không tìm thấy bộ từ',404);await subjectOf(user,set.subject_id);
+ const set=(await pool.query('SELECT * FROM vocab_sets WHERE id=$1',[d.set_id])).rows[0];if(!set)fail('Không tìm thấy bộ từ',404);await subjectOf(user,set.subject_id,pool,false);
  const where=`set_id=$1 AND ($2::text IS NULL OR lower(term) LIKE '%'||lower($2)||'%' OR lower(meaning_vi) LIKE '%'||lower($2)||'%' OR lower(coalesce(reading,'')) LIKE '%'||lower($2)||'%') AND ($3::text IS NULL OR status=$3)`,args=[d.set_id,d.q||null,d.status||null];
  const total=(await pool.query(`SELECT count(*)::int AS n FROM vocab_entries WHERE ${where}`,args)).rows[0].n;
  const entries=(await pool.query(`SELECT * FROM vocab_entries WHERE ${where} ORDER BY status='retired',id LIMIT 100 OFFSET $4`,[...args,(d.page-1)*100])).rows;

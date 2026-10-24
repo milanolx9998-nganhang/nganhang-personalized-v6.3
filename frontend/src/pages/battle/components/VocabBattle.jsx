@@ -36,7 +36,8 @@ export function VocabBattleSheet({ flags, onClose, onQueued, onRoomCreated }) {
     return [...map.values()];
   }, [sets]);
   const subjectSets = (sets || []).filter((s) => s.subject_id === subjectId);
-  const toggle = (id) => setPicked((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const toggle = (id) =>
+    setPicked((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : prev.length >= 20 ? prev : [...prev, id]));
   const chosen = picked.filter((id) => subjectSets.some((s) => s.id === id && s.playable));
   const canRoom = flags.battle_enabled && flags.duel_code;
 
@@ -171,14 +172,21 @@ export function VocabBattleSheet({ flags, onClose, onQueued, onRoomCreated }) {
 // Khung chờ riêng của Đấu từ vựng (không dùng MatchWaiting của Đấu bài học).
 export function VocabWaiting({ queue, flags, onMatched, onCancelled, onError }) {
   const [now, setNow] = useState(Date.now());
-  const [busy, setBusy] = useState('');
+  const [busy, setBusyState] = useState('');
+  const busyRef = React.useRef('');
+  const setBusy = (v) => {
+    busyRef.current = v;
+    setBusyState(v);
+  };
 
   useEffect(() => {
     const tick = setInterval(() => setNow(Date.now()), 1000);
     // Sảnh có thể chưa mở luồng SSE (chỉ bật Đấu từ vựng): tự hỏi /me để biết đã ghép xong.
     const poll = setInterval(async () => {
+      if (busyRef.current) return;
       try {
         const me = await battleApi.getMe();
+        if (busyRef.current) return;
         if (me?.current_room_id) onMatched?.(me.current_room_id);
         else if (!me?.vocab_queue) onCancelled?.();
       } catch {
@@ -210,6 +218,11 @@ export function VocabWaiting({ queue, flags, onMatched, onCancelled, onError }) 
     try {
       const res = await battleApiVocab.toBot('medium');
       if (res?.room_id) onMatched?.(res.room_id);
+      else {
+        // Vé vừa được vòng ghép tự động lấy đi: xem em đã vào phòng nào chưa
+        const me = await battleApi.getMe();
+        if (me?.current_room_id) onMatched?.(me.current_room_id);
+      }
     } catch (err) {
       onError?.(err?.message || 'Chưa đấu với máy được.');
     } finally {
@@ -255,19 +268,19 @@ export function VocabWaiting({ queue, flags, onMatched, onCancelled, onError }) 
 }
 
 // Quiz lớp từ vựng (giáo viên): chọn môn, bộ từ và dạng câu cho phép.
-export function VocabQuizPicker({ value, onChange }) {
+export function VocabQuizPicker({ value, onChange, classId }) {
   const [sets, setSets] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
   useEffect(() => {
     let cancelled = false;
     battleApiVocab
-      .getSets()
+      .getSets(undefined, classId)
       .then((res) => !cancelled && setSets(Array.isArray(res?.sets) ? res.sets : []))
       .catch((err) => !cancelled && setErrorMsg(err?.message || 'Không tải được ngân hàng từ vựng.'));
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [classId]);
   const subjects = useMemo(() => {
     const map = new Map();
     for (const s of sets || []) if (!map.has(s.subject_id)) map.set(s.subject_id, { id: s.subject_id, name: s.subject_name, language: s.language });
@@ -280,7 +293,14 @@ export function VocabQuizPicker({ value, onChange }) {
   const kinds = VOCAB_KINDS[subject?.language || 'en'];
   const subjectSets = (sets || []).filter((s) => s.subject_id === value.subjectId);
   const toggle = (key, id) =>
-    onChange({ ...value, [key]: value[key].includes(id) ? value[key].filter((x) => x !== id) : [...value[key], id] });
+    onChange({
+      ...value,
+      [key]: value[key].includes(id)
+        ? value[key].filter((x) => x !== id)
+        : key === 'setIds' && value.setIds.length >= 20
+        ? value[key]
+        : [...value[key], id],
+    });
 
   if (errorMsg) {
     return (

@@ -1,3 +1,4 @@
+import {entryOutcomes} from '../vocab/generator.js';
 import {modeDefaults,rankEligible,issuedFor,pointsOf,progressDto} from './modes.js';
 import {normalizeQuestion} from '../practice/grading.js';
 import {activePlayers,standings,teamStandings,startReasons,distribution,badges,terminal,voteDecision} from './engine.js';
@@ -5,7 +6,7 @@ const text=v=>String(v??'');
 const choices=rows=>(rows||[]).map(r=>({id:text(r.id),text:text(r.text)}));
 // Không trải JSON do tác giả soạn ra ngoài, kể cả ở các cấu trúc lồng nhau.
 export function questionDto(raw,reveal=false){
- const q=normalizeQuestion(raw),out={type:q.type,stem:text(q.stem),topic_id:raw.topic_id,topic_name:text(raw.curriculum_snapshot?.topic_name),blocks:(q.blocks||[]).filter(b=>['paragraph','table'].includes(b.type)).map(b=>b.type==='table'?{type:'table',rows:(b.rows||[]).map(row=>row.map(text))}:{type:'paragraph',text:text(b.text)})};
+ const q=normalizeQuestion(raw),out={...(raw.source==='vocab'?{seconds:Number(raw.seconds)}:{}),type:q.type,stem:text(q.stem),topic_id:raw.topic_id,topic_name:text(raw.curriculum_snapshot?.topic_name),blocks:(q.blocks||[]).filter(b=>['paragraph','table'].includes(b.type)).map(b=>b.type==='table'?{type:'table',rows:(b.rows||[]).map(row=>row.map(text))}:{type:'paragraph',text:text(b.text)})};
  if(q.type==='multiple_choice')out.options=choices(q.options);
  if(q.type==='true_false')out.statements=choices(q.statements);
  if(q.type==='matching'){out.left=choices(q.left);out.right=choices(q.right);}
@@ -63,7 +64,12 @@ function legacyRoomDto(room,viewer,now){
 const scopeCard=s=>({subject_id:s.subject_id??null,subject_ids:s.subject_ids,branch_id:s.branch_id??null,chapter:s.chapter??null,topic_ids:s.topic_ids??null,...(s.content==='vocab'?{content:'vocab',vocab_set_ids:s.vocab_set_ids,vocab_label:s.vocab_label||null}:{})});
 // Từ em trả lời sai trong ván từ vựng (câu ghép sai thì liệt kê cả 4 từ của câu).
 function vocabMissed(room,questions){
- const out=new Map();for(const q of questions)if(q.score<1)for(const v of room.questions[q.index]?.curriculum_snapshot?.vocab||[])if(!out.has(v.entry_id))out.set(v.entry_id,v);
+ const out=new Map();
+ for(const q of questions){
+  if(q.score>=1)continue;const raw=room.questions[q.index],words=raw?.curriculum_snapshot?.vocab||[];
+  const ok=entryOutcomes(raw?.content||raw?.content_snapshot,words.map(v=>v.entry_id),q.response,q.score);
+  for(const v of words)if(!ok[v.entry_id]&&!out.has(v.entry_id))out.set(v.entry_id,v);
+ }
  return [...out.values()];
 }
 export function lobbyCard(room){return {id:room.id,created_at:room.created_at,mode:room.kind,ranked:Boolean(rankEligible(room)&&room.match_meta?.rank_enabled),host_badge:room.public_badges?.[room.host_id]||null,label:room.has_bots?'Đấu với máy':room.open_slots?'Nhóm bạn đang tìm thêm người':null,kind:room.kind,visibility:room.visibility,open_slots:Boolean(room.open_slots),auto_match:Boolean(room.auto_match),host_name:room.players.find(p=>p.user_id===room.host_id)?.display_name||'Giáo viên',scope:scopeCard(room.scope),players:activePlayers(room).length,capacity:room.capacity,question_count:room.question_count,seconds:room.seconds,class_id:room.class_id};}

@@ -1,7 +1,7 @@
 // Ngân hàng từ vựng: đọc bộ từ / dòng từ cho Đấu. Tách hẳn khỏi ngân hàng câu hỏi.
 import {pool} from '../../db/pool.js';
 import {fail} from '../practice/config.js';
-import {ALL_VOCAB_KINDS,languageOf} from './generator.js';
+import {ALL_VOCAB_KINDS,languageOf,generateVocabQuestions} from './generator.js';
 export const MIN_VOCAB_ENTRIES=8;
 const gradeFits='($2::int IS NULL OR ((s.grade_min IS NULL OR s.grade_min<=$2) AND (s.grade_max IS NULL OR s.grade_max>=$2)))';
 const setLabel=rows=>rows.length===1?rows[0].name:rows.length<=3?rows.map(r=>r.name).join(' · '):`${rows.length} bộ từ`;
@@ -20,7 +20,11 @@ export async function vocabEntries(setIds,client=pool){
   FROM vocab_entries e JOIN vocab_sets s ON s.id=e.set_id WHERE e.set_id=ANY($1::int[]) AND e.status='approved' AND s.status='active'`,[setIds])).rows;
 }
 // Số câu tối đa một phạm vi sinh được (mỗi từ làm đích một lần); dưới ngưỡng thì coi như chưa chơi được.
-export async function vocabCount(scope,client=pool){const n=(await vocabEntries(scope.vocab_set_ids,client)).length;return n>=MIN_VOCAB_ENTRIES?n:0;}
+// Số câu thật sự sinh được (tối đa 15) với bộ từ và dạng câu đã chọn: đủ từ mà không sinh nổi câu (ví dụ chỉ chọn ghép cặp, thiếu pinyin) thì coi là chưa chơi được.
+export async function vocabCount(scope,client=pool){
+ const rows=await vocabEntries(scope.vocab_set_ids,client);if(rows.length<MIN_VOCAB_ENTRIES)return 0;
+ return generateVocabQuestions(rows,{count:15,kinds:scope.vocab_kinds}).length;
+}
 // Bộ từ học sinh khối này chơi được; giáo viên (grade null) thấy mọi bộ đang hiện.
 export async function playableSets(grade,subjectId=null,client=pool){
  const rows=(await client.query(`SELECT s.id,s.subject_id,sub.name AS subject_name,sub.code AS subject_code,s.name,s.kind,s.level,s.grade_min,s.grade_max,s.topic_id,s.order_index,
