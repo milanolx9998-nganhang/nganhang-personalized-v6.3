@@ -37,7 +37,8 @@ export function mapRow(raw,defaults={}){
 function rowErrors(r){
  const e=[];if(!r.term)e.push('Thiếu từ');if(!r.meaning_vi)e.push('Thiếu nghĩa');if(!r.set&&!r.level)e.push('Thiếu bộ từ / cấp HSK');
  if(r.term.length>120)e.push('Từ quá dài');if(r.meaning_vi.length>300)e.push('Nghĩa quá dài');if(r.set.length>120)e.push('Tên bộ quá dài');
- if(isHan(r.term)&&r.reading&&!hasToneMarks(r.reading)&&!/[1-5]/.test(r.reading))e.push('Pinyin cần có dấu thanh (vd nǐ hǎo)');
+ // Trợ từ khinh thanh một chữ (的 de, 吗 ma, 呢 ne, 吧 ba…) không có dấu thanh nên được chấp nhận.
+ if(isHan(r.term)&&r.reading&&!hasToneMarks(r.reading)&&!/[1-5]/.test(r.reading)&&[...r.term].length>1)e.push('Pinyin cần có dấu thanh (vd nǐ hǎo)');
  return e;
 }
 const setName=r=>r.set||`HSK ${r.level}`;
