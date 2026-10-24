@@ -255,3 +255,11 @@ Codex viết dở backend ghép trận linh hoạt + máy + giờ vàng + rank +
 **Kiểm:** unit 231/231, security 27/27, integration Đấu 34/34; tải cục bộ: sảnh 50 phòng + 300 SSE p95 79 ms, Quiz lớp 40×15 ACK p95 152 ms; build OK; Playwright: phòng chờ + bạn đang tìm hiển thị đúng, mobile 375 px tràn 0, nhãn hạng đúng.
 **Ghi chú:** agy chạy với `--dangerously-skip-permissions` bị chặn; dùng `--mode accept-edits` (Argon sửa file, Claude build). Chưa đẩy `main`.
 **Việc tiếp:** anh Hiếu duyệt → "up main"; Đấu trên web thật đang tắt, cần đăng nhập admin để bật.
+
+## 2026-10-24 — Up main (Sảnh V6.9.4) + nhập tài khoản học sinh bằng mã HS
+
+**Yêu cầu:** "up main kèm tk học sinh, lấy mã hs làm tk và mk" (file danh sách 350 HS khối 9 năm 2026–2027, không lưu trong repo).
+**Thay đổi:** `main` = `67a19b1` (Sảnh) rồi `3d50487`: nhập danh sách có tùy chọn quản trị "mật khẩu ban đầu = mã học sinh" (vẫn bắt đổi lần đầu, chỉ tài khoản mới, ghi audit); băm mật khẩu qua worker pool trước giao dịch (2 việc cùng lúc, 10 vòng cho mật khẩu tạm), chỉ cho HS chưa có tài khoản. File nhập theo mẫu app tạo ở thư mục Downloads của anh Hiếu (ngoài repo).
+**Kiểm:** unit 231/231; pilot 34/34 (ca mới mã HS); server thử: 350 HS 108 s → 16 s, /api/health p95 81 ms lúc nhập; đăng nhập bằng mã → must_change_password; deploy CI thành công cả 2 lần. Dữ liệu HS thật đã xoá khỏi DB thử sau khi đo.
+**Còn mở:** 350 tài khoản CHƯA tạo trên web thật — cần admin bấm nhập ở /admin/school (Claude không tự đăng nhập). Đấu trên web thật đang tắt.
+**Việc tiếp:** anh Hiếu đăng nhập admin → nhập file + tick "mật khẩu = mã học sinh" → xác nhận; cho từng lớp đổi mật khẩu cùng lúc.
