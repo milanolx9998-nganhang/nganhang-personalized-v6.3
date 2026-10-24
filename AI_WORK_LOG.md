@@ -247,3 +247,11 @@ Codex viết dở backend ghép trận linh hoạt + máy + giờ vàng + rank +
 **Tải thật:** 50 phòng, 300 SSE loopback, 300 HTTP sảnh: p50 58,44 ms, p95 78,57 ms, p99 86,14 ms; 300/300 luồng nhận sự kiện đổi phòng (artifacts/v694-load-50x300.json). Unit kiểm 300 snapshot cùng nhịp chỉ dựng phần chung 1 lần/khối, 0 DB read khi cache nóng. Hồi quy V693 40×15: ACK p95 147,81 ms, next p95 159,87 ms; 600/600 đúng, không trùng; progress 1720 hàng/1720 giao dịch, player 40 hàng/1 giao dịch, bảng ≤1 Hz; đạt cổng ACK ≤300 ms (artifacts/v693-load-40x15.json). Giữ tối ưu d734a67, không sửa auth/accessResolver/storage/selfPaced.
 
 **Kết quả/việc tiếp:** backend hoàn tất chưa commit/deploy; git diff --check đạt. Làm UI theo hợp đồng, review mobile và thử qua Caddy sau; số đo hiện là local, không suy thành production. Giữ tệp/DB thử có trước, không dọn ngoài phạm vi.
+
+## 2026-10-24 — V6.9.4 Sảnh Đấu trường (Codex backend, Argon qua agy CLI: phản biện + giao diện)
+
+**Yêu cầu:** sảnh hiện mọi phòng và lượt đấu theo môn, lọc theo môn/bài; cho Argon cùng suy nghĩ; dùng Argon qua agy CLI (không qua web), Gemini web chỉ cho ảnh/đồ hoạ, tra cứu giao subagent Sonnet.
+**Thay đổi:** kế hoạch `docs/thiet-ke/SANH_DAU_V694.md`; phản biện `phan-bien/V694_CODEX_PHAN_BIEN.md` + `phan-bien/V694_ARGON_PHAN_BIEN.md` (Argon tìm 5 lỗi trong bản nháp Codex). `99f992e` backend (lobby.js, lobbyCache.js, scope_label, live, seeking, seeking_any, subjects, lọc query, SSE, cache chặn/nhãn). `f468566` giao diện Argon (`ArenaHall.jsx`, ArenaLobby, ScopeLabel, battleApi, useBattleStream, CSS) + Claude sửa nhãn hạng dùng `participant_count`.
+**Kiểm:** unit 231/231, security 27/27, integration Đấu 34/34; tải cục bộ: sảnh 50 phòng + 300 SSE p95 79 ms, Quiz lớp 40×15 ACK p95 152 ms; build OK; Playwright: phòng chờ + bạn đang tìm hiển thị đúng, mobile 375 px tràn 0, nhãn hạng đúng.
+**Ghi chú:** agy chạy với `--dangerously-skip-permissions` bị chặn; dùng `--mode accept-edits` (Argon sửa file, Claude build). Chưa đẩy `main`.
+**Việc tiếp:** anh Hiếu duyệt → "up main"; Đấu trên web thật đang tắt, cần đăng nhập admin để bật.
