@@ -6,6 +6,8 @@ import {
   battleApi,
   getOrCreateAnswerClientId,
   formatRoomCode,
+  loadDraftAnswer,
+  saveDraftAnswer,
 } from './battleApi.js';
 import { useBattleStream } from './useBattleStream.js';
 
@@ -232,7 +234,8 @@ export default function RoomPage() {
         setSkippedLocally(Boolean(serverMyAnswer.skipped));
         setSubmitState('received');
       } else {
-        setDraftAnswer(null);
+        // F5 giữa câu: đưa lại lựa chọn em đã bấm nhưng chưa chốt
+        setDraftAnswer(loadDraftAnswer(roomId, currentQuestionIndex));
         setSkippedLocally(false);
         setSubmitState('idle');
       }
@@ -1197,7 +1200,10 @@ export default function RoomPage() {
               <AnswerInput
                 question={question}
                 value={draftAnswer}
-                onChange={setDraftAnswer}
+                onChange={(next) => {
+                  setDraftAnswer(next);
+                  saveDraftAnswer(roomId, currentQuestionIndex, next);
+                }}
                 disabled={isAnswerLocked}
                 onSubmit={handlePressLockAnswer}
               />

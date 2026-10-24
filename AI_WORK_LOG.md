@@ -297,3 +297,10 @@ Codex viết dở backend ghép trận linh hoạt + máy + giờ vàng + rank +
 **Yêu cầu:** "1. dùng tài liệu HSK; 2. 3 4 5 tối ưu nhanh trước, a sẽ gửi e 1 bộ có trước để chạy trước".
 **Thay đổi:** `KHO_TU_VUNG_V695.md` mục 11: Trung theo cấp HSK; admin nhập là dùng ngay; Đấu từ vựng tính điểm tốc độ; không cộng LP; phạm vi MVP và phần để sau.
 **Việc tiếp:** chờ bộ từ anh Hiếu gửi → khớp cột → làm MVP.
+
+## 2026-10-24 tối — V6.9.5 Ngân hàng từ vựng + Đấu từ vựng; F5 giữ lựa chọn
+
+**Yêu cầu:** kho từ vựng riêng (Anh/Trung), ghép trận từ vựng nhánh riêng; lấy từ Bufopia (nội bộ lớp anh Hiếu); tiếng Trung từ CC-CEDICT + HSK 3.0 cấp 1–3, nghĩa Việt AI dịch, GV soát; F5 giữ câu đã chọn như Canvas.
+**Thay đổi:** `f1287b5` backend (migration v695, /api/vocab, sinh câu, hàng chờ riêng, điểm tốc độ, không LP, Từ em sai, thống kê từ); `f84ccd6` giao diện (/practice/vocab, nút Đấu từ vựng, khung chờ riêng, Quiz lớp Từ vựng, kết quả Từ em sai, cờ vocab; phòng từ vựng tự sang câu sau 5 s; RoomPage/ProjectorPage tự nạp arena.css — sửa lỗi mất định dạng khi F5); commit cuối: Player lưu nháp localStorage + ?item= (F5 về đúng câu, giữ lựa chọn chưa kịp lưu), Đấu giữ lựa chọn chưa chốt qua F5 (sessionStorage).
+**Kiểm:** unit 235/235, security 27/27, integration Đấu 37/37; Playwright server thử với 1.404 từ Bufopia: ghép đôi, đủ 10 câu, Từ em sai, mobile 390 không tràn, 0 lỗi console. Phần F5 mới chỉ build đạt, CHƯA thử trình duyệt.
+**Còn mở:** Gemini (agy) đang dịch HSK 2–3 (thư mục Downloads/vocab-zh-src, HSK 1 xong 506/506); khi xong chạy scratchpad build_hsk.py → nhập `hsk3_cap1-3_vi.json` bằng `scripts/import-vocab.mjs --subject TiengTrung --source "HSK3.0+CC-CEDICT (nghĩa Việt AI)"`; ghi nguồn CC BY-SA. Chưa lên main. Server thử 3196 + DB `nganhang_battle_ui_tmp` còn chạy — dừng và DROP sau. `_tmp-vocab-ui.mjs` không commit.

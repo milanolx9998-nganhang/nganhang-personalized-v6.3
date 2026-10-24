@@ -433,3 +433,24 @@ export const VOCAB_KIND_LABELS = {
   ZH6: 'Ghép cặp',
 };
 export const VOCAB_KINDS = { en: ['EN1', 'EN2', 'EN5'], zh: ['ZH1', 'ZH2', 'ZH3', 'ZH4', 'ZH6'] };
+
+// Lựa chọn chưa chốt giữ qua F5 trong cùng tab (như client_id của đáp án): chỉ là bản nháp trên máy, chốt mới tính.
+const draftKey = (roomId, index) => `battle-draft:${roomId}:${index}`;
+export function loadDraftAnswer(roomId, index) {
+  if (!roomId || index === null || index === undefined) return null;
+  try {
+    const raw = window.sessionStorage.getItem(draftKey(roomId, index));
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+export function saveDraftAnswer(roomId, index, value) {
+  if (!roomId || index === null || index === undefined) return;
+  try {
+    if (value === null || value === undefined) window.sessionStorage.removeItem(draftKey(roomId, index));
+    else window.sessionStorage.setItem(draftKey(roomId, index), JSON.stringify(value));
+  } catch {
+    /* trình duyệt chặn lưu trữ: bỏ qua */
+  }
+}

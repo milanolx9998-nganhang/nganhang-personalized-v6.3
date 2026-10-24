@@ -5,6 +5,8 @@ import {
   battleApi,
   battleApiModes,
   getOrCreateAnswerClientId,
+  loadDraftAnswer,
+  saveDraftAnswer,
 } from '../battleApi.js';
 import AnswerInput from './AnswerInput.jsx';
 import { QuestionSolutionDetail } from './RevealPanel.jsx';
@@ -122,7 +124,8 @@ export default function SelfPacedPlay({
         setDraftAnswer(myAnswer.response ?? null);
         setSubmitState('waiting_snapshot');
       } else {
-        setDraftAnswer(null);
+        // F5 giữa câu: đưa lại lựa chọn em đã bấm nhưng chưa chốt
+        setDraftAnswer(loadDraftAnswer(roomId, cursor));
         setSubmitState('idle');
       }
       return;
@@ -681,7 +684,10 @@ export default function SelfPacedPlay({
               <AnswerInput
                 question={question}
                 value={draftAnswer}
-                onChange={setDraftAnswer}
+                onChange={(next) => {
+                  setDraftAnswer(next);
+                  saveDraftAnswer(roomId, cursor, next);
+                }}
                 disabled={isAnswerDisabled}
                 onSubmit={handleLockAnswer}
               />
