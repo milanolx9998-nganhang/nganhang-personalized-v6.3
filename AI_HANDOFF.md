@@ -8,7 +8,7 @@
 - Blockers / decisions needed: cần đăng nhập admin trên web thật (Claude không tự nhập mật khẩu).
 - Latest verification: unit 231/231, pilot 34/34, integration Đấu 34/34; nhập 350 HS trên server thử 16 s; deploy CI 40075103286 thành công.
 - Last safe commit: 3d50487 (`main` và `feat-v69-battle`).
-- Working tree notes: thêm lobby.js/lobbyCache.js, unit/integration V694 và phản biện; sửa routes + 6 service Đấu, API.md, work log/handoff. Giữ các tệp chưa commit có trước (.claude/, backend/scripts/_tmp-battle-*.mjs); không sửa frontend/.env, không migration nguồn, không mạng ngoài. Test dùng clone local và tự dọn; không dọn database/tệp thử tồn từ phiên trước. CodeGraph sync + repo-map local đã cập nhật.
+- Working tree notes: không commit — `backend/scripts/_tmp-battle-{sandbox,prep,ui}.mjs`, `.claude/`. DB thử `nganhang_battle_ui_tmp` đã XOÁ (24/10, sau khi thử nhập 350 HS thật); cần thử lại thì chạy `_tmp-battle-sandbox.mjs`.
 - Limits: chưa đo 300 SSE qua Caddy/Internet. Nhãn/lớp cache 60 giây, chặn API invalidation hai chiều ngay; nhịp 250 ms dựng chung theo khối rồi chiếu riêng, tiến độ live 5 giây. Cờ lobby tắt vẫn giữ thẻ lớp mình, không đưa thẻ lớp vào subjects.
 
 ## Bàn giao mới nhất — 18/10/2026: backend Đấu V6.9
