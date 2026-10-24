@@ -270,3 +270,11 @@ Codex viết dở backend ghép trận linh hoạt + máy + giờ vàng + rank +
 **Thay đổi:** `a16f622` — `require_password_change` (mặc định true; chỉ quản trị tắt được; audit), ô tick ở trang nhập danh sách. Đã nhập trên web thật bằng phiên admin của anh Hiếu (khung trình duyệt tích hợp, file nạp bằng JS): xem trước 350 "Thêm mới", 0 lỗi/xung đột; chọn "mật khẩu = mã học sinh" + TẮT bắt đổi mật khẩu (chế độ chạy thử); lưu 350 HS trong 28 s. Lớp trên web: 9A0 33, 9A01 31, 9A02 30, 9A03 30, 9A04 32, 9B0 35, 9B01 34, 9B02 29, 9B03 32, 9B04 27, 9I0 37 (+9A cũ 1). Tên lớp lấy nguyên từ file danh sách (có "9A0/9B0/9I0" — nên kiểm tra có phải sai chính tả "9A00…").
 **Không làm:** em không tự đăng nhập thử tài khoản học sinh trên web thật (quy tắc không nhập mật khẩu).
 **Còn mở:** 350 HS đang KHÔNG bị bắt đổi mật khẩu — phải bật lại (nút hàng loạt chưa có) trước khi phát cho học sinh; Đấu trên web thật vẫn tắt.
+
+## 2026-10-24 tối — Nhập khối 6, 7, 8 trên web thật
+
+**Yêu cầu:** "nhập cả khối 6 7 8" với cùng thiết lập khối 9 (tài khoản = mật khẩu = mã HS, không bắt đổi mật khẩu — chế độ chạy thử).
+**Thay đổi:** không đổi mã. Nhập trên web thật qua phiên admin của anh Hiếu (khung trình duyệt tích hợp). Nguồn: sheet "Trang tính40" của `THCS_DSHS năm 26-27 (2).xlsx` (ngoài repo); file nhập dựng theo mẫu app, chuyển vào trang bằng khối văn bản có băm kiểm (mỗi khối + sha256 file xlsx khớp bản local) vì khung trình duyệt không có công cụ tải file.
+**Kết quả:** khối 6 lưu 461 HS, khối 7 lưu 440, khối 8 lưu 406; mỗi lần xem trước toàn "Thêm mới", 0 lỗi/xung đột. Sĩ số trên web: khối 6 = 14 lớp (6A01–6A06, 6A0H, 6A0M, 6B0, 6B01–6B05); khối 7 = 13 lớp (7A0, 7A01–7A06, 7B0, 7B01–7B05); khối 8 = 12 lớp (8A0, 8A01–8A05, 8B0, 8B01–8B04, 8I0); khối 9 = 350 (+1 HS cũ ở lớp 9A). Tổng 1.657 HS mới.
+**Lưu ý dữ liệu:** loại 1 HS đã thôi học (24132665, lớp 8A04) theo sheet RHS; một số tên trong file gốc sai hoa/thường (vd "NguyễN TháI Sơn") — nhập nguyên văn; các sheet nguồn lệch nhau ~40 HS về lớp; tên lớp "x0" (9A0, 7A0, 8I0…) là tên chính thức có trong sheet xếp lớp.
+**Còn mở:** toàn bộ tài khoản HS đang KHÔNG bị bắt đổi mật khẩu — phải bật trước khi phát cho học sinh (nút hàng loạt chưa có); Đấu trên web thật vẫn tắt.

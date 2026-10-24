@@ -4,7 +4,7 @@
 - Status: in_progress
 - Last completed: `main` = `3d50487`: Sảnh Đấu trường V6.9.4 + nhập danh sách HS với tùy chọn mật khẩu = mã HS (deploy CI thành công 24/10).
 - In progress: không.
-- Exact next action: anh Hiếu (admin) nhập `DSHS_26-27_nhap_vao_app.xlsx` ở /admin/school, tick "mật khẩu = mã học sinh", xác nhận (350 HS); bật Đấu ở /admin/battle khi muốn dùng.
+- Exact next action: 1.657 HS khối 6–9 ĐÃ nhập trên web thật (24/10, mật khẩu = mã HS, KHÔNG bắt đổi mật khẩu). Trước khi phát cho học sinh: bật lại bắt đổi mật khẩu (cần nút hàng loạt theo lớp/khối — chưa làm, đợi anh Hiếu yêu cầu); bật Đấu ở /admin/battle khi muốn dùng.
 - Blockers / decisions needed: cần đăng nhập admin trên web thật (Claude không tự nhập mật khẩu).
 - Latest verification: unit 231/231, pilot 34/34, integration Đấu 34/34; nhập 350 HS trên server thử 16 s; deploy CI 40075103286 thành công.
 - Last safe commit: 3d50487 (`main` và `feat-v69-battle`).
