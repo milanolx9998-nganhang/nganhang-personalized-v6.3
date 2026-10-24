@@ -1,3 +1,4 @@
+import {prepareSeeking,seekingGroups} from './lobby.js';
 import {fail} from '../practice/config.js';
 import {prepareTicket,ticketState,commonScopes,intersection,roomFits,scopeWidth} from './flex.js';
 import {flexConfig,rankConfig} from './settings.js';
@@ -108,6 +109,8 @@ export function createMatchmaking({rooms,deck,safety,identity,normalizeScope,lea
  }
  function clear(){clearTimer(timer);timer=null;entries.clear();streams.publish('lobby');}
  return {join,status,has:id=>entries.has(id),removeUnlocked,exclude,acceptRoom,exit,match,clear,
+  lobbyEntries:grade=>prepareSeeking([...entries.values()].filter(e=>e.grade===grade).map(refresh)),
+  seeking:context=>seekingGroups([...entries.values()].map(refresh),context),
   participants:(grade,subject)=>[...entries.values()].filter(e=>e.grade===grade&&(!subject||e.topics.some(t=>t.subject_id===subject&&e.current.ids.includes(t.id)))).length+[...rooms.rooms.values()].filter(r=>r.grade===grade&&r.status==='playing'&&(!subject||r.scope.subject_id===subject||r.scope.subject_ids?.includes(subject))).reduce((n,r)=>n+r.players.filter(p=>!p.is_bot&&!p.left_at).length,0),
   leave:user=>rooms.locks.run([user.id],async()=>{removeUnlocked(user.id);return {ok:true};}),
   expand:async()=>fail('Vé mới dùng flex:gradual để đồng ý lịch nới ngay khi vào hàng chờ',410)

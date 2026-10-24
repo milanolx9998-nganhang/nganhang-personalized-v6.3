@@ -23,7 +23,7 @@ const publicRank=p=>({id:p.user_id,is_bot:Boolean(p.is_bot),name:p.name,class_na
 function legacyRoomDto(room,viewer,now){
  const ended=terminal(room),revealed=room.phase==='reveal'||ended,through=revealed?room.asked_count:Math.max(0,room.asked_count-1);
  const rows=standings(room,through),own=room.players.find(p=>p.user_id===viewer.id),isTeacher=room.kind==='class'&&room.host_id===viewer.id;
- const out={id:room.id,run_id:room.run_id,version:room.version,status:room.status,phase:room.phase,server_now:now,kind:room.kind,asked_count:room.asked_count,question_count:room.question_count,capacity:room.capacity,seconds:room.seconds,scope:{subject_id:room.scope.subject_id??null,subject_ids:room.scope.subject_ids,branch_id:room.scope.branch_id??null,topic_ids:room.scope.topic_ids??null},end_reason:room.end_reason??null,host_id:room.host_id};
+ const out={id:room.id,run_id:room.run_id,version:room.version,status:room.status,phase:room.phase,server_now:now,kind:room.kind,asked_count:room.asked_count,question_count:room.question_count,capacity:room.capacity,seconds:room.seconds,scope:{subject_id:room.scope.subject_id??null,subject_ids:room.scope.subject_ids,branch_id:room.scope.branch_id??null,chapter:room.scope.chapter??null,topic_ids:room.scope.topic_ids??null},end_reason:room.end_reason??null,host_id:room.host_id};
  Object.assign(out,{visibility:room.visibility,open_slots:Boolean(room.open_slots),auto_match:Boolean(room.auto_match),countdown_at:room.countdown_at??null,auto_start_at:room.auto_start_at??null,label:room.has_bots?'Đấu với máy':room.open_slots?'Nhóm bạn đang tìm thêm người':null,ranked:Boolean(room.match_meta?.ranked?.[viewer.id])});
  if(isTeacher)out.class_id=room.class_id;
  if(room.phase==='lobby')out.rank_requested=Boolean(own?.rank_requested);
@@ -57,7 +57,7 @@ function legacyRoomDto(room,viewer,now){
  if(ended&&own)out.rank_result=room.rating_results?.[viewer.id]||null;
  return out;
 }
-export function lobbyCard(room){return {id:room.id,label:room.has_bots?'Đấu với máy':room.open_slots?'Nhóm bạn đang tìm thêm người':null,kind:room.kind,visibility:room.visibility,open_slots:Boolean(room.open_slots),auto_match:Boolean(room.auto_match),host_name:room.players.find(p=>p.user_id===room.host_id)?.display_name||'Giáo viên',scope:{subject_id:room.scope.subject_id??null,subject_ids:room.scope.subject_ids,branch_id:room.scope.branch_id??null,topic_ids:room.scope.topic_ids??null},players:activePlayers(room).length,capacity:room.capacity,question_count:room.question_count,seconds:room.seconds,class_id:room.class_id};}
+export function lobbyCard(room){return {id:room.id,created_at:room.created_at,mode:room.kind,ranked:Boolean(rankEligible(room)&&room.match_meta?.rank_enabled),host_badge:room.public_badges?.[room.host_id]||null,label:room.has_bots?'Đấu với máy':room.open_slots?'Nhóm bạn đang tìm thêm người':null,kind:room.kind,visibility:room.visibility,open_slots:Boolean(room.open_slots),auto_match:Boolean(room.auto_match),host_name:room.players.find(p=>p.user_id===room.host_id)?.display_name||'Giáo viên',scope:{subject_id:room.scope.subject_id??null,subject_ids:room.scope.subject_ids,branch_id:room.scope.branch_id??null,chapter:room.scope.chapter??null,topic_ids:room.scope.topic_ids??null},players:activePlayers(room).length,capacity:room.capacity,question_count:room.question_count,seconds:room.seconds,class_id:room.class_id};}
 
 export const usesPrivateProgress=r=>r.pacing==='self'||r.scoring==='speed'||r.reveal_policy==='deferred'||r.show_live_board===false;
 export function publicBoard(r){
@@ -119,3 +119,6 @@ export function roomDto(room,viewer,now,{projector=false}={}){
  }
  return out;
 }
+
+// DTO sảnh chỉ chứa metadata công khai, không tái sử dụng DTO người chơi.
+export function liveCard(room,progress){return {id:room.id,kind:room.kind,scope:{subject_id:room.scope.subject_id??null,subject_ids:room.scope.subject_ids,branch_id:room.scope.branch_id??null,chapter:room.scope.chapter??null,topic_ids:room.scope.topic_ids??null},players:activePlayers(room).length,capacity:room.capacity,asked_count:progress.asked_count,question_count:room.question_count,started_at:progress.started_at,auto_match:Boolean(room.auto_match)};}

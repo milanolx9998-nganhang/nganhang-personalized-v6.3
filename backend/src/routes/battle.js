@@ -7,7 +7,7 @@ import {cookies,SESSION_COOKIE} from '../middleware/session.js';
 import {limiter} from '../middleware/rateLimiter.js';
 import {settings,validateSettings,fail,log,onSettingsChanged,notifySettingsChanged} from '../services/practice/config.js';
 import {createAttempt} from '../services/practice/attempts.js';
-import {deck,normalizeScope,contentOptions} from '../services/battle/deck.js';
+import {deck,normalizeScope,contentOptions,lobbyCatalog} from '../services/battle/deck.js';
 import {createStorage} from '../services/battle/storage.js';
 import {createRooms} from '../services/battle/rooms.js';
 import {createSafety} from '../services/battle/safety.js';
@@ -40,7 +40,7 @@ export async function battleIdentity(user,classId=null,subjectId=null){
  return row;
 }
 const safety=createSafety(),store=createStorage(),goldenHours=createGoldenHours(),ratings=createRatings();
-export const battleRooms=createRooms({store,deck,safety,streams,identity:battleIdentity,normalizeScope,options:contentOptions,goldenHours,ratings,learning:createLearningCatalog()});
+export const battleRooms=createRooms({store,deck,safety,streams,identity:battleIdentity,normalizeScope,options:contentOptions,catalog:grade=>lobbyCatalog.get(grade),goldenHours,ratings,learning:createLearningCatalog()});
 const matchmaking=createMatchmaking({rooms:battleRooms,deck,safety,identity:battleIdentity,normalizeScope,streams,learning:createLearningCatalog(),goldenHours,ratings});
 battleRooms.setMatchmaking(matchmaking);
 export const battleAvailability=createAvailability({initialize:async()=>battleRooms.start(await settings()),cleanup:()=>{battleRooms.dispose();streams.closeAll('unavailable');}});
@@ -65,17 +65,22 @@ r.get('/options',wrap(async(req,res)=>{
  const info=await battleIdentity(req.user,q.class_id,q.subject_id);
  if(!info.grade)fail('Giáo viên cần chọn lớp và môn');res.json(await contentOptions(info.grade,q.count,req.user.role==='student'?req.user.id:null,{subject_id:q.subject_id}));
 }));
-r.get('/lobby',wrap(async(req,res)=>{student(req);const cfg=await settings();if(!cfg.battle_modes.class)battleRooms.feature('lobby');res.json(await battleRooms.lobby(req.user));}));
+const lobbyId=z.string().regex(/^[1-9]\d*$/).transform(Number).pipe(z.number().int().max(2147483647));
+const lobbyQuery=z.object({subject_id:lobbyId.optional(),branch_id:lobbyId.optional(),chapter:z.string().trim().min(1).max(200).optional(),topic_id:lobbyId.optional()}).strict().refine(q=>q.subject_id||!q.branch_id&&!q.chapter&&!q.topic_id,'Cần chọn môn trước phạm vi');
+r.get('/lobby',wrap(async(req,res)=>{student(req);const cfg=await settings();if(!cfg.battle_modes.class)battleRooms.feature('lobby');res.json(await battleRooms.lobby(req.user,lobbyQuery.parse(req.query)));}));
 async function openStream(req,res,key,snapshot,allowed,projector=false){
  if((await settings()).battle_emergency_stop)fail('Đấu đang dừng khẩn cấp',403);
  const token=cookies(req)[SESSION_COOKIE]||(req.headers.authorization||'').slice(7),claims=jwt.decode(token);
+ let authAt=-Infinity,authValid=false;
  await streams.open({req,res,key,projector,user:req.user,snapshot,expiresAt:claims?.exp*1000,onDisconnect:key==='lobby'?undefined:()=>battleRooms.disconnected(req.user,key),authorized:async()=>{
   if(claims?.exp&&Date.now()>=claims.exp*1000)return false;
+  if(key==='lobby'&&Date.now()-authAt<15000)return authValid&&await allowed();
   const row=(await pool.query('SELECT token_version FROM users WHERE id=$1 AND is_active=true AND NOT must_change_password',[req.user.id])).rows[0];
-  return Boolean(row&&row.token_version===req.user.token_version&&!await safety.suspension(req.user.id)&&await allowed());
+  const valid=Boolean(row&&row.token_version===req.user.token_version&&!await safety.suspension(req.user.id)&&await allowed());
+  if(key==='lobby'){authAt=Date.now();authValid=valid;}return valid;
  }});
 }
-r.get('/lobby/stream',wrap(async(req,res)=>{student(req);const cfg=await settings();if(!cfg.battle_modes.class&&!cfg.battle_modes.matchmaking)battleRooms.feature('lobby');await battleIdentity(req.user);await openStream(req,res,'lobby',()=>battleRooms.lobby(req.user),async()=>!(await settings()).battle_emergency_stop);}));
+r.get('/lobby/stream',wrap(async(req,res)=>{student(req);const cfg=await settings();if(!cfg.battle_modes.class&&!cfg.battle_modes.matchmaking)battleRooms.feature('lobby');const query=lobbyQuery.parse(req.query);await openStream(req,res,'lobby',()=>battleRooms.lobby(req.user,query),async()=>{const cfg=await settings();return !cfg.battle_emergency_stop&&Boolean(cfg.battle_modes.lobby||cfg.battle_modes.class||cfg.battle_modes.matchmaking);});}));
 r.post('/rooms',createLimit,wrap(async(req,res)=>{const d=createSchema.parse(req.body);if(d.kind==='class'?req.user.role==='student':req.user.role!=='student')fail('Vai trò không được tạo kiểu phòng này',403);res.status(201).json(roomDto(await battleRooms.create(req.user,d),req.user,Date.now()));}));
 r.post('/rooms/join',codeLimit,wrap(async(req,res)=>{student(req);const {code}=z.object({code:z.string().regex(/^\d{6}$/)}).strict().parse(req.body),id=battleRooms.byCode(code);if(!id)fail('Mã phòng không hợp lệ',404);res.json(roomDto(await battleRooms.join(req.user,id),req.user,Date.now()));}));
 r.post('/rooms/:id/join',wrap(async(req,res)=>{student(req);const id=idSchema.parse(req.params.id),room=await battleRooms.get(id);if(room.kind!=='class')battleRooms.feature('lobby');if(room.visibility!=='public'&&!room.open_slots&&room.kind!=='class')fail('Phòng này cần mã',403);res.json(roomDto(await battleRooms.join(req.user,id),req.user,Date.now()));}));
@@ -94,7 +99,7 @@ r.get('/history',wrap(async(req,res)=>res.json(await battleRooms.history(req.use
 r.post('/rooms/:id/rematch',createLimit,wrap(async(req,res)=>{
  empty.parse(req.body);const old=await battleRooms.get(idSchema.parse(req.params.id));battleRooms.access(old,req.user,false);if(!terminal(old))fail('Ván chưa kết thúc',409);
  if(old.kind==='class'&&req.user.id!==old.host_id)fail('Chỉ giáo viên mở lại ván lớp',403);
- const data=createSchema.parse({...Object.fromEntries(Object.keys(modeDefaults).map(k=>[k,old[k]??modeDefaults[k]])),kind:old.kind,visibility:old.visibility,...(old.class_id?{class_id:old.class_id}:{}),scope:{subject_id:old.scope.subject_id,branch_id:old.scope.branch_id,topic_ids:old.scope.topic_ids},content_mode:'fixed',capacity:old.capacity,question_count:old.question_count,seconds:old.seconds});
+ const data=createSchema.parse({...Object.fromEntries(Object.keys(modeDefaults).map(k=>[k,old[k]??modeDefaults[k]])),kind:old.kind,visibility:old.visibility,...(old.class_id?{class_id:old.class_id}:{}),scope:{subject_id:old.scope.subject_id,branch_id:old.scope.branch_id,...(old.scope.chapter?{chapter:old.scope.chapter}:{}),topic_ids:old.scope.topic_ids},content_mode:'fixed',capacity:old.capacity,question_count:old.question_count,seconds:old.seconds});
  res.status(201).json(roomDto(await battleRooms.create(req.user,{...data,rematch_of:old.id}),req.user,Date.now()));
 }));
 r.post('/rooms/:id/retry-wrong',wrap(async(req,res)=>{
@@ -136,7 +141,7 @@ r.post('/blocks',wrap(async(req,res)=>{
   if(room?.phase==='lobby'&&room.players.some(p=>p.user_id===user_id&&!p.left_at))await battleRooms.leaveUnlocked(req.user,id);
  });streams.publish('lobby');res.json({ok:true});
 }));
-r.delete('/blocks/:userId',wrap(async(req,res)=>{student(req);await safety.unblock(req.user,z.coerce.number().int().positive().parse(req.params.userId));res.json({ok:true});}));
+r.delete('/blocks/:userId',wrap(async(req,res)=>{student(req);await safety.unblock(req.user,z.coerce.number().int().positive().parse(req.params.userId));streams.publish('lobby');res.json({ok:true});}));
 r.get('/admin/reports',wrap(async(req,res)=>{admin(req);res.json(await safety.reports());}));
 r.post('/admin/reports',wrap(async(req,res)=>{admin(req);res.json(await safety.handle(req.user,z.object({id:idSchema,status:z.enum(['reviewing','resolved','dismissed'])}).strict().parse(req.body)));}));
 r.get('/admin/reports/:id',wrap(async(req,res)=>{admin(req);const report=(await pool.query('SELECT room_id FROM battle_reports WHERE id=$1',[idSchema.parse(req.params.id)])).rows[0];if(!report)fail('Không tìm thấy báo cáo',404);const room=await battleRooms.get(report.room_id);res.json({room:roomDto(room,req.user,Date.now()),events:(await pool.query('SELECT kind,actor_id,at,detail FROM battle_safety_events WHERE room_id=$1 ORDER BY at DESC LIMIT 100',[room.id])).rows});}));

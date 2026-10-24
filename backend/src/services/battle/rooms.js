@@ -1,3 +1,5 @@
+import {createLobbyCache} from './lobbyCache.js';
+import {buildLobby,prepareLobby,projectSeeking} from './lobby.js';
 import {createSelfPaced} from './selfPaced.js';
 import {normalizeModes,rankEligible,answerPoints,settleFastest,totalExpired,modeError} from './modes.js';
 import {randomUUID,randomInt} from 'node:crypto';
@@ -28,8 +30,9 @@ export function createStudentLocks(options={}){
  const serial=createSerial(options);
  return {run:(ids,work)=>{const sorted=[...new Set(ids)].sort((a,b)=>a-b),end=Date.now()+(options.waitMs||5000);const take=i=>i===sorted.length?work():serial.run(sorted[i],()=>{if(Date.now()>end)fail('Hệ thống đang bận, thử lại',503);return take(i+1);},{timeoutMs:Math.max(0,end-Date.now())});return take(0);}};
 }
-export function createRooms({store,deck,safety,streams,identity,normalizeScope,options,bots=createBots(),goldenHours,ratings,learning,now=Date.now,setTimer=setTimeout,clearTimer=clearTimeout,random=()=>randomInt(0,1000000)/1000000,locks=createStudentLocks(),queue=createSerial()}={}){
- const rooms=new Map(),studentRooms=new Map(),timers=new Map(),lobbyIdentities=new Map();let config,matchmaking,housekeeping;
+export function createRooms({store,deck,safety,streams,identity,normalizeScope,options,catalog=async()=>({subjects:[],branches:[],topics:[]}),bots=createBots(),goldenHours,ratings,learning,now=Date.now,setTimer=setTimeout,clearTimer=clearTimeout,random=()=>randomInt(0,1000000)/1000000,locks=createStudentLocks(),queue=createSerial()}={}){
+ const rooms=new Map(),studentRooms=new Map(),timers=new Map(),liveProgress=new Map(),sharedLobbies=new Map();let lobbyBuilds=0;
+ const lobbyIdentities=createLobbyCache(id=>identity({id,role:'student'}),{now});let config,matchmaking,housekeeping;
  const isHost=(r,u)=>r.host_id===u.id;
  function feature(name){if(!config?.battle_modes?.[name]){const e=new Error('Khả năng Đấu này đang tắt');e.status=403;e.code='BATTLE_FEATURE_OFF';throw e;}}
  function admission(){if(!config?.battle_enabled)fail('Đang ngừng nhận ván mới',403);if(config.battle_emergency_stop)fail('Đấu đang dừng khẩn cấp',403);}
@@ -49,7 +52,7 @@ export function createRooms({store,deck,safety,streams,identity,normalizeScope,o
    if(delay===0){streams.cancelBoard?.(r.id);refresh();streams.publish(r.id,true);}
    else {streams.publishBoard?.(r.id,delay,refresh);if(immediate)streams.publish(r.id,true);else for(const key of privateKeys||[])streams.publishPrivate?.(r.id,key);if(r.kind==='class')streams.publishPrivate?.(r.id,r.host_id);}
   }else streams.publish(r.id,immediate);
-  if(lobbyChanged)streams.publish('lobby');
+  if(lobbyChanged){sharedLobbies.clear();streams.publish('lobby');}
  }
  const self=createSelfPaced({now,commit,finish,bots,getConfig:()=>config,random});
  function schedule(r){
@@ -92,7 +95,8 @@ export function createRooms({store,deck,safety,streams,identity,normalizeScope,o
   // Callback bảng có thể chạy khi giao dịch đang await. Không ghi đè cache/phiên bản mới bằng bản clone cũ.
   const current=rooms.get(next.id);
   if(current){next.version=Math.max(next.version,current.version);for(const key of ['public_board_snapshot','board_at','board_version'])if(current[key]!==undefined)next[key]=current[key];}
-  rooms.set(next.id,next);if(!terminal(next))for(const p of activePlayers(next).filter(p=>!p.is_bot))studentRooms.set(p.user_id,next.id);schedule(next);publish(next,old?.phase!==next.phase,old?.phase==='lobby'||next.phase==='lobby',flags.privateKeys);return next;
+  rooms.set(next.id,next);if(!terminal(next))for(const p of activePlayers(next).filter(p=>!p.is_bot))studentRooms.set(p.user_id,next.id);schedule(next);publish(next,old?.phase!==next.phase,old?.phase==='lobby'||next.phase==='lobby'||old?.status!==next.status||activePlayers(old||{players:[]}).length!==activePlayers(next).length,flags.privateKeys);
+  if(next.kind!=='class'&&next.status==='playing'&&(old?.asked_count!==next.asked_count||old?.play_started_at!==next.play_started_at))streams.publishLobbyProgress?.();return next;
  }
  async function finish(r,reason,status='finished',flags={}){
   r.status=status;r.phase=status;r.end_reason=reason;r.ended_at=now();r.schedule_version++;r.vote=null;
@@ -276,26 +280,41 @@ export function createRooms({store,deck,safety,streams,identity,normalizeScope,o
   return roomDto(r,user,now());
  });}
  async function snapshot(user,id,result=false,dtoOptions={}){const r=await get(id);access(r,user,!result);if(result&&!terminal(r))fail('Ván chưa kết thúc',409);return roomDto(r,user,now(),dtoOptions);}
- async function lobby(user){
-  let cached=lobbyIdentities.get(user.id);if(!cached||now()-cached.at>=60000){cached={at:now(),info:await identity(user)};if(lobbyIdentities.size>=2400)lobbyIdentities.delete(lobbyIdentities.keys().next().value);lobbyIdentities.set(user.id,cached);}
-  const info=cached.info,blocked=new Set(await safety.blockedIds(user.id)),items=[];
-  for(const r of rooms.values())if(r.phase==='lobby'&&r.grade===info.grade&&activePlayers(r).length<r.capacity&&(r.kind==='class'?config.battle_modes.class&&r.class_id===info.class_id:config.battle_modes.lobby&&(r.visibility==='public'||r.open_slots)&&!activePlayers(r).some(p=>blocked.has(p.user_id))))items.push(lobbyCard(r));
-  if(goldenHours&&config.battle_modes?.golden_hour)await goldenHours.refresh();
+ async function lobby(user,query={}){
+  if(config.battle_emergency_stop)fail('Đấu đang dừng khẩn cấp',403);
+  const [info,blockedList]=await Promise.all([lobbyIdentities.get(user.id),safety.lobbyBlockedIds?safety.lobbyBlockedIds(user.id):safety.blockedIds(user.id)]);
+  const blocked=new Set(blockedList),labels=await catalog(info.grade);
+
+  const progress=r=>{
+   let hit=liveProgress.get(r.id);
+   if(!hit||now()-hit.at>=5000){hit={at:now(),asked_count:r.asked_count,started_at:r.play_started_at??r.started_at??null};liveProgress.set(r.id,hit);}
+   if(hit.asked_count!==r.asked_count||hit.started_at!==(r.play_started_at??r.started_at??null))streams.publishLobbyProgress?.(Math.max(1,5000-(now()-hit.at)));
+   return hit;
+  };
+  for(const id of liveProgress.keys())if(rooms.get(id)?.status!=='playing')liveProgress.delete(id);
+  const at=now(),epoch=streams.lobbyVersion?.()??0;let shared=sharedLobbies.get(info.grade);
+  if(!shared||shared.epoch!==epoch||shared.catalog!==labels||at-shared.at>=250){
+   shared={at,epoch,catalog:labels,prepared:prepareLobby({rooms:rooms.values(),grade:info.grade,catalog:labels,progress,now:at}),tickets:matchmaking?.lobbyEntries?.(info.grade)||[]};
+   sharedLobbies.set(info.grade,shared);lobbyBuilds++;
+  }
+  const seeking=config.battle_modes.lobby&&config.battle_modes.matchmaking?projectSeeking(shared.tickets,{grade:info.grade,blocked,viewerId:user.id,query}):{seeking:[],seeking_any:{count:0,has_waiters:false}};
+  const result=buildLobby({prepared:shared.prepared,info,blocked,config,catalog:labels,query,...seeking});
   const banners=goldenHours?.banners(info.grade,now(),config)||[];for(const b of banners)b.participants=matchmaking?.participants(info.grade,b.subject_id)||0;
-  if(ratings&&config.battle_modes?.ranked){const badges=await ratings.publicBadges(items.map(i=>rooms.get(i.id)?.host_id).filter(Number.isInteger),info.grade,config);for(const i of items)i.host_badge=badges[rooms.get(i.id)?.host_id]||null;}
-  return {...streams.envelope(),golden_hours:banners,rooms:items,match:matchmaking?.status(user.id)||null,current_room_id:studentRooms.get(user.id)||null};
+  const match=matchmaking?.status(user.id)||null;
+  if(match?.suggestion_room){const r=rooms.get(match.suggestion_room.id);if(!r||r.grade!==info.grade||r.kind==='class'||activePlayers(r).some(p=>blocked.has(p.user_id))||!(r.visibility==='public'||r.open_slots||r.auto_match))match.suggestion_room=null;}
+  return {...streams.envelope(),golden_hours:banners,...result,match,current_room_id:studentRooms.get(user.id)||null};
  }
- async function configure(next){config=next;await goldenHours?.configure(next,()=>streams.publish('lobby'));queue.configure?.(next.battle_limits?.queue_pending||200);streams.configure(next.battle_limits||{});if(next.battle_emergency_stop){matchmaking?.clear();streams.closeAll('emergency');const results=await Promise.allSettled([...rooms.values()].filter(r=>!terminal(r)).map(r=>queue.run(r.id,()=>finish(structuredClone(rooms.get(r.id)),'emergency','interrupted'),{internal:true})));if(results.some(r=>r.status==='rejected'))fail('Đã chặn chơi; chưa ghi đủ trạng thái gián đoạn, hãy thử dừng lại',503);}}
+ async function configure(next){config=next;sharedLobbies.clear();streams.publish('lobby');await goldenHours?.configure(next,()=>streams.publish('lobby'));queue.configure?.(next.battle_limits?.queue_pending||200);streams.configure(next.battle_limits||{});if(next.battle_emergency_stop){matchmaking?.clear();streams.closeAll('emergency');const results=await Promise.allSettled([...rooms.values()].filter(r=>!terminal(r)).map(r=>queue.run(r.id,()=>finish(structuredClone(rooms.get(r.id)),'emergency','interrupted'),{internal:true})));if(results.some(r=>r.status==='rejected'))fail('Đã chặn chơi; chưa ghi đủ trạng thái gián đoạn, hãy thử dừng lại',503);}}
  function periodic(){housekeeping=setTimer(async()=>{try{await safety.purgeExpired();safety.prune(now());}catch{/* Lỗi dọn không được làm ngừng nhận đáp án. */}finally{periodic();}},3600000);housekeeping.unref?.();}
- return {rooms,studentRooms,locks,queue,feature,admission,access,get,create,createUnlocked,join,joinUnlocked,command,snapshot,lobby,internal,configure,getConfig:()=>config,
-  refreshBadges:async userId=>{for(const [id,r] of rooms)if(!terminal(r)&&r.players.some(p=>p.user_id===userId))await queue.run(id,async()=>{const current=rooms.get(id);current.public_badges=await ratings.publicBadges(current.players.filter(p=>!p.is_bot).map(p=>p.user_id),current.grade,config);publish(current);});streams.publish('lobby');},
+ return {rooms,studentRooms,locks,queue,lobbyStats:()=>({builds:lobbyBuilds}),feature,admission,access,get,create,createUnlocked,join,joinUnlocked,command,snapshot,lobby,internal,configure,getConfig:()=>config,
+  refreshBadges:async userId=>{for(const [id,r] of rooms)if(!terminal(r)&&r.players.some(p=>p.user_id===userId))await queue.run(id,async()=>{const current=rooms.get(id);sharedLobbies.clear();current.public_badges=await ratings.publicBadges(current.players.filter(p=>!p.is_bot).map(p=>p.user_id),current.grade,config);publish(current);});streams.publish('lobby');},
   disconnected:(user,id)=>queue.run(id,async()=>{const original=rooms.get(id);if(!original||terminal(original)||!original.players.some(p=>p.user_id===user.id))return;const r=structuredClone(original);r.players.find(p=>p.user_id===user.id).disconnected=true;r.match_meta={...r.match_meta,disconnected:{...r.match_meta?.disconnected,[user.id]:true}};await commit(original,r,{noPlayers:true});},{internal:true}),
   setMatchmaking:value=>{matchmaking=value;},
   byCode:code=>[...rooms.values()].find(r=>!terminal(r)&&r.code===code)?.id,
   leave:(user,id,reason)=>locks.run([user.id],()=>leaveUnlocked(user,id,reason)),leaveUnlocked,
   suspend:userId=>locks.run([userId],async()=>{matchmaking?.removeUnlocked(userId);const id=studentRooms.get(userId);if(id)await leaveUnlocked({id:userId,role:'student'},id,'suspended');streams.closeUser(userId,'suspended');}),
   start:async cfg=>{await store.recover();await configure(cfg);periodic();},
-  dispose:()=>{goldenHours?.dispose();clearTimer(housekeeping);for(const t of timers.values())clearTimer(t);timers.clear();matchmaking?.clear();},
+  dispose:()=>{sharedLobbies.clear();liveProgress.clear();lobbyIdentities.clear();goldenHours?.dispose();clearTimer(housekeeping);for(const t of timers.values())clearTimer(t);timers.clear();matchmaking?.clear();},
   history:async user=>Promise.all((await store.history(user)).map(id=>snapshot(user,id,true))),
  };
 }

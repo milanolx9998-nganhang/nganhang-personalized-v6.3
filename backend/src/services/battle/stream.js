@@ -1,7 +1,7 @@
 import {randomUUID} from 'node:crypto';
 import {fail} from '../practice/config.js';
 export function createStreams({now=Date.now,setTimer=setTimeout,clearTimer=clearTimeout}={}){
- const clients=new Set(),opening=new Map(),pending=new Map(),boards=new Map();const runId=randomUUID();let version=0;
+ const clients=new Set(),opening=new Map(),pending=new Map(),boards=new Map();const runId=randomUUID();let version=0,lobbyProgress,lobbyVersion=0;
  const limits={sse_total:1200,sse_per_user:2,sse_bytes:65536,stream_opens:10};
  function close(c,reason){if(!clients.delete(c))return;clearTimer(c.heartbeat);clearTimer(c.expiry);if(c.opened)c.res.end(`event: closed\ndata: ${JSON.stringify({reason})}\n\n`);else c.cancelled=true;}
  function write(c,body){if(c.res.writableLength+Buffer.byteLength(body)>limits.sse_bytes){close(c,'slow');return;}c.res.write(body);}
@@ -22,13 +22,15 @@ export function createStreams({now=Date.now,setTimer=setTimeout,clearTimer=clear
   return c;
  }
  function publish(key,immediate=false){
+  if(key==='lobby')lobbyVersion++;
   if(immediate){clearTimer(pending.get(key));pending.delete(key);version++;for(const c of clients)if(c.key===key)void send(c);return;}
   if(!pending.has(key)){const timer=setTimer(()=>{pending.delete(key);publish(key,true);},250);timer.unref?.();pending.set(key,timer);}
  }
- return {open,publish,
+ return {open,publish,lobbyVersion:()=>lobbyVersion,
+  publishLobbyProgress:(delay=5000)=>{if(lobbyProgress||![...clients].some(c=>c.key==='lobby'))return;lobbyProgress=setTimer(()=>{lobbyProgress=null;publish('lobby');},delay);lobbyProgress.unref?.();},
   publishPrivate:(key,userId)=>{for(const c of clients)if(c.key===key&&c.user.id===userId&&!c.projector)void send(c);},
   cancelBoard:key=>{clearTimer(boards.get(key));boards.delete(key);},
   publishBoard:(key,delay,refresh)=>{if(boards.has(key))return;const t=setTimer(()=>{if(boards.get(key)!==t)return;boards.delete(key);if(refresh()!==false)publish(key,true);},delay);t.unref?.();boards.set(key,t);},
-  configure:values=>Object.assign(limits,values),envelope:()=>({run_id:runId,version,server_now:now()}),closeUser:(id,reason,key)=>{for(const c of clients)if(c.user.id===id&&(!key||c.key===key))close(c,reason);},closeAll:reason=>{for(const c of clients)close(c,reason);for(const t of boards.values())clearTimer(t);boards.clear();},dispose:()=>{for(const c of clients)close(c,'shutdown');for(const t of pending.values())clearTimer(t);pending.clear();for(const t of boards.values())clearTimer(t);boards.clear();},stats:()=>({streams:clients.size})};
+  configure:values=>Object.assign(limits,values),envelope:()=>({run_id:runId,version,server_now:now()}),closeUser:(id,reason,key)=>{for(const c of clients)if(c.user.id===id&&(!key||c.key===key))close(c,reason);},closeAll:reason=>{clearTimer(lobbyProgress);lobbyProgress=null;for(const c of clients)close(c,reason);for(const t of boards.values())clearTimer(t);boards.clear();},dispose:()=>{clearTimer(lobbyProgress);lobbyProgress=null;for(const c of clients)close(c,'shutdown');for(const t of pending.values())clearTimer(t);pending.clear();for(const t of boards.values())clearTimer(t);boards.clear();},stats:()=>({streams:clients.size})};
 }
 export const streams=createStreams();

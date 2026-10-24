@@ -1,14 +1,15 @@
 # AI HANDOFF
 
 ## Handoff snapshot
-- Status: completed
-- Last completed: V6.9.3 "Quiz lớp" + tối ưu tải đã deploy (`main` = `d734a67`, run 39563273633 thành công, 21/10 14:39).
-- In progress: không.
-- Exact next action: khi anh Hiếu muốn thử: đăng nhập admin → /admin/battle → bật Đấu, cờ `class`, `self_paced`, `speed_scoring` → giáo viên mở "Quiz lớp" (/practice/quiz) cho một lớp; theo dõi rồi mới mở rộng.
-- Blockers / decisions needed: không. Đấu trên web thật đang tắt (từ 20/10). Cờ Quiz lớp mặc định tắt.
-- Latest verification: unit 218/218, security 27/27, integration 198/199 (V6661 cũ), tải 40×15 ACK p95 ~230 ms; deploy CI thành công, health ok.
-- Last safe commit: d734a67 (`main` và `feat-v69-battle`).
-- Working tree notes: không commit — `backend/scripts/_tmp-battle-{sandbox,prep,ui}.mjs`, `.claude/`; DB clone `nganhang_battle_ui_tmp` (đã nâng v693) giữ để thử tiếp, server thử 3196 đang chạy nền trong phiên.
+- Status: completed (backend V6.9.4 cục bộ, chưa commit/deploy).
+- Last completed: 24/10/2026 — Sảnh Đấu trường + xử lý 5 lỗi mục 3 Argon; hợp đồng đầy đủ tại docs/API.md, quyết định tại docs/thiet-ke/phan-bien/V694_CODEX_PHAN_BIEN.md.
+- In progress: không còn việc backend trong phạm vi đã giao.
+- Exact next action: làm frontend theo mục V6.9.4 trong API.md: tách thẻ class ghim, nhóm id=null, seeking_any, count=null; review giao diện/trình duyệt sau. Chỉ commit/push khi anh Hiếu yêu cầu.
+- Blockers / decisions needed: không. Chưa mở khán giả/tự vào phòng/tự bật máy; không cam kết ghép trong 20 giây. Trạng thái web thật không được kiểm lại trong phiên không mạng này.
+- Latest verification: npm test 231/231 + matrixBalancer; backend npm run test:security 27/27; integration v69/v691/v693 28/28 và V694 cuối 6/6 (tổng 34). 50 phòng + 300 SSE thật: lobby HTTP p95 78,57 ms, đủ 300 luồng nhận thay đổi. V693 40×15: ACK p95 147,81 ms, next p95 159,87 ms, 600/600 đúng, 0 trùng; đạt cổng 300 ms local. Log/artifact trong artifacts/v694-* và artifacts/v693-load-40x15.json.
+- Last safe commit: d734a67 theo bàn giao trước; phiên này không commit/push/đổi lịch sử.
+- Working tree notes: thêm lobby.js/lobbyCache.js, unit/integration V694 và phản biện; sửa routes + 6 service Đấu, API.md, work log/handoff. Giữ các tệp chưa commit có trước (.claude/, backend/scripts/_tmp-battle-*.mjs); không sửa frontend/.env, không migration nguồn, không mạng ngoài. Test dùng clone local và tự dọn; không dọn database/tệp thử tồn từ phiên trước. CodeGraph sync + repo-map local đã cập nhật.
+- Limits: chưa đo 300 SSE qua Caddy/Internet. Nhãn/lớp cache 60 giây, chặn API invalidation hai chiều ngay; nhịp 250 ms dựng chung theo khối rồi chiếu riêng, tiến độ live 5 giây. Cờ lobby tắt vẫn giữ thẻ lớp mình, không đưa thẻ lớp vào subjects.
 
 ## Bàn giao mới nhất — 18/10/2026: backend Đấu V6.9
 

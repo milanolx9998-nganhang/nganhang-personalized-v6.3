@@ -355,3 +355,136 @@ Phạm vi tính hạng tối thiểu cả Chương. Người chọn một Bài �
 LP cập nhật cùng giao dịch kết thúc ván và khóa duy nhất `(room_id,user_id)`. Đồng hạng FFA lấy trung bình vị trí bị chiếm rồi làm tròn. Hệ số độ rộng và thưởng định vị áp dụng trước trần máy. Chuỗi thắng xét đúng cặp và phạm vi; dấu hiệu bất thường giảm LP dương; giới hạn ngày xét UTC+7, xuyên mã mùa, chặn cả LP/MMR sau trần. Văng luồng không tự rời phòng; giữ điểm đã tích lũy và khiên lần đầu nếu bị âm LP. Chủ động rời tính hạng chót, không dùng khiên. Restart/dừng khẩn cấp gián đoạn không chốt LP.
 
 Mùa = mã học kỳ do quản trị đặt; reset mềm khi người chơi có ván hạng đầu ở mã mùa mới, không xóa sự kiện mùa cũ. MMR riêng từng môn, ghép nhiều môn dùng trung bình; sau 8 giây chờ của mọi thành viên bỏ cửa sổ. Bậc chung Tập sự → Khám phá → Tinh anh → Thông thái → Bậc thầy → Thách đấu, mỗi bậc III–I ×100 LP; không tụt bậc lớn trong mùa. Bậc mặc định ẩn, từ Tinh anh có thể chủ động hiện; bảng cao thủ tắt mặc định. Rank tách biệt mastery và điểm học tập.
+
+### V6.9.4 — Sảnh Đấu trường (hợp đồng backend chốt 24/10/2026)
+
+Áp dụng cho `GET /api/battle/lobby` và sự kiện `snapshot` của `GET /api/battle/lobby/stream`. Đây là phần bổ sung tương thích các trường cũ; không mở quyền khán giả, không đổi luật Quiz lớp, không có migration mới. Các trường mới dưới đây là nguồn để làm giao diện, không cần suy luận từ mã.
+
+#### Quyền, query và lỗi
+
+Chỉ tài khoản học sinh đã đăng nhập, có lớp/khối hiện hành. Khối được lấy từ tài khoản; client **không** truyền `grade`, `class_id`, `user_id`. Cookie phiên hoặc Bearer như các API Đấu khác. Không đưa token vào URL SSE.
+
+| Query tùy chọn (HTTP và SSE giống nhau) | Kiểu / nghĩa |
+|---|---|
+| `subject_id` | Chuỗi số nguyên thập phân 1–2147483647, không dấu/không số 0 đầu |
+| `branch_id` | Cùng kiểu ID; cần `subject_id` |
+| `chapter` | Tên chương chính xác, trim, dài 1–200 ký tự; URL-encode; cần `subject_id` |
+| `topic_id` | Một ID bài, cùng kiểu ID; cần `subject_id` |
+
+Không query = tất cả hoạt động Đấu được phép xem cùng khối. Các điều kiện kết hợp AND trên **cùng một bài** nằm trong phạm vi phòng. Ví dụ phòng cả môn có thể khớp bài thuộc môn đó; phòng chỉ chọn Bài A không khớp Bài B. Chương trùng tên ở phân môn khác phải thêm `branch_id` khi muốn phân biệt. ID không tồn tại/không thuộc khối, tổ hợp không khớp trả 200 với nhóm Đấu rỗng. Phòng bỏ phiếu chưa chọn môn chỉ hiện khi không lọc, không khớp mọi môn. **Thẻ lớp được ghim không chịu bộ lọc Đấu**.
+
+Query lạ, lặp khóa, mảng, ID sai, chương rỗng hoặc lọc con thiếu môn: 400 (lỗi validation chung). Chưa đăng nhập/hết phiên: 401; sai vai trò/chưa có lớp: 403; cờ không cho phép: 403 `BATTLE_FEATURE_OFF`; bộ Đấu chưa khởi tạo: 503 `BATTLE_UNAVAILABLE`. Dừng khẩn cấp: GET/khởi tạo SSE trả 403, luồng đang mở đóng với lý do `emergency`. Cờ `battle_enabled=false` chỉ dừng nhận ván mới như trước, không tự xóa hoạt động của ván hiện hữu.
+
+Cờ `lobby=false`: không có phòng học sinh, `live`, `seeking`, `subjects` rỗng; `seeking_any={count:0,has_waiters:false}`. `class=true` vẫn cho phép đọc các thẻ lớp mình trong `rooms`. Giữ quy tắc cũ: HTTP cần `lobby || class`; SSE cần `lobby || class || matchmaking` (để còn nhận vé của chính mình). `matchmaking=false` làm `seeking`/`seeking_any` trống. API `join`, `match` vẫn kiểm lại quyền và chỗ trống khi bấm; dữ liệu sảnh không phải cam kết chỗ.
+
+#### Toàn bộ snapshot
+
+```json
+{
+  "run_id":"uuid-cua-tien-trinh", "version":42, "server_now":1792818000000,
+  "rooms":[], "golden_hours":[], "match":null, "current_room_id":null,
+  "live":[], "seeking":[],
+  "seeking_any":{"count":0,"has_waiters":false},
+  "subjects":[]
+}
+```
+
+`rooms`, `golden_hours`, `match`, `current_room_id` giữ nghĩa cũ. `match` là vé riêng người xem theo hợp đồng V6.9.1 ở trên; `suggestion_room` bị loại ngay nếu vướng chặn/quyền. `golden_hours.participants` là bộ đếm Giờ vàng cũ (vé + người đang đấu), **không** dùng thay số đang tìm. `current_room_id` là UUID hoặc null. Mọi thời điểm là epoch **mili giây**, không phải chuỗi ISO. Không có hoạt động trả mảng rỗng, không điền môn giả để tạo cảm giác đông.
+
+**Scope chung** của thẻ chờ/live:
+
+```json
+{"subject_id":1,"branch_id":11,"chapter":"Chương I","topic_ids":[101,102]}
+```
+
+`subject_id:number|null`; `subject_ids?:number[]` chỉ có khi đa môn (khi đó `subject_id:null`); `branch_id:number|null`; `chapter:string|null`; `topic_ids:number[]|null`. Môn/phạm vi chưa chọn có các trường null. `chapter` giữ lựa chọn **cả chương** của phòng mới; bài lẻ/nhiều bài có thể có `scope.chapter:null` nhưng `scope_label.chapter` vẫn chỉ chương chung. Không tự suy rằng scope.chapter null nghĩa là không thuộc chương nào. Phòng lịch sử tạo trước thay đổi có thể không giữ dấu chọn cả chương; không sửa lại lịch sử để đoán lựa chọn cũ.
+
+**Nhãn đã dịch `scope_label`** luôn có trên `rooms[]` và `live[]`:
+
+```json
+{"subject":"KHTN","branch":"Vật lí","chapter":"Chương I","topics":[],"label":"KHTN · Vật lí · Chương I"}
+```
+
+`subject`, `branch`, `chapter`: tên hoặc null; `topics:string[]`; `label:string` để hiển thị ngay. Chọn cả chương: `topics:[]`, nhãn không thêm “N bài”. Chọn danh sách bài: `topics` chứa tên từng bài theo thứ tự ID của scope, nhãn dùng tên nếu một bài, “N bài” nếu nhiều bài. Đa môn: tên môn nối ` + `. Chưa chọn: `label:"Chưa chọn nội dung"`. Metadata đã xóa/thiếu nhãn có fallback “Môn N”, “Phân môn N”, “Bài N”; không lấy câu hỏi hay gợi ý cá nhân để dựng nhãn.
+
+#### Phòng đang chờ: `rooms[]`
+
+Mỗi phần tử giữ trường cũ và thêm các trường dưới đây:
+
+| Trường | Kiểu / cách dùng |
+|---|---|
+| `id` | UUID phòng; bấm vào dùng `POST /rooms/:id/join` với `{}` |
+| `kind`, `mode` | `duel`, `team`, `ffa`, hoặc `class`; `mode` là bí danh của `kind` |
+| `scope`, `scope_label` | Như trên |
+| `players`, `capacity` | Số người đang còn trong phòng (gồm máy) / sức chứa; không phải mảng người |
+| `question_count`, `seconds` | Số câu / số giây cơ sở mỗi câu |
+| `visibility`, `open_slots`, `auto_match` | `code` hoặc `public`; hai cờ boolean |
+| `label` | Nhãn mở chỗ/đấu máy cũ hoặc null |
+| `host_name` | Tên ngắn chủ phòng; phòng lớp dùng “Giáo viên” |
+| `host_badge` | null hoặc `{name:string,tier:number,division:number}`; chỉ huy hiệu đã đồng ý công khai, không MMR/LP |
+| `class_id` | ID lớp nếu kind class, còn lại null |
+| `created_at` | Epoch ms lúc tạo |
+| `ranked` | Boolean: hạng đã được xác lập ở metadata phòng và tổ hợp đủ điều kiện; false khi chưa xác lập, không bảo đảm mọi người được tính LP |
+
+Thứ tự: các thẻ `class` được ghim trước (mới tạo trước), tiếp đến tối đa **100 phòng Đấu**. Thẻ lớp cùng lớp/còn chỗ được giữ riêng, không bị giới hạn 100 phòng cắt mất, không tính vào `subjects`. Frontend tách `kind==='class'` ra vùng Quiz lớp ghim; không đưa lại vào khối môn Đấu.
+
+Phòng Đấu: chủ phòng mất kết nối **hoặc** phòng chờ quá 3 phút xuống sau nhóm bình thường; trong mỗi nhóm ưu tiên ít chỗ trống → mới tạo → ID. Bộ lọc và chặn áp dụng trước cắt giới hạn. Chỉ public hoặc open_slots; code đơn thuần không hiện. Phòng bỏ phiếu chưa có môn xuất hiện ở nhóm `subjects.id=null`.
+
+#### Ván đang đấu: `live[]`
+
+Tối đa **50** ván, mới bắt đầu trước; chỉ `kind:duel|team|ffa`, cùng khối và `status:playing` (bao gồm countdown). Không có Quiz lớp, phòng mã thủ công, phòng đấu máy bằng mã riêng. Auto-match người thật được hiện; ván có máy chỉ hiện nếu public/open_slots.
+
+```json
+{
+  "id":"uuid-phong", "kind":"duel",
+  "scope":{"subject_id":1,"branch_id":null,"chapter":null,"topic_ids":[101]},
+  "scope_label":{"subject":"KHTN","branch":null,"chapter":"Chương I","topics":["Tốc độ"],"label":"KHTN · Chương I · Tốc độ"},
+  "players":2,"capacity":2,"asked_count":4,"question_count":7,
+  "started_at":1792817970000,"auto_match":true
+}
+```
+
+Đây là danh sách trường cho phép **đầy đủ**: không code, chủ phòng, tên/ID học sinh, lớp, huy hiệu, điểm, bảng xếp hạng, đề hay đáp án. `asked_count` là số câu đã phát: 0 = “Sắp bắt đầu”, >0 = “Câu X/Y”; thời gian hiển thị = max(0, server_now − started_at). `started_at` dùng lúc mở câu đầu, trước đó dùng lúc bắt đầu countdown; chỉ null nếu dữ liệu phòng thực sự thiếu cả hai mốc. Tiến độ/mốc thời gian lấy mẫu không nhanh hơn 5 giây. Số người và việc ván biến mất được cập nhật theo sự kiện riêng.
+
+Không có nút “Xem trực tiếp”/“Vào” cho live. UUID ở đây không cấp quyền GET phòng/stream/result; người ngoài vẫn 403. Giao diện có thể vẽ 2–3 dòng thu gọn mỗi môn rồi mở rộng cục bộ, không cần API khán giả.
+
+#### Người tìm đối thủ: `seeking[]`, `seeking_any`
+
+```json
+[
+  {"subject_id":1,"branch_id":11,"chapter":"Chương I","count":3,"has_waiters":true},
+  {"subject_id":2,"branch_id":null,"chapter":null,"count":null,"has_waiters":true}
+]
+```
+
+Chỉ vé còn chờ, cùng khối, loại chính người xem và người bị chặn ở **cả hai chiều**. Không đếm người đang đấu. Mỗi vé một lần mỗi môn đã chọn cụ thể; nhiều lựa chọn môn có thể góp ở nhiều môn. Không cộng các môn để suy ra số người duy nhất. Phạm vi chương/phân môn lấy từ phần được vé chấp nhận hiện tại (sau nới), nhưng không tự quảng bá sang môn ngoài lựa chọn gốc.
+
+Vé `choices:[]` hoặc không chọn môn được tách khỏi từng môn: `seeking_any:{count:number|null,has_waiters:boolean}`. Chỉ hiển thị ở bộ lọc Tất cả; khi có `subject_id` trả `{count:0,has_waiters:false}`. Dòng này dùng nhãn “Đang tìm mọi môn”.
+
+Nhóm dưới 2 người được gộp lên môn (`branch_id/chapter:null`) **trước lọc**. Nhóm cuối chỉ còn một người trả `count:null,has_waiters:true`; hiển thị “Đang có bạn chờ ghép”, không đổi null thành 0 hay 1. Nhóm từ 2 trả số chính xác. Không có nhóm rỗng trong seeking. `seeking_any` rỗng trả count 0. Đây là giảm dữ liệu tiết lộ, không bảo đảm không thể suy đoán từ thông tin bên ngoài.
+
+Lọc chapter/branch chỉ giữ nhóm chi tiết đã công bố, không khôi phục phạm vi của nhóm nhỏ. Khi có `topic_id`, `seeking:[]` vì không công bố bộ đếm theo bài. Vẫn có thể chủ động tìm đối thủ theo bài đang chọn bằng API match.
+
+Nút “Đấu cùng” dùng POST `/api/battle/match` hiện có, ví dụ:
+
+```json
+{"kinds":["duel","ffa"],"choices":[{"subject_id":1,"branch_id":11,"chapter":"Chương I"}],"lengths":"any","flex":"gradual","ranked":false,"bot_fill":false}
+```
+
+Chỉ gửi branch/chapter nếu khác null; nhóm cấp môn chỉ gửi subject_id; mọi môn gửi `choices:[]`. Đây là tham gia hàng chờ, **không** tự đưa vào phòng/gắn đối thủ cụ thể. Tôn trọng lựa chọn ranked/bot của người dùng, không tự bật bot hay cam kết ghép trong 20 giây. Nếu API trả `current_room_id` thì mở phòng; ngược lại dùng `queue`/`match`. Hủy bằng DELETE `/match` trước khi đổi lựa chọn.
+
+#### Đầu khối môn: `subjects[]`
+
+`{id:number|null,name:string,waiting:number,live:number,seeking:number|null,has_seekers:boolean}`. Chỉ các môn có hoạt động nhìn thấy. `id:null,name:"Chưa chọn môn"` dành cho phòng chưa quyết định nội dung, không phải ID để truyền API. Chỉ có nhóm này ở Tất cả. Vé mọi môn nằm ở seeking_any, không nằm trong nhóm id null.
+
+Tổng tính **sau quyền/bộ lọc, trước giới hạn 100/50**, chỉ Đấu trường; không cộng thẻ lớp. Một phòng đa môn góp một lần mỗi môn liên quan (khi lọc môn chỉ tính môn đã lọc). `seeking:null` khi có bất cứ nhóm seeking ẩn số trong môn, để không suy ngược số 1 bằng phép trừ; dùng `has_seekers` để biết có người tìm. Không cộng lại mảng đã cắt để thay số tổng. Thứ tự môn: có phòng chờ trước → waiting + seeking công khai giảm dần (null không cộng điểm) → live giảm dần → id tăng, null cuối khi các chỉ số bằng nhau.
+
+#### SSE, cache và làm mới giao diện
+
+SSE trả cùng JSON/query với HTTP. Kết nối mới nhận `event: snapshot` đầy đủ ngay; mọi lần tiếp theo **thay toàn bộ snapshot**, không ghép mảng tăng dần. Khi đổi bộ lọc, đóng luồng cũ và mở lại URL mới. Dùng id ổn định làm key để tránh nhảy bố cục; `run_id` đổi khi restart, `version` thuộc tiến trình, không dùng làm số thứ tự riêng của một phòng. Không replay delta/Last-Event-ID.
+
+Sự kiện phòng/vé/chặn/cấu hình gộp 250 ms; tiến độ live gộp và lấy mẫu 5 giây (cộng thời gian gom/gửi), không phát điểm/đề. Kết thúc hoặc chặn không phải chờ cửa sổ 5 giây. `: ping` mỗi 15 giây. `event: closed` có `{reason}` như `left`, `expired`, `slow`, `emergency`, `unavailable`, `shutdown`. 429 khi vượt hạn mở/kết nối kèm Retry-After; không mở nhiều luồng thay cho cập nhật bộ lọc. Giữ các trần SSE hiện có (mặc định 1200 toàn hệ thống, 2/người, 10 lần mở/phút, bộ đệm 64 KiB).
+
+Backend dựng thẻ/nhãn/phạm vi/vé một lần theo khối trong mỗi nhịp sảnh, sau đó chiếu theo lớp, chặn và query từng người. Cache chung không chứa payload riêng người dùng. Catalog metadata theo khối 60 giây, single-flight; danh tính lớp và danh sách chặn cache 60 giây, bị chặn/bỏ chặn qua ứng dụng làm mất hiệu lực cả hai phía ngay sau commit. Thay dữ liệu ngoài ứng dụng phản ánh sau TTL. Cache khi quá dung lượng loại bản đã hoàn tất, không tạo vòng nạp lại do eviction.
+
+Luồng sảnh tái kiểm phiên/tạm khóa DB tối đa mỗi 15 giây, kiểm hết hạn/cờ hoạt động mỗi lần phát. HTTP vẫn qua middleware xác thực bình thường. **Không có truy vấn DB mỗi lần dựng nội dung sảnh khi cache nóng**; cache lạnh/hết TTL và kiểm phiên định kỳ vẫn đọc DB. Không thay đường xác thực chung, giao dịch answer/next hay dữ liệu mastery của d734a67. Nhãn là metadata chương trình hiện hành; Đấu không thay đánh giá năng lực GDPT 2018.

@@ -1,3 +1,4 @@
+import {createLobbyCache} from './lobbyCache.js';
 import {randomInt} from 'node:crypto';
 import {pool} from '../../db/pool.js';
 import {USABLE_FROM,USABLE_WHERE,USABLE_LESSON} from '../practice/attempts.js';
@@ -26,7 +27,7 @@ export async function normalizeScope(grade,scope={},client=pool){
   const valid=(await client.query("SELECT id FROM topics WHERE id=ANY($1::int[]) AND subject_id=ANY($2::int[]) AND grade=$3 AND status='ACTIVE'",[ids,subjects,grade])).rows;
   if(!ids.length||valid.length!==ids.length)fail('Bài ngoài các môn / khối');return {subject_id:null,subject_ids:subjects,branch_id:null,topic_ids:ids};
  }
- const out={subject_id:scope.subject_id??null,branch_id:scope.branch_id??null,topic_ids:scope.topic_ids??null};
+ const out={subject_id:scope.subject_id??null,branch_id:scope.branch_id??null,topic_ids:scope.topic_ids??null,...(scope.chapter?{chapter:scope.chapter}:{})};
  if(!out.subject_id){if(out.branch_id||out.topic_ids||scope.chapter)fail('Cần chọn môn trước phạm vi');return out;}
  if(!(await client.query('SELECT 1 FROM subjects WHERE id=$1',[out.subject_id])).rowCount)fail('Không tìm thấy môn');
  if(out.branch_id&&!(await client.query('SELECT 1 FROM branches WHERE id=$1 AND subject_id=$2',[out.branch_id,out.subject_id])).rowCount)fail('Phân môn không thuộc môn');
@@ -75,8 +76,19 @@ export function createDeck({client=pool,now=Date.now,random=()=>randomInt(0,0x10
  return {candidates,available,count,draw,clear:()=>cache.clear()};
 }
 export const deck=createDeck();
+export function createLobbyCatalog({client=pool,now=Date.now}={}){
+ return createLobbyCache(async grade=>{
+  const [subjects,branches,topics]=await Promise.all([
+   client.query('SELECT id,name FROM subjects'),
+   client.query('SELECT id,name,subject_id FROM branches'),
+   client.query("SELECT id,name,subject_id,branch_id,chapter FROM topics WHERE grade=$1 AND status='ACTIVE' ORDER BY order_index,id",[grade])
+  ]);
+  return {subjects:subjects.rows,branches:branches.rows,topics:topics.rows};
+ },{now,max:12});
+}
+export const lobbyCatalog=createLobbyCatalog();
 export async function contentOptions(grade,count=7,userId=null,scope={}){
- const rows=await deck.available(grade,scope),subjects=(await pool.query('SELECT id,name FROM subjects')).rows,branches=(await pool.query('SELECT id,name FROM branches')).rows;
+ const [rows,{subjects,branches}]=await Promise.all([deck.available(grade,scope),lobbyCatalog.get(grade)]);
  const grouped=(key,labels)=>[...new Set(rows.map(q=>q[key]).filter(Boolean))].map(id=>({id,name:labels.find(x=>x.id===id)?.name||String(id),count:rows.filter(q=>q[key]===id).length})).filter(x=>x.count>=count);
  const topics=grouped('topic_id',rows.map(q=>({id:q.topic_id,name:q.topic_name}))).map(t=>{const q=rows.find(q=>q.topic_id===t.id);return {...t,subject_id:q.subject_id,branch_id:q.branch_id,chapter:q.chapter};});
  const chapters=[...new Set(rows.map(q=>JSON.stringify([q.subject_id,q.chapter])))].map(key=>{const [subject_id,name]=JSON.parse(key),items=rows.filter(q=>q.subject_id===subject_id&&q.chapter===name);return {subject_id,name,topic_ids:[...new Set(items.map(q=>q.topic_id))],count:items.length};}).filter(c=>c.count>=count);
