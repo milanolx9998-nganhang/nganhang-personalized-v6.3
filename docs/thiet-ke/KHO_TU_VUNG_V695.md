@@ -143,3 +143,24 @@ Mỗi giai đoạn: build, unit, security, integration Đấu xanh; thử trên 
 4. **Tốc độ tính điểm** trong Đấu từ vựng: đồng ý "trả lời nhanh được thêm điểm" cho riêng chế độ này?
 5. **Xếp hạng:** trận từ vựng có cộng LP không? (Đề xuất: chưa.)
 6. **Cách đưa vào trận:** A (ảnh chụp nội dung, đề xuất) hay B (bảng riêng) — em để Codex kiểm cổng migration rồi chốt.
+
+## 11. Chốt của anh Hiếu (24/10) — bản chạy nhanh (MVP)
+
+**Quyết định:**
+- **Tiếng Trung theo HSK**, không theo sách giáo khoa: từ gắn `hsk_level` (+ `lesson` nếu bộ dữ liệu có), không bắt buộc Unit/Bài. Số cấp (HSK 1–6 hay HSK 3.0 cấp 1–9) theo bộ dữ liệu anh gửi.
+- Câu 3–5: **chọn đường nhanh nhất**:
+  - Duyệt: admin nhập là **dùng được ngay** (`approved`). Cột `status` vẫn có để sau bật quy trình duyệt của tổ.
+  - Đấu từ vựng **tính điểm theo tốc độ** (dùng lại `speed_scoring` đã có).
+  - **Không cộng LP** cho trận từ vựng.
+- Anh gửi **một bộ từ có sẵn** → bộ đó là dữ liệu chạy đầu tiên; mẫu Excel / bộ nhập khớp theo cột của file đó.
+
+**Phạm vi MVP (gộp GĐ1 + phần cốt lõi GĐ2):**
+1. Migration `vocab_entries` (Anh: grade + topic/Unit; Trung: `hsk_level`, `lesson`), đường câu từ vựng vào Đấu (cách A nếu cổng migration cho qua).
+2. Nhập bộ dữ liệu anh gửi (script/API nhập + xem trước), trang Kho từ vựng **chỉ xem, lọc, sửa dòng, nhập Excel**.
+3. Sinh câu: EN1 từ→nghĩa, EN2 nghĩa→từ, EN5 ghép cặp; ZH1 chữ→nghĩa, ZH2 nghĩa→chữ, ZH3 chữ→pinyin, ZH4 pinyin→chữ, ZH6 ghép cặp.
+4. Cờ `battle_modes.vocab`; sảnh có nút "⚡ Đấu từ vựng" (Anh: chọn Unit; Trung: chọn cấp HSK); ghép trận chỉ vé từ vựng với nhau, vẫn theo khối như hiện tại; Quiz lớp chọn được "Từ vựng".
+5. Màn kết quả: danh sách "Từ em sai".
+
+**Để sau MVP:** điền từ vào câu ví dụ, gõ chính tả, chọn thanh điệu, nghe; duyệt của tổ; bảng độ phủ; AI điền nháp; thống kê từ hay sai cho GV; luyện từ vựng một mình; ghép HSK khác khối.
+
+**Bước kế:** chờ file của anh → đọc cột → chốt schema + mẫu nhập → làm MVP trên nhánh, thử trên DB sao chép → anh duyệt → up main.

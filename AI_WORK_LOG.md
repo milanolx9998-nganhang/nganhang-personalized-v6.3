@@ -291,3 +291,9 @@ Codex viết dở backend ghép trận linh hoạt + máy + giờ vàng + rank +
 **Thay đổi:** `docs/thiet-ke/KHO_TU_VUNG_V695.md` (kế hoạch 1.0, chưa mã). Kho riêng `vocab_entries` (Anh: từ/IPA/nghĩa/loại từ; Trung: chữ Hán/pinyin/Hán Việt), máy sinh câu (EN1–6, ZH1–6) dùng lại 3 loại câu sẵn có, cờ `battle_modes.vocab`, trang `/admin/vocab` nhập Excel xem trước → duyệt, thống kê từ hay sai.
 **Phát hiện:** `battle_questions.question_version_id` NOT NULL + FK, `storage.js` JOIN nội dung từ `question_versions` → câu sinh từ từ vựng cần đường riêng (cách A: snapshot nội dung, cách B: bảng riêng). Chưa có môn Tiếng Trung trong seed.
 **Việc tiếp:** anh Hiếu chốt 6 câu ở mục 10 → giao Codex (backend, cổng migration) + Argon (giao diện) phản biện → GĐ1.
+
+## 2026-10-24 tối — Chốt Kho từ vựng: HSK + bản chạy nhanh
+
+**Yêu cầu:** "1. dùng tài liệu HSK; 2. 3 4 5 tối ưu nhanh trước, a sẽ gửi e 1 bộ có trước để chạy trước".
+**Thay đổi:** `KHO_TU_VUNG_V695.md` mục 11: Trung theo cấp HSK; admin nhập là dùng ngay; Đấu từ vựng tính điểm tốc độ; không cộng LP; phạm vi MVP và phần để sau.
+**Việc tiếp:** chờ bộ từ anh Hiếu gửi → khớp cột → làm MVP.
