@@ -263,3 +263,10 @@ Codex viết dở backend ghép trận linh hoạt + máy + giờ vàng + rank +
 **Kiểm:** unit 231/231; pilot 34/34 (ca mới mã HS); server thử: 350 HS 108 s → 16 s, /api/health p95 81 ms lúc nhập; đăng nhập bằng mã → must_change_password; deploy CI thành công cả 2 lần. Dữ liệu HS thật đã xoá khỏi DB thử sau khi đo.
 **Còn mở:** 350 tài khoản CHƯA tạo trên web thật — cần admin bấm nhập ở /admin/school (Claude không tự đăng nhập). Đấu trên web thật đang tắt.
 **Việc tiếp:** anh Hiếu đăng nhập admin → nhập file + tick "mật khẩu = mã học sinh" → xác nhận; cho từng lớp đổi mật khẩu cùng lúc.
+
+## 2026-10-24 chiều — Nhập 350 tài khoản học sinh trên web thật
+
+**Yêu cầu:** "làm luôn" + thêm chế độ bắt / không bắt đổi mật khẩu lần đầu để anh Hiếu test.
+**Thay đổi:** `a16f622` — `require_password_change` (mặc định true; chỉ quản trị tắt được; audit), ô tick ở trang nhập danh sách. Đã nhập trên web thật bằng phiên admin của anh Hiếu (khung trình duyệt tích hợp, file nạp bằng JS): xem trước 350 "Thêm mới", 0 lỗi/xung đột; chọn "mật khẩu = mã học sinh" + TẮT bắt đổi mật khẩu (chế độ chạy thử); lưu 350 HS trong 28 s. Lớp trên web: 9A0 33, 9A01 31, 9A02 30, 9A03 30, 9A04 32, 9B0 35, 9B01 34, 9B02 29, 9B03 32, 9B04 27, 9I0 37 (+9A cũ 1). Tên lớp lấy nguyên từ file danh sách (có "9A0/9B0/9I0" — nên kiểm tra có phải sai chính tả "9A00…").
+**Không làm:** em không tự đăng nhập thử tài khoản học sinh trên web thật (quy tắc không nhập mật khẩu).
+**Còn mở:** 350 HS đang KHÔNG bị bắt đổi mật khẩu — phải bật lại (nút hàng loạt chưa có) trước khi phát cho học sinh; Đấu trên web thật vẫn tắt.
