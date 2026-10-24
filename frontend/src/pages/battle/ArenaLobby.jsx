@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth.js';
 import { battleApi, battleApiFlex, buildLobbyQuery } from './battleApi.js';
@@ -80,6 +80,10 @@ export default function ArenaLobby() {
   const [busyJoinCode, setBusyJoinCode] = useState(false);
   const [busyJoinRoomId, setBusyJoinRoomId] = useState(null);
   const [busyQuickMatch, setBusyQuickMatch] = useState(false);
+  // Bấm tìm trận ở sảnh (thẻ gợi ý nằm dưới) → cuộn lên khung "Đang tìm" để HS thấy
+  const waitingRef = useRef(null);
+  const [revealWaiting, setRevealWaiting] = useState(0);
+  const revealedRef = useRef(0);
   const [busyToggleBadge, setBusyToggleBadge] = useState(false);
 
   // Bộ lọc query đồng bộ với GET /api/battle/lobby và SSE /api/battle/lobby/stream (V6.9.4)
@@ -390,6 +394,16 @@ export default function ArenaLobby() {
   };
 
   // Xử lý Học sinh bấm "⚡ Đấu cùng" hoặc "⚡ Tìm bạn..." từ Sảnh V6.9.4
+  useEffect(() => {
+    if (!revealWaiting || !activeMatchTicket) return;
+    const el = waitingRef.current;
+    if (!el || revealedRef.current === revealWaiting) return;
+    revealedRef.current = revealWaiting;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+    el.focus({ preventScroll: true });
+  }, [revealWaiting, activeMatchTicket]);
+
   const handleQuickMatchFromHall = useCallback(
     async (choiceScope = null) => {
       if (meData?.suspension || busyQuickMatch) return;
@@ -437,6 +451,7 @@ export default function ArenaLobby() {
           ...(prev || {}),
           match: queueData,
         }));
+        setRevealWaiting((n) => n + 1);
       } catch (err) {
         setErrorMsg(err?.message || 'Không thể bắt đầu tìm đối thủ lúc này.');
       } finally {
@@ -1177,7 +1192,11 @@ export default function ArenaLobby() {
 
         {/* MÀN CHỜ GHÉP TRẬN LINH HOẠT (Khi học sinh đang có vé match trong sảnh) */}
         {activeMatchTicket && (
-          <section style={{ marginTop: '16px' }}>
+          <section
+            ref={waitingRef}
+            tabIndex={-1}
+            style={{ marginTop: '16px', scrollMarginTop: '72px', outline: 'none' }}
+          >
             <MatchWaiting
               match={activeMatchTicket}
               options={optionsCatalog}

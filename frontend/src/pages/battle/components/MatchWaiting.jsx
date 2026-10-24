@@ -186,7 +186,7 @@ export default function MatchWaiting({
           </strong>
         </div>
 
-        {match.widened && (
+        {match.widened && match.widened !== 'none' && (
           <span className="arena-chip arena-chip--amber" role="status" aria-live="polite">
             {match.widened === 'chapter'
               ? 'Đã mở rộng ra cả Chương trong phần em đã học…'

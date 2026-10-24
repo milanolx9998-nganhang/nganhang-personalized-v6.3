@@ -278,3 +278,9 @@ Codex viết dở backend ghép trận linh hoạt + máy + giờ vàng + rank +
 **Kết quả:** khối 6 lưu 461 HS, khối 7 lưu 440, khối 8 lưu 406; mỗi lần xem trước toàn "Thêm mới", 0 lỗi/xung đột. Sĩ số trên web: khối 6 = 14 lớp (6A01–6A06, 6A0H, 6A0M, 6B0, 6B01–6B05); khối 7 = 13 lớp (7A0, 7A01–7A06, 7B0, 7B01–7B05); khối 8 = 12 lớp (8A0, 8A01–8A05, 8B0, 8B01–8B04, 8I0); khối 9 = 350 (+1 HS cũ ở lớp 9A). Tổng 1.657 HS mới.
 **Lưu ý dữ liệu:** loại 1 HS đã thôi học (24132665, lớp 8A04) theo sheet RHS; một số tên trong file gốc sai hoa/thường (vd "NguyễN TháI Sơn") — nhập nguyên văn; các sheet nguồn lệch nhau ~40 HS về lớp; tên lớp "x0" (9A0, 7A0, 8I0…) là tên chính thức có trong sheet xếp lớp.
 **Còn mở:** toàn bộ tài khoản HS đang KHÔNG bị bắt đổi mật khẩu — phải bật trước khi phát cho học sinh (nút hàng loạt chưa có); Đấu trên web thật vẫn tắt.
+
+## 2026-10-24 tối — Sảnh Đấu: bấm tìm trận thì cuộn lên khung "Đang tìm"
+
+**Yêu cầu:** bấm "Đấu cùng bài này" ở thẻ gợi ý (dưới trang) thì khung "Đang tìm bạn cùng khối" hiện phía trên mà trang vẫn đứng yên → HS không hiểu.
+**Thay đổi:** `ArenaLobby.jsx` — sau khi tìm trận từ sảnh thành công, cuộn mượt tới khung chờ (`scrollMarginTop` 72px để nút menu mobile không che), focus khung; mỗi lần bấm chỉ cuộn một lần (sảnh cập nhật không làm giật lại); tôn trọng reduced-motion. `MatchWaiting.jsx` — backend gửi `widened:'none'` khi chưa mở rộng, giao diện từng hiện "Đã mở rộng phạm vi (none)…" → ẩn khi 'none'.
+**Kiểm:** build OK; Playwright trên server thử (DB sao chép, đã xoá): desktop 1366 và mobile 390 — sau khi bấm, khung chờ nằm ở top 72px, có focus, 6 s sau không cuộn lại; chip "(none)" hết.
