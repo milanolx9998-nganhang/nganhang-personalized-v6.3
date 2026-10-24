@@ -5,6 +5,8 @@ import {USABLE_FROM,USABLE_WHERE,USABLE_LESSON} from '../practice/attempts.js';
 import {normalizeQuestion,validateQuestion,gradeQuestion} from '../practice/grading.js';
 import {fail,settings} from '../practice/config.js';
 import {lessonProgress,currentLesson} from '../practice/lessonMap.js';
+import {vocabScope,vocabEntries,vocabCount} from '../vocab/catalog.js';
+import {generateVocabQuestions} from '../vocab/generator.js';
 const types=['multiple_choice','true_false','short_answer','matching'];
 // Tìm ảnh cả trong khóa cấu trúc, HTML, Markdown và URL nằm sâu trong nội dung.
 export function hasImage(value,key=''){
@@ -22,6 +24,7 @@ export function eligibleQuestion(raw){
  return gradeQuestion(raw,response).score===1;
 }
 export async function normalizeScope(grade,scope={},client=pool){
+ if(scope.content==='vocab')return vocabScope(grade,scope,client);
  if(scope.subject_ids?.length>1){
   const ids=[...new Set(scope.topic_ids||[])],subjects=[...new Set(scope.subject_ids)];
   const valid=(await client.query("SELECT id FROM topics WHERE id=ANY($1::int[]) AND subject_id=ANY($2::int[]) AND grade=$3 AND status='ACTIVE'",[ids,subjects,grade])).rows;
@@ -59,8 +62,16 @@ export function createDeck({client=pool,now=Date.now,random=()=>randomInt(0,0x10
   }
   return hit.rows.filter(q=>(scope.subject_id==null||q.subject_id===scope.subject_id)&&(scope.branch_id==null||q.branch_id===scope.branch_id)&&(scope.topic_ids==null||scope.topic_ids.includes(q.topic_id)));
  }
- async function count(grade,scope){return (await available(grade,scope)).length;}
+ async function count(grade,scope){return scope?.content==='vocab'?vocabCount(scope,client):(await available(grade,scope)).length;}
+ // Đấu từ vựng: sinh câu từ ngân hàng từ vựng, lưu ảnh chụp nội dung (không có phiên bản câu hỏi).
+ async function drawVocab(room){
+  const rows=generateVocabQuestions(await vocabEntries(room.scope.vocab_set_ids,client),{count:room.question_count,kinds:room.scope.vocab_kinds,random,secondsScale:Number(room.seconds||30)/30});
+  if(rows.length<room.question_count)fail('Ngân hàng từ vựng không đủ từ cho phạm vi này; hãy chọn thêm bộ từ',409);
+  return rows.map((q,idx)=>({idx,source:'vocab',question_version_id:null,question_id:null,topic_id:null,cognitive_level:1,auto_gradable:true,content:q.content,content_snapshot:q.content,vocab_entry_ids:q.vocab_entry_ids,seconds:q.seconds,
+   curriculum_snapshot:{subject_id:room.scope.subject_id,grade:room.grade,topic_name:room.scope.vocab_label||'Từ vựng',cognitive_level:'M1',vocab_kind:q.kind,vocab:q.vocab}}));
+ }
  async function draw(room){
+  if(room.scope?.content==='vocab')return drawVocab(room);
   const rows=await candidates(room.grade,room.scope);if(rows.length<room.question_count)fail('Kho không còn đủ câu; hãy chọn lại nội dung',409);
   const ordered=rows.map(q=>({q,r:random()})).sort((a,b)=>Number(Boolean(b.q.content.explanation))-Number(Boolean(a.q.content.explanation))||a.r-b.r).map(x=>x.q);
   const needs=[Math.round(room.question_count*.4),Math.round(room.question_count*.4)];needs.push(room.question_count-needs[0]-needs[1]);

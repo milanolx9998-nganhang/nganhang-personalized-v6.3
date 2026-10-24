@@ -23,7 +23,7 @@ const publicRank=p=>({id:p.user_id,is_bot:Boolean(p.is_bot),name:p.name,class_na
 function legacyRoomDto(room,viewer,now){
  const ended=terminal(room),revealed=room.phase==='reveal'||ended,through=revealed?room.asked_count:Math.max(0,room.asked_count-1);
  const rows=standings(room,through),own=room.players.find(p=>p.user_id===viewer.id),isTeacher=room.kind==='class'&&room.host_id===viewer.id;
- const out={id:room.id,run_id:room.run_id,version:room.version,status:room.status,phase:room.phase,server_now:now,kind:room.kind,asked_count:room.asked_count,question_count:room.question_count,capacity:room.capacity,seconds:room.seconds,scope:{subject_id:room.scope.subject_id??null,subject_ids:room.scope.subject_ids,branch_id:room.scope.branch_id??null,chapter:room.scope.chapter??null,topic_ids:room.scope.topic_ids??null},end_reason:room.end_reason??null,host_id:room.host_id};
+ const out={id:room.id,run_id:room.run_id,version:room.version,status:room.status,phase:room.phase,server_now:now,kind:room.kind,asked_count:room.asked_count,question_count:room.question_count,capacity:room.capacity,seconds:room.seconds,scope:scopeCard(room.scope),end_reason:room.end_reason??null,host_id:room.host_id};
  Object.assign(out,{visibility:room.visibility,open_slots:Boolean(room.open_slots),auto_match:Boolean(room.auto_match),countdown_at:room.countdown_at??null,auto_start_at:room.auto_start_at??null,label:room.has_bots?'Đấu với máy':room.open_slots?'Nhóm bạn đang tìm thêm người':null,ranked:Boolean(room.match_meta?.ranked?.[viewer.id])});
  if(isTeacher)out.class_id=room.class_id;
  if(room.phase==='lobby')out.rank_requested=Boolean(own?.rank_requested);
@@ -49,7 +49,9 @@ function legacyRoomDto(room,viewer,now){
   out.podium=isTeacher&&!room.show_top3?[]:rows.filter(p=>p.rank<=3).slice(0,3).map(publicRank);
   const rank=rows.find(p=>p.user_id===viewer.id);out.me=rank?{...publicRank(rank),total:rows.length}:null;
   out.questions=room.questions.slice(0,room.asked_count).map((q,idx)=>{const a=room.answers.find(a=>a.idx===idx&&a.user_id===viewer.id);return {index:idx,...questionDto(q,true),...(own?{response:a?.response??null,score:Number(a?.score||0),skipped:!a||a.skipped}:{})};});
-  out.review=own?out.questions.filter(q=>q.score<1).map(q=>({index:q.index,topic_id:q.topic_id,source:'battle',source_label:'Ván đấu'})):[];
+  const vocab=room.scope?.content==='vocab';
+  out.review=own&&!vocab?out.questions.filter(q=>q.score<1).map(q=>({index:q.index,topic_id:q.topic_id,source:'battle',source_label:'Ván đấu'})):[];
+  if(vocab)out.vocab_missed=own?vocabMissed(room,out.questions):[];
   const b=badges(room);out.badges=own&&!room.has_bots?{accurate:b.accurate.includes(viewer.id),quick_and_sure:b.quick_and_sure.includes(viewer.id)}:{};
  }
  if(room.emote&&['lobby','reveal'].includes(room.phase))out.emote={kind:room.emote.kind,at:room.emote.at};
@@ -57,7 +59,14 @@ function legacyRoomDto(room,viewer,now){
  if(ended&&own)out.rank_result=room.rating_results?.[viewer.id]||null;
  return out;
 }
-export function lobbyCard(room){return {id:room.id,created_at:room.created_at,mode:room.kind,ranked:Boolean(rankEligible(room)&&room.match_meta?.rank_enabled),host_badge:room.public_badges?.[room.host_id]||null,label:room.has_bots?'Đấu với máy':room.open_slots?'Nhóm bạn đang tìm thêm người':null,kind:room.kind,visibility:room.visibility,open_slots:Boolean(room.open_slots),auto_match:Boolean(room.auto_match),host_name:room.players.find(p=>p.user_id===room.host_id)?.display_name||'Giáo viên',scope:{subject_id:room.scope.subject_id??null,subject_ids:room.scope.subject_ids,branch_id:room.scope.branch_id??null,chapter:room.scope.chapter??null,topic_ids:room.scope.topic_ids??null},players:activePlayers(room).length,capacity:room.capacity,question_count:room.question_count,seconds:room.seconds,class_id:room.class_id};}
+// Phạm vi công khai trên thẻ phòng; phòng từ vựng mang nhãn bộ từ (không có Bài).
+const scopeCard=s=>({subject_id:s.subject_id??null,subject_ids:s.subject_ids,branch_id:s.branch_id??null,chapter:s.chapter??null,topic_ids:s.topic_ids??null,...(s.content==='vocab'?{content:'vocab',vocab_set_ids:s.vocab_set_ids,vocab_label:s.vocab_label||null}:{})});
+// Từ em trả lời sai trong ván từ vựng (câu ghép sai thì liệt kê cả 4 từ của câu).
+function vocabMissed(room,questions){
+ const out=new Map();for(const q of questions)if(q.score<1)for(const v of room.questions[q.index]?.curriculum_snapshot?.vocab||[])if(!out.has(v.entry_id))out.set(v.entry_id,v);
+ return [...out.values()];
+}
+export function lobbyCard(room){return {id:room.id,created_at:room.created_at,mode:room.kind,ranked:Boolean(rankEligible(room)&&room.match_meta?.rank_enabled),host_badge:room.public_badges?.[room.host_id]||null,label:room.has_bots?'Đấu với máy':room.open_slots?'Nhóm bạn đang tìm thêm người':null,kind:room.kind,visibility:room.visibility,open_slots:Boolean(room.open_slots),auto_match:Boolean(room.auto_match),host_name:room.players.find(p=>p.user_id===room.host_id)?.display_name||'Giáo viên',scope:scopeCard(room.scope),players:activePlayers(room).length,capacity:room.capacity,question_count:room.question_count,seconds:room.seconds,class_id:room.class_id};}
 
 export const usesPrivateProgress=r=>r.pacing==='self'||r.scoring==='speed'||r.reveal_policy==='deferred'||r.show_live_board===false;
 export function publicBoard(r){
@@ -110,15 +119,17 @@ export function roomDto(room,viewer,now,{projector=false}={}){
   out.me=me?{...publicRank(me),...stats(me),participant_count:rows.length}:null;
   const count=own?issuedFor(room,viewer.id):room.asked_count;
   out.questions=room.questions.slice(0,count).map((q,index)=>{const a=room.answers.find(a=>a.idx===index&&a.user_id===viewer.id);return {index,...questionDto(q,true),...(own?{response:a?.response??null,score:Number(a?.score||0),skipped:!a||a.skipped,submitted:Boolean(a&&!a.timed_out),points:a?pointsOf(a):0,base_points:a?Number(a.base_points??Number(a.score)*100):0,speed_points:Number(a?.speed_points||0),fastest_points:Number(a?.fastest_points||0)}:{})};});
-  out.review=own?out.questions.filter(q=>q.score<1).map(q=>({index:q.index,topic_id:q.topic_id,source:'battle',source_label:'Ván đấu'})):[];
+  const vocab=room.scope?.content==='vocab';
+  out.review=own&&!vocab?out.questions.filter(q=>q.score<1).map(q=>({index:q.index,topic_id:q.topic_id,source:'battle',source_label:'Ván đấu'})):[];
+  if(vocab)out.vocab_missed=own?vocabMissed(room,out.questions):[];
   out.podium=room.show_live_board===false||teacher&&!room.show_top3?[]:rows.filter(p=>p.rank<=3).slice(0,3).map(publicRank);
  }
  if(projector){
-  for(const key of ['teacher_progress','my_progress','my_answer','feedback','me','questions','review','rank_result','rank_requested','badges'])delete out[key];
+  for(const key of ['teacher_progress','my_progress','my_answer','feedback','me','questions','review','vocab_missed','rank_result','rank_requested','badges'])delete out[key];
   if(self){delete out.question;delete out.distribution;}
  }
  return out;
 }
 
 // DTO sảnh chỉ chứa metadata công khai, không tái sử dụng DTO người chơi.
-export function liveCard(room,progress){return {id:room.id,kind:room.kind,scope:{subject_id:room.scope.subject_id??null,subject_ids:room.scope.subject_ids,branch_id:room.scope.branch_id??null,chapter:room.scope.chapter??null,topic_ids:room.scope.topic_ids??null},players:activePlayers(room).length,capacity:room.capacity,asked_count:progress.asked_count,question_count:room.question_count,started_at:progress.started_at,auto_match:Boolean(room.auto_match)};}
+export function liveCard(room,progress){return {id:room.id,kind:room.kind,scope:scopeCard(room.scope),players:activePlayers(room).length,capacity:room.capacity,asked_count:progress.asked_count,question_count:room.question_count,started_at:progress.started_at,auto_match:Boolean(room.auto_match)};}

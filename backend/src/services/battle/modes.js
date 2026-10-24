@@ -5,12 +5,14 @@ export const defaultAxes=r=>Object.entries(modeDefaults).every(([k,v])=>(r[k]??v
 export const rankEligible=r=>r.kind!=='class'&&(r.pacing??'sync')==='sync'&&(r.scoring??'accuracy')==='accuracy'&&(r.time_limit??'per_question')==='per_question';
 export const issuedFor=(r,id)=>r.pacing==='self'?Number(r.progress?.[id]?.issued_count||0):Number(r.asked_count||0);
 export function normalizeModes(data,cfg){
- const r={...modeDefaults,...data};
+ const r={...modeDefaults,...data},vocabArena=r.scope?.content==='vocab'&&r.kind!=='class';
  if(r.redemption===true)modeError('BATTLE_REDEMPTION_UNSUPPORTED','V6.9.3 chưa hỗ trợ Redemption');
- if(r.kind!=='class'&&!defaultAxes(r))modeError('BATTLE_MODE_INVALID','Các cách chơi mới chỉ dành cho Quiz lớp');
+ // Đấu từ vựng ngoài Quiz lớp: nhớ nhanh là chính nên luôn tính điểm tốc độ (cờ vocab quản, không cần cờ Nhanh tay).
+ if(vocabArena){if(!defaultAxes({...r,scoring:'accuracy'}))modeError('BATTLE_MODE_INVALID','Đấu từ vựng chỉ chơi theo từng câu');r.scoring='speed';}
+ if(r.kind!=='class'&&!vocabArena&&!defaultAxes(r))modeError('BATTLE_MODE_INVALID','Các cách chơi mới chỉ dành cho Quiz lớp');
  if(!['sync','self'].includes(r.pacing)||!['accuracy','speed'].includes(r.scoring)||!['per_question','total'].includes(r.time_limit)||!['instant','deferred'].includes(r.reveal_policy)||typeof r.show_live_board!=='boolean')modeError('BATTLE_MODE_INVALID','Cách chơi không hợp lệ');
  if((r.pacing==='self'||r.time_limit==='total'||r.reveal_policy==='deferred'||!r.show_live_board)&&!cfg?.battle_modes?.self_paced)modeError('BATTLE_FEATURE_OFF','Tự chơi / chính sách công bố đang tắt',403);
- if(r.scoring==='speed'&&!cfg?.battle_modes?.speed_scoring)modeError('BATTLE_FEATURE_OFF','Nhanh tay đang tắt',403);
+ if(r.scoring==='speed'&&!vocabArena&&!cfg?.battle_modes?.speed_scoring)modeError('BATTLE_FEATURE_OFF','Nhanh tay đang tắt',403);
  if(r.pacing==='self'&&!['duel','ffa','class'].includes(r.kind)||r.time_limit==='total'&&(r.pacing!=='self'||!(Number.isInteger(r.total_minutes)&&r.total_minutes>=1&&r.total_minutes<=90))||r.time_limit==='per_question'&&r.total_minutes!==null)modeError('BATTLE_MODE_INVALID','Tổ hợp cách chơi / thời gian không hợp lệ');
  if(!rankEligible(r)){r.ranked=false;r.match_meta={...r.match_meta,rank_enabled:false,ranked:{}};}
  return r;

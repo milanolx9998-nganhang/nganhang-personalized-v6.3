@@ -21,6 +21,7 @@ import {staffMedia} from './services/practice/privateMedia.js';
 import {audit} from './utils/audit.js';
 import practiceRoutes from './routes/practice.js';
 import battleRoutes,{initializeBattle} from './routes/battle.js';
+import vocabRoutes from './routes/vocab.js';
 import curriculumMasterRoutes from './routes/curriculumMaster.js';
 import competencyRoutes,{studentCompetencyRoutes} from './routes/competency.js';
 
@@ -93,6 +94,7 @@ app.use('/api',(req,res,next)=>{
 });
 app.use('/api/practice',apiLimiter,practiceRoutes,studentCompetencyRoutes);
 app.use('/api/battle',apiLimiter,battleRoutes);
+app.use('/api/vocab',apiLimiter,(req,_res,next)=>{if(req.user?.role==='student'){const e=new Error('Chỉ giáo viên / quản trị');e.status=403;return next(e);}next();},vocabRoutes);
 app.use('/api/competency',apiLimiter,competencyRoutes);
 app.use('/api/curriculum',apiLimiter,curriculumMasterRoutes);
 app.use('/api/staff',apiLimiter,staffRoutes);

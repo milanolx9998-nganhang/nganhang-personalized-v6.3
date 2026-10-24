@@ -6,7 +6,7 @@ const settingsListeners=new Set();
 export const onSettingsChanged=fn=>{settingsListeners.add(fn);return ()=>settingsListeners.delete(fn);};
 export async function notifySettingsChanged(){const cfg=await settings();for(const fn of settingsListeners)await fn(cfg);}
 export const battleDefaults={battle_flex:flexDefaults,battle_rank:rankDefaults};
-export const battleModes={...defaults.battle_modes,self_paced:false,speed_scoring:false,bot:false,golden_hour:false,ranked:false,leaderboard:false};
+export const battleModes={...defaults.battle_modes,self_paced:false,speed_scoring:false,bot:false,golden_hour:false,ranked:false,leaderboard:false,vocab:false};
 export async function settings(client=pool){const {rows}=await client.query('SELECT key,value FROM system_settings');const cfg={...defaults,...battleDefaults,...Object.fromEntries(rows.map(r=>[r.key,r.value]))};cfg.battle_modes={...battleModes,...cfg.battle_modes};cfg.battle_flex={...flexDefaults,...cfg.battle_flex};cfg.battle_rank={...rankDefaults,...cfg.battle_rank};return cfg;}
 export function fail(message,status=400,details){const e=new Error(message);e.status=status;e.details=details;throw e;}
 export async function log(client,user,action,id,details={}){await client.query('INSERT INTO practice_audit(actor_id,action,entity_id,details) VALUES($1,$2,$3,$4)',[user?.id||null,action,String(id),JSON.stringify(details)]);}

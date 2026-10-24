@@ -12,6 +12,16 @@ export async function battleTx(work,db=pool){
  catch(e){await client.query('ROLLBACK').catch(()=>{});if(e.status)throw e;throw Object.assign(new Error('Chưa lưu được dữ liệu ván, hãy thử lại',{cause:e}),{status:503});}
  finally{client.release();}
 }
+// Thống kê từ hay sai: mỗi ván từ vựng chỉ cộng một lần (đánh dấu vocab_stat_rooms); bỏ qua từ đã bị xoá khỏi ngân hàng.
+async function countVocab(c,roomId){
+ await c.query(`WITH mark AS (INSERT INTO vocab_stat_rooms(room_id) VALUES($1) ON CONFLICT DO NOTHING RETURNING room_id),
+  x AS (SELECT a.user_id,unnest(q.vocab_entry_ids) AS entry_id,a.score FROM battle_answers a JOIN battle_questions q ON q.room_id=a.room_id AND q.idx=a.idx
+   WHERE a.room_id=$1 AND q.source='vocab' AND EXISTS(SELECT 1 FROM mark))
+  INSERT INTO vocab_student_stats(student_id,entry_id,seen,correct,last_wrong_at)
+  SELECT x.user_id,x.entry_id,count(*),count(*) FILTER (WHERE x.score=1),max(CASE WHEN x.score<1 THEN now() END) FROM x JOIN vocab_entries e ON e.id=x.entry_id GROUP BY 1,2
+  ON CONFLICT(student_id,entry_id) DO UPDATE SET seen=vocab_student_stats.seen+EXCLUDED.seen,correct=vocab_student_stats.correct+EXCLUDED.correct,
+   last_wrong_at=COALESCE(EXCLUDED.last_wrong_at,vocab_student_stats.last_wrong_at),updated_at=now()`,[roomId]);
+}
 export function createStorage(db=pool){
  const ratings=createRatings(db);
  const transaction=fn=>battleTx(fn,db);
@@ -27,13 +37,14 @@ export function createStorage(db=pool){
    FROM jsonb_to_recordset($2) AS x(user_id int,team int,display_name text,class_name text,ready boolean,joined_at bigint,left_at bigint,leave_reason text,points numeric,correct int,rank int)
    ON CONFLICT(room_id,user_id) DO UPDATE SET team=EXCLUDED.team,ready=EXCLUDED.ready,left_at=EXCLUDED.left_at,leave_reason=EXCLUDED.leave_reason,points=EXCLUDED.points,correct=EXCLUDED.correct,rank=EXCLUDED.rank`,[room.id,JSON.stringify(room.players.filter(p=>!p.is_bot))]);
   for(const p of noPlayers?[]:room.players.filter(p=>p.is_bot))await c.query(`INSERT INTO battle_bot_players(room_id,bot_slot,difficulty,joined_at,left_at,points,correct,rank) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(room_id,bot_slot) DO UPDATE SET left_at=EXCLUDED.left_at,points=EXCLUDED.points,correct=EXCLUDED.correct,rank=EXCLUDED.rank`,[room.id,p.bot_slot,p.difficulty,new Date(p.joined_at),p.left_at?new Date(p.left_at):null,p.points||0,p.correct||0,p.rank||null]);
-  if(questions)await c.query(`INSERT INTO battle_questions(room_id,idx,question_version_id,question_id,topic_id,cognitive_level,curriculum_snapshot,seconds)
-   SELECT $1,x.idx,x.question_version_id,x.question_id,x.topic_id,x.cognitive_level,x.curriculum_snapshot,x.seconds FROM jsonb_to_recordset($2) AS x(idx int,question_version_id uuid,question_id int,topic_id int,cognitive_level int,curriculum_snapshot jsonb,seconds numeric)`,[room.id,JSON.stringify(room.questions)]);
+  if(questions)await c.query(`INSERT INTO battle_questions(room_id,idx,question_version_id,question_id,topic_id,cognitive_level,curriculum_snapshot,seconds,source,vocab_entry_ids,content_snapshot)
+   SELECT $1,x.idx,x.question_version_id,x.question_id,x.topic_id,x.cognitive_level,x.curriculum_snapshot,x.seconds,COALESCE(x.source,'bank'),x.vocab_entry_ids,x.content_snapshot FROM jsonb_to_recordset($2) AS x(idx int,question_version_id uuid,question_id int,topic_id int,cognitive_level int,curriculum_snapshot jsonb,seconds numeric,source text,vocab_entry_ids int[],content_snapshot jsonb)`,[room.id,JSON.stringify(room.questions.map(({content,...q})=>q))]);
   await writeModeRoom(c,room);
   await writeProgress(c,room,progressKeys);
   for(const a of answers)await writeAnswer(c,a);
   if(settleIndex!==null)await writeFastest(c,room,settleIndex);
   if(create||questions||room.ended_at)await log(c,{id:room.host_id},create?'BATTLE_CREATE':questions?'BATTLE_START':'BATTLE_END',room.id,{status:room.status,asked_count:room.asked_count});
+  if(room.ended_at&&room.scope?.content==='vocab')await countVocab(c,room.id);
   if(room.ended_at){await ratings.settle(c,room,{battle_rank:room.match_meta?.rank_rules});room.rating_results=Object.fromEntries((await c.query('SELECT user_id,delta_lp,lp_after,reason FROM battle_rating_events WHERE room_id=$1',[room.id])).rows.map(({user_id,...event})=>[user_id,event]));}
  });}
  async function load(id){
@@ -42,7 +53,7 @@ export function createStorage(db=pool){
   r.play_started_at=r.play_started_at?+new Date(r.play_started_at):null;r.ends_at=r.ends_at?+new Date(r.ends_at):null;
   r.players=(await db.query('SELECT * FROM battle_players WHERE room_id=$1 ORDER BY joined_at,user_id',[id])).rows.map(p=>({...p,joined_at:+new Date(p.joined_at),left_at:p.left_at?+new Date(p.left_at):null}));
   r.players.push(...(await db.query('SELECT * FROM battle_bot_players WHERE room_id=$1 ORDER BY bot_slot',[id])).rows.map(p=>({...p,user_id:'bot:'+p.bot_slot,is_bot:true,class_name:'',ready:true,joined_at:+new Date(p.joined_at),left_at:p.left_at?+new Date(p.left_at):null})));
-  r.questions=(await db.query('SELECT q.*,v.content,v.auto_gradable FROM battle_questions q JOIN question_versions v ON v.id=q.question_version_id WHERE room_id=$1 ORDER BY idx',[id])).rows;
+  r.questions=(await db.query('SELECT q.*,COALESCE(v.content,q.content_snapshot) AS content,COALESCE(v.auto_gradable,true) AS auto_gradable FROM battle_questions q LEFT JOIN question_versions v ON v.id=q.question_version_id WHERE room_id=$1 ORDER BY idx',[id])).rows;
   r.answers=(await db.query('SELECT * FROM battle_answers WHERE room_id=$1',[id])).rows.map(a=>({...a,score:Number(a.score),received_at:+new Date(a.received_at)}));
   r.answers.push(...(await db.query('SELECT * FROM battle_bot_answers WHERE room_id=$1',[id])).rows.map(a=>({...a,user_id:'bot:'+a.bot_slot,score:Number(a.score),received_at:+new Date(a.received_at)})));
   r.rating_results=Object.fromEntries((await db.query('SELECT user_id,delta_lp,lp_after,reason FROM battle_rating_events WHERE room_id=$1',[id])).rows.map(({user_id,...event})=>[user_id,event]));

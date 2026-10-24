@@ -20,9 +20,12 @@ import {createLearningCatalog} from '../services/battle/flex.js';
 import {createGoldenHours} from '../services/battle/goldenHours.js';
 import {createRatings} from '../services/battle/ratings.js';
 import {flexPatchSchema,rankSchema} from '../services/battle/settings.js';
+import {createVocabQueue} from '../services/vocab/matchQueue.js';
+import {playableSets} from '../services/vocab/catalog.js';
+import {ALL_VOCAB_KINDS} from '../services/vocab/generator.js';
 const r=Router(),wrap=fn=>async(req,res,next)=>{try{await fn(req,res);}catch(e){next(e);}};
 const uid=req=>String(req.user.id),idSchema=z.string().uuid(),empty=z.object({}).strict();
-const scopeSchema=z.object({subject_id:z.number().int().positive().nullable().optional(),branch_id:z.number().int().positive().nullable().optional(),topic_ids:z.array(z.number().int().positive()).min(1).max(100).nullable().optional(),chapter:z.string().max(200).optional()}).strict();
+const scopeSchema=z.object({subject_id:z.number().int().positive().nullable().optional(),branch_id:z.number().int().positive().nullable().optional(),topic_ids:z.array(z.number().int().positive()).min(1).max(100).nullable().optional(),chapter:z.string().max(200).optional(),content:z.enum(['bank','vocab']).optional(),vocab_set_ids:z.array(z.number().int().positive()).min(1).max(20).optional(),vocab_kinds:z.array(z.enum(ALL_VOCAB_KINDS)).min(1).max(8).optional()}).strict();
 const createSchema=z.object({pacing:z.enum(['sync','self']).optional(),scoring:z.enum(['accuracy','speed']).optional(),time_limit:z.enum(['per_question','total']).optional(),total_minutes:z.number().int().nullable().optional(),reveal_policy:z.enum(['instant','deferred']).optional(),show_live_board:z.boolean().optional(),redemption:z.boolean().optional(),kind:z.enum(['duel','team','ffa','class']),visibility:z.enum(['public','code']).default('code'),open_slots:z.boolean().default(false),ranked:z.boolean().default(false),class_id:z.number().int().positive().optional(),scope:scopeSchema.default({}),content_mode:z.enum(['fixed','vote']).default('fixed'),capacity:z.number().int().positive().optional(),question_count:z.union([z.literal(7),z.literal(10),z.literal(15)]).default(7),seconds:z.number().int().min(20).max(180).default(30)}).strict().superRefine((v,c)=>{const max={duel:2,team:8,ffa:20,class:50}[v.kind];if(v.capacity&&(v.capacity>max||v.capacity<(v.kind==='class'?1:2)||v.kind==='duel'&&v.capacity!==2))c.addIssue({code:'custom',message:'Sức chứa không hợp lệ'});if(v.kind==='class'?!v.class_id||!v.scope.subject_id||v.content_mode!=='fixed':v.class_id!=null||![20,30,45].includes(v.seconds))c.addIssue({code:'custom',message:'Cấu hình phòng không hợp lệ'});}).transform(v=>({...v,capacity:v.capacity||{duel:2,team:8,ffa:20,class:50}[v.kind]}));
 const actionSchemas={next:z.object({expected_cursor:z.number().int().min(0).max(14).optional()}).strict(),visibility:z.object({visibility:z.enum(['code','public']),open_slots:z.boolean().default(false)}).strict(),start:z.object({show_top3:z.boolean().optional()}).strict(),ready:z.object({ready:z.boolean(),ranked:z.boolean().optional()}).strict(),team:z.object({team:z.union([z.literal(1),z.literal(2)])}).strict(),vote:z.object({option_id:z.string().max(80),force:z.boolean().default(false)}).strict(),nominate:z.object({scope:scopeSchema}).strict(),answer:z.object({index:z.number().int().min(0).max(14),client_id:z.string().uuid(),response:z.unknown().optional(),skip:z.boolean().optional()}).strict().refine(v=>v.skip===true?v.response===undefined:v.response!==undefined,'Gửi đáp án hoặc bỏ qua'),emote:z.object({kind:z.enum(['hello','cheer','thanks','well_done'])}).strict()};
 export async function battleIdentity(user,classId=null,subjectId=null){
@@ -43,6 +46,9 @@ const safety=createSafety(),store=createStorage(),goldenHours=createGoldenHours(
 export const battleRooms=createRooms({store,deck,safety,streams,identity:battleIdentity,normalizeScope,options:contentOptions,catalog:grade=>lobbyCatalog.get(grade),goldenHours,ratings,learning:createLearningCatalog()});
 const matchmaking=createMatchmaking({rooms:battleRooms,deck,safety,identity:battleIdentity,normalizeScope,streams,learning:createLearningCatalog(),goldenHours,ratings});
 battleRooms.setMatchmaking(matchmaking);
+// Đấu từ vựng ghép ở nhánh riêng; một học sinh chỉ đứng một hàng chờ.
+const vocabQueue=createVocabQueue({rooms:battleRooms,identity:battleIdentity,normalizeScope,deck,safety,streams,inOtherQueue:id=>matchmaking.has(id)});
+battleRooms.setVocabQueue(vocabQueue);
 export const battleAvailability=createAvailability({initialize:async()=>battleRooms.start(await settings()),cleanup:()=>{battleRooms.dispose();streams.closeAll('unavailable');}});
 onSettingsChanged(cfg=>battleAvailability.ready?battleRooms.configure(cfg):undefined);
 export async function initializeBattle(){return battleAvailability.start();}
@@ -51,7 +57,7 @@ const admin=req=>{if(req.user.role!=='admin')fail('Chỉ quản trị xử lý a
 const createLimit=limiter('battle-create',600000,async()=>Number((await settings()).battle_limits.create_rooms),uid),codeLimit=limiter('battle-code',60000,async()=>Number((await settings()).battle_limits.bad_codes),uid,true);
 r.use((req,res,next)=>{if(!battleAvailability.ready)return res.status(503).json({error:'Đấu chưa sẵn sàng',code:'BATTLE_UNAVAILABLE'});req.battleReceivedAt??=Date.now();next();});
 r.use((req,res,next)=>{try{if(req.user.role==='student'&&req.body&&Object.keys(req.body).some(k=>k in modeDefaults||k==='redemption'))normalizeModes({...req.body,kind:'duel'},battleRooms.getConfig());next();}catch(e){next(e);}});
-r.get('/me',wrap(async(req,res)=>{const cfg=await settings(),info=await battleIdentity(req.user);res.json({...info,battle_enabled:cfg.battle_enabled,battle_emergency_stop:cfg.battle_emergency_stop,battle_modes:cfg.battle_modes,current_room_id:battleRooms.studentRooms.get(req.user.id)||null,queue:matchmaking.status(req.user.id),suspension:await safety.suspension(req.user.id),reports:await safety.feedback(req.user)});}));
+r.get('/me',wrap(async(req,res)=>{const cfg=await settings(),info=await battleIdentity(req.user);res.json({...info,battle_enabled:cfg.battle_enabled,battle_emergency_stop:cfg.battle_emergency_stop,battle_modes:cfg.battle_modes,current_room_id:battleRooms.studentRooms.get(req.user.id)||null,queue:matchmaking.status(req.user.id),vocab_queue:vocabQueue.status(req.user.id),suspension:await safety.suspension(req.user.id),reports:await safety.feedback(req.user)});}));
 r.get('/options',wrap(async(req,res)=>{
  const q=z.object({class_id:z.coerce.number().int().positive().optional(),subject_id:z.coerce.number().int().positive().optional(),count:z.coerce.number().int().refine(n=>[7,10,15].includes(n)).default(7)}).strict().parse(req.query);
  // Giáo viên chọn lớp trước: danh sách môn là các môn được phân công ở lớp đó (quản trị: mọi môn), kể cả khi đã chọn một môn.
@@ -104,14 +110,21 @@ r.post('/rooms/:id/rematch',createLimit,wrap(async(req,res)=>{
 }));
 r.post('/rooms/:id/retry-wrong',wrap(async(req,res)=>{
  student(req);empty.parse(req.body);const room=await battleRooms.get(idSchema.parse(req.params.id));battleRooms.access(room,req.user,false);if(!terminal(room))fail('Ván chưa kết thúc',409);
+ if(room.scope?.content==='vocab')fail('Ván từ vựng không tạo bài tự luyện; xem danh sách "Từ em sai"',409);
  const versions=room.questions.slice(0,issuedFor(room,req.user.id)).filter(q=>Number(room.answers.find(a=>a.idx===q.idx&&a.user_id===req.user.id)?.score||0)<1).map(q=>q.question_version_id);
  res.json(await createAttempt(req.user,{}, {battleRetry:{roomId:room.id,versionIds:versions}}));
 }));
 const lengthsSchema=z.union([z.literal('any'),z.array(z.union([z.literal(7),z.literal(10),z.literal(15)])).min(1).max(3)]);
 const ticketSchema=z.object({kinds:z.array(z.enum(['duel','ffa'])).min(1).max(2),choices:z.array(scopeSchema).max(3).default([]),lengths:lengthsSchema.default('any'),flex:z.enum(['strict','gradual']).default('gradual'),ranked:z.boolean().default(true),bot_fill:z.boolean().default(false)}).strict();
 const legacyTicket=z.object({kind:z.enum(['duel','ffa']),scope:scopeSchema.default({})}).strict().transform(v=>({kinds:[v.kind],choices:[v.scope],lengths:[7],flex:'strict',ranked:false}));
-r.post('/match',wrap(async(req,res)=>{student(req);res.json(await matchmaking.join(req.user,z.union([ticketSchema,legacyTicket]).parse(req.body)));}));
+r.post('/match',wrap(async(req,res)=>{student(req);if(vocabQueue.has(req.user.id))fail('Hãy rời hàng chờ Đấu từ vựng trước',409);res.json(await matchmaking.join(req.user,z.union([ticketSchema,legacyTicket]).parse(req.body)));}));
 r.patch('/match',wrap(async(req,res)=>{student(req);z.object({accept:z.literal(true)}).strict().parse(req.body);res.json(await matchmaking.expand(req.user));}));
+const vocabMatchSchema=z.object({subject_id:z.number().int().positive().optional(),vocab_set_ids:z.array(z.number().int().positive()).min(1).max(20)}).strict();
+r.get('/vocab/sets',wrap(async(req,res)=>{const info=await battleIdentity(req.user);const subject=req.query.subject_id?z.coerce.number().int().positive().parse(req.query.subject_id):null;res.json({sets:await playableSets(info.grade??null,subject)});}));
+r.get('/vocab/match',wrap(async(req,res)=>{student(req);res.json({queue:vocabQueue.status(req.user.id)});}));
+r.post('/vocab/match',wrap(async(req,res)=>{student(req);res.json({queue:await vocabQueue.join(req.user,vocabMatchSchema.parse(req.body))});}));
+r.delete('/vocab/match',wrap(async(req,res)=>{student(req);res.json(vocabQueue.leave(req.user));}));
+r.post('/vocab/match/bot',wrap(async(req,res)=>{student(req);const d=z.object({difficulty:z.enum(['easy','medium','hard']).default('medium')}).strict().parse(req.body||{});const room=await vocabQueue.toBot(req.user,d.difficulty);res.json({room_id:room?.id||null});}));
 r.delete('/match',wrap(async(req,res)=>{student(req);res.json(await matchmaking.leave(req.user));}));
 r.post('/match/accept-room',wrap(async(req,res)=>{student(req);const d=z.object({room_id:idSchema}).strict().parse(req.body);res.json(await matchmaking.acceptRoom(req.user,d.room_id));}));
 r.post('/match/exit',wrap(async(req,res)=>{student(req);res.json(await matchmaking.exit(req.user,z.object({to:z.enum(['bot','public_room','practice']),difficulty:z.enum(['easy','medium','hard']).optional()}).strict().parse(req.body)));}));

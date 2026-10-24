@@ -32,7 +32,7 @@ export function createStudentLocks(options={}){
 }
 export function createRooms({store,deck,safety,streams,identity,normalizeScope,options,catalog=async()=>({subjects:[],branches:[],topics:[]}),bots=createBots(),goldenHours,ratings,learning,now=Date.now,setTimer=setTimeout,clearTimer=clearTimeout,random=()=>randomInt(0,1000000)/1000000,locks=createStudentLocks(),queue=createSerial()}={}){
  const rooms=new Map(),studentRooms=new Map(),timers=new Map(),liveProgress=new Map(),sharedLobbies=new Map();let lobbyBuilds=0;
- const lobbyIdentities=createLobbyCache(id=>identity({id,role:'student'}),{now});let config,matchmaking,housekeeping;
+ const lobbyIdentities=createLobbyCache(id=>identity({id,role:'student'}),{now});let config,matchmaking,vocabQueue,housekeeping;
  const isHost=(r,u)=>r.host_id===u.id;
  function feature(name){if(!config?.battle_modes?.[name]){const e=new Error('Khả năng Đấu này đang tắt');e.status=403;e.code='BATTLE_FEATURE_OFF';throw e;}}
  function admission(){if(!config?.battle_enabled)fail('Đang ngừng nhận ván mới',403);if(config.battle_emergency_stop)fail('Đấu đang dừng khẩn cấp',403);}
@@ -163,7 +163,10 @@ export function createRooms({store,deck,safety,streams,identity,normalizeScope,o
  }
  async function createCore(user,data,members=[user]){
   data=normalizeModes(data,config);
-  admission();feature(data.kind==='duel'&&data.auto_match?(data.bot_difficulty?'bot':'matchmaking'):({duel:'duel_code',team:'team',ffa:'ffa',class:'class'})[data.kind]);if(data.visibility==='public'||data.open_slots)feature('lobby');if(data.content_mode==='vote')feature('vote');
+  const vocab=data.scope?.content==='vocab';
+  // Hàng chờ từ vựng là nhánh riêng: chỉ cần cờ vocab, không cần cờ ghép trận theo Bài.
+  admission();if(vocab){feature('vocab');if(data.content_mode==='vote')fail('Đấu từ vựng không dùng bình chọn nội dung');}
+  if(!(vocab&&data.auto_match&&!data.bot_difficulty))feature(data.kind==='duel'&&data.auto_match?(data.bot_difficulty?'bot':'matchmaking'):({duel:'duel_code',team:'team',ffa:'ffa',class:'class'})[data.kind]);if(data.visibility==='public'||data.open_slots)feature('lobby');if(data.content_mode==='vote')feature('vote');
   if(data.ranked&&!data.auto_match){feature('ranked');if(!rankConfig(config).self_created||!['duel','ffa'].includes(data.kind))fail('Phòng tự tạo hiện không tính hạng',403);}
   if(rooms.size&&[...rooms.values()].filter(r=>!terminal(r)).length>=(config.battle_limits?.rooms||120))fail('Đã đạt giới hạn phòng',503);
   const info=data.kind==='class'?await identity(user,data.class_id,data.scope.subject_id):await identity(user);
@@ -182,7 +185,7 @@ export function createRooms({store,deck,safety,streams,identity,normalizeScope,o
   }catch(e){for(const p of r.players)if(studentRooms.get(p.user_id)===r.id)studentRooms.delete(p.user_id);throw e;}
  }
  const createUnlocked=(user,data,members)=>queue.run('@create',()=>createCore(user,data,members));
- async function create(user,data){return locks.run([user.id],async()=>{if(matchmaking?.has(user.id))fail('Hãy rời hàng chờ trước khi tạo phòng',409);return createUnlocked(user,data);});}
+ async function create(user,data){return locks.run([user.id],async()=>{if(matchmaking?.has(user.id)||vocabQueue?.has(user.id))fail('Hãy rời hàng chờ trước khi tạo phòng',409);return createUnlocked(user,data);});}
  async function joinUnlocked(user,id,check){return queue.run(id,async()=>{
   admission();const original=rooms.get(id);if(!original)fail('Phòng đã đóng',404);const r=structuredClone(original);feature(({duel:'duel_code',team:'team',ffa:'ffa',class:'class'})[r.kind]);
   if(check)await check(r);const info=await player(user,r);if(r.phase!=='lobby'||activePlayers(r).length>=r.capacity)fail('Phòng đã bắt đầu hoặc đã đầy',409);
@@ -304,12 +307,12 @@ export function createRooms({store,deck,safety,streams,identity,normalizeScope,o
   if(match?.suggestion_room){const r=rooms.get(match.suggestion_room.id);if(!r||r.grade!==info.grade||r.kind==='class'||activePlayers(r).some(p=>blocked.has(p.user_id))||!(r.visibility==='public'||r.open_slots||r.auto_match))match.suggestion_room=null;}
   return {...streams.envelope(),golden_hours:banners,...result,match,current_room_id:studentRooms.get(user.id)||null};
  }
- async function configure(next){config=next;sharedLobbies.clear();streams.publish('lobby');await goldenHours?.configure(next,()=>streams.publish('lobby'));queue.configure?.(next.battle_limits?.queue_pending||200);streams.configure(next.battle_limits||{});if(next.battle_emergency_stop){matchmaking?.clear();streams.closeAll('emergency');const results=await Promise.allSettled([...rooms.values()].filter(r=>!terminal(r)).map(r=>queue.run(r.id,()=>finish(structuredClone(rooms.get(r.id)),'emergency','interrupted'),{internal:true})));if(results.some(r=>r.status==='rejected'))fail('Đã chặn chơi; chưa ghi đủ trạng thái gián đoạn, hãy thử dừng lại',503);}}
+ async function configure(next){config=next;sharedLobbies.clear();streams.publish('lobby');await goldenHours?.configure(next,()=>streams.publish('lobby'));queue.configure?.(next.battle_limits?.queue_pending||200);streams.configure(next.battle_limits||{});if(next.battle_emergency_stop){matchmaking?.clear();vocabQueue?.clear();streams.closeAll('emergency');const results=await Promise.allSettled([...rooms.values()].filter(r=>!terminal(r)).map(r=>queue.run(r.id,()=>finish(structuredClone(rooms.get(r.id)),'emergency','interrupted'),{internal:true})));if(results.some(r=>r.status==='rejected'))fail('Đã chặn chơi; chưa ghi đủ trạng thái gián đoạn, hãy thử dừng lại',503);}}
  function periodic(){housekeeping=setTimer(async()=>{try{await safety.purgeExpired();safety.prune(now());}catch{/* Lỗi dọn không được làm ngừng nhận đáp án. */}finally{periodic();}},3600000);housekeeping.unref?.();}
  return {rooms,studentRooms,locks,queue,lobbyStats:()=>({builds:lobbyBuilds}),feature,admission,access,get,create,createUnlocked,join,joinUnlocked,command,snapshot,lobby,internal,configure,getConfig:()=>config,
   refreshBadges:async userId=>{for(const [id,r] of rooms)if(!terminal(r)&&r.players.some(p=>p.user_id===userId))await queue.run(id,async()=>{const current=rooms.get(id);sharedLobbies.clear();current.public_badges=await ratings.publicBadges(current.players.filter(p=>!p.is_bot).map(p=>p.user_id),current.grade,config);publish(current);});streams.publish('lobby');},
   disconnected:(user,id)=>queue.run(id,async()=>{const original=rooms.get(id);if(!original||terminal(original)||!original.players.some(p=>p.user_id===user.id))return;const r=structuredClone(original);r.players.find(p=>p.user_id===user.id).disconnected=true;r.match_meta={...r.match_meta,disconnected:{...r.match_meta?.disconnected,[user.id]:true}};await commit(original,r,{noPlayers:true});},{internal:true}),
-  setMatchmaking:value=>{matchmaking=value;},
+  setMatchmaking:value=>{matchmaking=value;},setVocabQueue:value=>{vocabQueue=value;},
   byCode:code=>[...rooms.values()].find(r=>!terminal(r)&&r.code===code)?.id,
   leave:(user,id,reason)=>locks.run([user.id],()=>leaveUnlocked(user,id,reason)),leaveUnlocked,
   suspend:userId=>locks.run([userId],async()=>{matchmaking?.removeUnlocked(userId);const id=studentRooms.get(userId);if(id)await leaveUnlocked({id:userId,role:'student'},id,'suspended');streams.closeUser(userId,'suspended');}),

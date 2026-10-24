@@ -22,6 +22,7 @@ files.push('migration-v681-competency-defaults.sql');
 files.push('migration-v69-battle.sql');
 files.push('migration-v691-battle-flex.sql','migration-v692-battle-rank.sql');
 files.push('migration-v693-battle-modes.sql');
+files.push('migration-v695-vocab.sql');
 const client=await pool.connect();
 try {
  await client.query('SELECT pg_advisory_lock(9182741)');

@@ -488,3 +488,31 @@ Sự kiện phòng/vé/chặn/cấu hình gộp 250 ms; tiến độ live gộp 
 Backend dựng thẻ/nhãn/phạm vi/vé một lần theo khối trong mỗi nhịp sảnh, sau đó chiếu theo lớp, chặn và query từng người. Cache chung không chứa payload riêng người dùng. Catalog metadata theo khối 60 giây, single-flight; danh tính lớp và danh sách chặn cache 60 giây, bị chặn/bỏ chặn qua ứng dụng làm mất hiệu lực cả hai phía ngay sau commit. Thay dữ liệu ngoài ứng dụng phản ánh sau TTL. Cache khi quá dung lượng loại bản đã hoàn tất, không tạo vòng nạp lại do eviction.
 
 Luồng sảnh tái kiểm phiên/tạm khóa DB tối đa mỗi 15 giây, kiểm hết hạn/cờ hoạt động mỗi lần phát. HTTP vẫn qua middleware xác thực bình thường. **Không có truy vấn DB mỗi lần dựng nội dung sảnh khi cache nóng**; cache lạnh/hết TTL và kiểm phiên định kỳ vẫn đọc DB. Không thay đường xác thực chung, giao dịch answer/next hay dữ liệu mastery của d734a67. Nhãn là metadata chương trình hiện hành; Đấu không thay đánh giá năng lực GDPT 2018.
+
+### V6.9.5 — Ngân hàng từ vựng & Đấu từ vựng (backend 24/10/2026)
+
+Ngân hàng từ vựng **tách khỏi ngân hàng câu hỏi** (bảng `vocab_sets`, `vocab_entries`, `vocab_student_stats`). Câu trong trận từ vựng do máy sinh lúc bắt đầu và lưu ảnh chụp nội dung (`battle_questions.source='vocab'`, `content_snapshot`, `vocab_entry_ids`; không có `question_version_id`). Cờ `battle_modes.vocab` mặc định `false`.
+
+#### Quản trị `/api/vocab` (giáo viên có quyền chỉnh sửa môn / quản trị; học sinh 403)
+| Endpoint | Ghi chú |
+|---|---|
+| `GET /subjects` | `{subjects:[{id,name,code,set_count,entry_count}]}` — môn Anh/Trung và môn đã có bộ từ |
+| `GET /sets?subject_id=` | `{sets:[{id,subject_id,name,kind:'topic'|'unit'|'hsk',level,grade_min,grade_max,topic_id,status:'active'|'hidden',order_index,entry_count,retired_count}]}` |
+| `POST /sets` | `{subject_id,name,kind?,level?,grade_min?,grade_max?,topic_id?,status?}` → 201 bộ mới |
+| `PATCH /sets/:id` | sửa tên, khối (`grade_min/max`, null = mọi khối), ẩn/hiện, thứ tự |
+| `GET /entries?set_id=&q=&status=&page=` | `{set,total,page,page_size:100,entries:[{id,term,reading,han_viet,pos,meaning_vi,example,example_vi,confusable_group,status}]}` |
+| `PATCH /entries/:id` | sửa trường; trùng (từ + nghĩa) trong bộ → 409 |
+| `DELETE /entries/:id` | `status='retired'` (không xoá cứng) |
+| `POST /import/preview` | multipart `file` (.csv UTF-8 / .json / .xlsx, ≤ 5000 dòng), `subject_id`, `source?`, `set?` (bộ mặc định) → `{token,expires_at,subject,summary:{new,update,same,duplicate,error},new_sets:[...],rows:[{row,set,term,reading,meaning_vi,...,status:'NEW'|'UPDATE'|'SAME'|'DUPLICATE'|'ERROR',errors:[]}],can_confirm}` |
+| `POST /import/confirm` | `{token}` → `{created,updated,new_sets}`; token dùng một lần, hết hạn 15 phút (410) |
+| `GET /template?lang=en|zh` | tệp mẫu XLSX |
+
+Cột nhập nhận tên đồng nghĩa: từ `word|term|hanzi`, nghĩa `meaning_vi|meaning|nghia`, bộ `set|bo_tu|topic_name|topic|unit`, phiên âm `ipa|pinyin|reading`, `han_viet`, `pos|loai_tu`, `example|vi_du`, `example_vi`, cấp `hsk|level` (không có bộ thì bộ = "HSK n", `kind='hsk'`). Mã chủ đề Bufopia (`daily`…) đổi sang tên đọc được. Pinyin chữ Hán phải có dấu thanh.
+
+#### Đấu từ vựng `/api/battle`
+- Phạm vi từ vựng: `scope = {content:'vocab', subject_id?, vocab_set_ids:[1..20 id], vocab_kinds?:['EN1','EN2','EN5'] | ['ZH1','ZH2','ZH3','ZH4','ZH6']}`. Dùng được ở `POST /rooms` (đôi/nhiều người/Quiz lớp; không dùng `content_mode:'vote'`). Bộ phải đang hiện, cùng môn, hợp khối; cần ≥ 8 từ.
+  - EN1 từ→nghĩa · EN2 nghĩa→từ · EN5 ghép 4 cặp · ZH1 chữ→nghĩa · ZH2 nghĩa→chữ · ZH3 chữ→pinyin · ZH4 pinyin→chữ · ZH6 ghép 4 cặp.
+  - Phòng từ vựng ngoài Quiz lớp **luôn tính điểm tốc độ** (`scoring:'speed'`) và **không tính hạng**; Quiz lớp theo cách chơi giáo viên chọn. Giây mỗi câu = 10 s (trắc nghiệm) / 25 s (ghép) × `seconds/30`.
+- `GET /vocab/sets?subject_id=` → `{sets:[{id,subject_id,subject_name,subject_code,name,kind,level,grade_min,grade_max,entry_count,language:'en'|'zh',playable}]}` (học sinh: bộ hợp khối; giáo viên: mọi bộ đang hiện).
+- **Hàng chờ từ vựng (nhánh riêng, không qua `/match`)**: `POST /vocab/match {subject_id?,vocab_set_ids}` → `{queue}`; `GET /vocab/match` → `{queue|null}`; `DELETE /vocab/match`; `POST /vocab/match/bot {difficulty?}` → `{room_id}` (cần cờ `bot`, chờ ≥ 20 s). `queue = {content:'vocab',joined_at,subject_id,vocab_set_ids,scope_label,widened,bot_available,waiting}`. Ghép cùng khối + cùng môn; chung bộ thì ghép ngay, sau 15 s ghép mọi bộ của môn (gộp bộ cả nhóm); 2 người → đôi, 3–4 → nhiều người, 10 câu. Đang ở hàng chờ này thì `/match` và tạo phòng trả 409 (và ngược lại). Khi ghép xong, `GET /me` có `current_room_id`; `GET /me` cũng trả `vocab_queue`.
+- DTO: `scope` của phòng / thẻ sảnh / ván đang đấu có thêm `content:'vocab'`, `vocab_set_ids`, `vocab_label`. Kết quả ván từ vựng: `vocab_missed:[{entry_id,term,reading,han_viet,meaning_vi,example,set_id,set_name}]`, `review:[]`; `POST /rooms/:id/retry-wrong` → 409.
