@@ -2,6 +2,7 @@ import {accountCapability} from '../capabilities.js';
 import {setStudentClass} from './students.js';
 import crypto from 'node:crypto';
 import bcrypt from 'bcryptjs';
+import {hashPassword} from '../passwordHasher.js';
 import XLSX from 'xlsx';
 import fs from 'node:fs';
 import {z} from 'zod';
@@ -11,18 +12,31 @@ import {fail,log} from './config.js';
 import {safeZip} from './importAdapters.js';
 const rowSchema=z.object({student_code:z.coerce.string().trim().min(1).max(50).regex(/^[a-zA-Z0-9_.-]+$/),full_name:z.string().trim().min(1).max(200),class_name:z.string().min(1),grade:z.coerce.number().int().min(1).max(12),school_year:z.string().min(4)});
 function readRows(file){if(!file||!file.originalname.toLowerCase().endsWith('.xlsx'))fail('Chọn tệp XLSX danh sách học sinh');const buffer=fs.readFileSync(file.path);safeZip(buffer);const wb=XLSX.read(buffer,{type:'buffer'});const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''});if(!rows.length||rows.length>2000)fail('Danh sách cần từ 1–2000 dòng');return rows;}
-async function applyRows(client,user,rows){
+// Băm mật khẩu trước khi mở giao dịch khóa bảng users. bcryptjs chạy trên luồng chính (~0,3 s/lần ở 12 vòng),
+// nên đưa qua hàng đợi worker (passwordHasher) với tối đa 2 việc cùng lúc để đăng nhập của người khác không phải chờ.
+// Mật khẩu tạm dùng 10 vòng: bắt buộc đổi ở lần đăng nhập đầu (mật khẩu mới băm 12 vòng như cũ).
+// passwordMode 'student_code': mật khẩu ban đầu = mã học sinh (chỉ quản trị chọn).
+const TEMP_ROUNDS=10,HASH_CONCURRENCY=2;
+async function prepareCredentials(rows,passwordMode='random'){
+ const existing=new Set((await pool.query('SELECT student_code FROM student_profiles WHERE student_code=ANY($1::text[])',[rows.map(r=>String(r.student_code))])).rows.map(r=>r.student_code));
+ // Tài khoản đã có giữ mật khẩu; nếu có tài khoản mới tạo chen giữa, applyRows tự băm phần thiếu.
+ const out=new Map(),queue=rows.filter(r=>!existing.has(String(r.student_code)));
+ const worker=async()=>{for(let row;(row=queue.shift());){const password=passwordMode==='student_code'?String(row.student_code):crypto.randomBytes(9).toString('base64url');out.set(String(row.student_code),{password,hash:await hashPassword(password,TEMP_ROUNDS)});}};
+ await Promise.all(Array.from({length:HASH_CONCURRENCY},worker));
+ return out;
+}
+async function applyRows(client,user,rows,credentials=null){
  const result=[];for(const row of rows){
   let year=(await client.query('SELECT id FROM school_years WHERE name=$1',[row.school_year])).rows[0];if(!year){if(user.role!=='admin')fail('Nhờ quản trị tạo năm học trước',403);year=(await client.query('INSERT INTO school_years(name) VALUES($1) RETURNING id',[row.school_year])).rows[0];}
   let cls=(await client.query('SELECT id FROM classes WHERE name=$1 AND school_year_id=$2',[row.class_name,year.id])).rows[0];if(!cls){if(user.role!=='admin')fail('Lớp chưa được quản trị tạo',403);cls=(await client.query('INSERT INTO classes(name,grade,school_year_id) VALUES($1,$2,$3) RETURNING id',[row.class_name,row.grade,year.id])).rows[0];}
   if(!await accountCapability(user,{classId:cls.id},client))fail('Chỉ GVCN hoặc quản trị được nhập danh sách học sinh',403);
   let profile=(await client.query('SELECT user_id FROM student_profiles WHERE student_code=$1',[row.student_code])).rows[0];let password=null;
   if(profile){await studentAccess(user,profile.user_id,client);await client.query('UPDATE users SET full_name=$1 WHERE id=$2',[row.full_name,profile.user_id]);}
-  if(!profile){password=crypto.randomBytes(9).toString('base64url');const u=(await client.query("INSERT INTO users(username,password_hash,full_name,role,must_change_password) VALUES($1,$2,$3,'student',true) RETURNING id",[row.student_code,await bcrypt.hash(password,12),row.full_name])).rows[0];await client.query('INSERT INTO student_profiles(user_id,student_code) VALUES($1,$2)',[u.id,row.student_code]);profile={user_id:u.id};}
+  if(!profile){const cred=credentials?.get(String(row.student_code));password=cred?.password??crypto.randomBytes(9).toString('base64url');const u=(await client.query("INSERT INTO users(username,password_hash,full_name,role,must_change_password) VALUES($1,$2,$3,'student',true) RETURNING id",[row.student_code,cred?.hash??await bcrypt.hash(password,12),row.full_name])).rows[0];await client.query('INSERT INTO student_profiles(user_id,student_code) VALUES($1,$2)',[u.id,row.student_code]);profile={user_id:u.id};}
   await setStudentClass(client,user,profile.user_id,cls.id);result.push({student_code:row.student_code,full_name:row.full_name,class_name:row.class_name,temporary_password:password});
  }await log(client,user,'ROSTER_IMPORT','roster',{count:rows.length});return result;
  }
-export async function importRoster(user,file){if(!(user.role==='board'&&user.capabilities?.student_accounts))staff(user);const rows=readRows(file).map(r=>rowSchema.parse(r));return tx(c=>applyRows(c,user,rows));}
+export async function importRoster(user,file){if(!(user.role==='board'&&user.capabilities?.student_accounts))staff(user);const rows=readRows(file).map(r=>rowSchema.parse(r)),credentials=await prepareCredentials(rows);return tx(c=>applyRows(c,user,rows,credentials));}
 export async function resetStudent(user,id){if(!(user.role==='board'&&user.capabilities?.student_accounts))staff(user);return tx(async client=>{if(!await accountCapability(user,{studentId:id,capability:'student.reset_password'},client))fail('Không có quyền đổi mật khẩu',403);await studentAccess(user,id,client);const password=crypto.randomBytes(9).toString('base64url');const r=await client.query("UPDATE users SET password_hash=$1,must_change_password=true,token_version=token_version+1 WHERE id=$2 AND role='student'",[await bcrypt.hash(password,12),id]);if(!r.rowCount)fail('Không tìm thấy học sinh');await log(client,user,'PASSWORD_RESET',id);return {temporary_password:password};});}
 const previews=new Map();
 const fingerprint=rows=>crypto.createHash('sha256').update(JSON.stringify(rows)).digest('hex');
@@ -56,9 +70,12 @@ export async function previewRoster(user,file){
  previews.set(token,{actor:user.id,rows,hash:fingerprint(checked),expires:now+15*60*1000});
  return {token,expires_at:new Date(now+15*60*1000).toISOString(),rows:checked.map(({snapshot,...row})=>row),can_confirm:checked.every(r=>!['ERROR','CONFLICT'].includes(r.status))};
 }
-export async function confirmRoster(user,token){
+export async function confirmRoster(user,token,passwordMode='random'){
  if(!(user.role==='board'&&user.capabilities?.student_accounts))staff(user);z.string().uuid().parse(token);const p=previews.get(token);
  if(!p||p.actor!==user.id||p.expires<Date.now())fail('Bản xem trước hết hạn hoặc không thuộc tài khoản này; vui lòng tải lại',409);
+ passwordMode=z.enum(['random','student_code']).parse(passwordMode);
+ if(passwordMode==='student_code'&&user.role!=='admin')fail('Chỉ quản trị được đặt mật khẩu ban đầu bằng mã học sinh',403);
+ const credentials=await prepareCredentials(p.rows,passwordMode);
  const result=await tx(async client=>{
   await client.query("SELECT pg_advisory_xact_lock(hashtext('roster-confirm'))");
   // Serialize roster confirmation against concurrent profile/class mutations.
@@ -67,7 +84,7 @@ export async function confirmRoster(user,token){
   const checked=await inspectRows(client,user,p.rows);
   if(fingerprint(checked)!==p.hash)fail('Dữ liệu hoặc quyền đã thay đổi; cần xem trước lại',409);
   if(checked.some(r=>['ERROR','CONFLICT'].includes(r.status)))fail('Sửa các dòng lỗi/xung đột trước khi xác nhận',409);
-  const students=await applyRows(client,user,p.rows.map(r=>rowSchema.parse(r)));
-  await log(client,user,'ROSTER_CONFIRMED',token,{count:students.length});return {students};
+  const students=await applyRows(client,user,p.rows.map(r=>rowSchema.parse(r)),credentials);
+  await log(client,user,'ROSTER_CONFIRMED',token,{count:students.length,password_mode:passwordMode});return {students,password_mode:passwordMode};
  });previews.delete(token);return result;
 }

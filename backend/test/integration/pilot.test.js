@@ -277,6 +277,14 @@ test('V4 roster: xem trước không ghi, lỗi/xung đột, xác nhận một l
  const bad=await req('POST','/practice/roster/preview',form([row,row,{...row,student_code:'bad code',full_name:''}]));assert.equal(bad.status,200);assert.equal(bad.data.can_confirm,false);assert.deepEqual(bad.data.rows.map(r=>r.status),['UNCHANGED','CONFLICT','ERROR']);assert.equal((await req('POST','/practice/roster/confirm',{token:bad.data.token})).status,409);
  const update=await req('POST','/practice/roster/preview',form([{...row,full_name:'Tên mới'}]));assert.equal(update.data.rows[0].status,'UPDATE');
  await db.query("UPDATE users SET full_name='Đã đổi đồng thời' WHERE username=$1",[row.student_code]);assert.equal((await req('POST','/practice/roster/confirm',{token:update.data.token})).status,409);
+ // Quản trị chọn mật khẩu ban đầu = mã học sinh: đăng nhập được bằng mã, vẫn bị bắt đổi mật khẩu.
+ const codeRow={...row,student_code:'v4code12345678',full_name:'Học sinh mật khẩu mã'};
+ const cp=await req('POST','/practice/roster/preview',form([codeRow]));assert.equal(cp.data.rows[0].status,'NEW');
+ assert.equal((await req('POST','/practice/roster/confirm',{token:cp.data.token,password_mode:'plain'})).status,400);
+ const cs=await req('POST','/practice/roster/confirm',{token:cp.data.token,password_mode:'student_code'});assert.equal(cs.status,200,JSON.stringify(cs.data));assert.equal(cs.data.password_mode,'student_code');assert.equal(cs.data.students[0].temporary_password,codeRow.student_code);
+ const login=await req('POST','/auth/login',{username:codeRow.student_code,password:codeRow.student_code},null);assert.equal(login.status,200,JSON.stringify(login.data));
+ assert.equal((await db.query('SELECT must_change_password FROM users WHERE username=$1',[codeRow.student_code])).rows[0].must_change_password,true);
+ assert.equal((await db.query("SELECT details->>'password_mode' AS m FROM practice_audit WHERE action='ROSTER_CONFIRMED' AND entity_id=$1",[cp.data.token])).rows[0].m,'student_code');
 });
 test('V4 trình duyệt: lớp → hồ sơ → lịch sử → lượt làm, tự xem, bốn kích thước',{timeout:120000},async()=>{
  const {chromium}=await import('playwright'),browser=await chromium.launch({headless:true});
