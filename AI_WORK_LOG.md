@@ -284,3 +284,10 @@ Codex viết dở backend ghép trận linh hoạt + máy + giờ vàng + rank +
 **Yêu cầu:** bấm "Đấu cùng bài này" ở thẻ gợi ý (dưới trang) thì khung "Đang tìm bạn cùng khối" hiện phía trên mà trang vẫn đứng yên → HS không hiểu.
 **Thay đổi:** `ArenaLobby.jsx` — sau khi tìm trận từ sảnh thành công, cuộn mượt tới khung chờ (`scrollMarginTop` 72px để nút menu mobile không che), focus khung; mỗi lần bấm chỉ cuộn một lần (sảnh cập nhật không làm giật lại); tôn trọng reduced-motion. `MatchWaiting.jsx` — backend gửi `widened:'none'` khi chưa mở rộng, giao diện từng hiện "Đã mở rộng phạm vi (none)…" → ẩn khi 'none'.
 **Kiểm:** build OK; Playwright trên server thử (DB sao chép, đã xoá): desktop 1366 và mobile 390 — sau khi bấm, khung chờ nằm ở top 72px, có focus, 6 s sau không cuộn lại; chip "(none)" hết.
+
+## 2026-10-24 tối — Kế hoạch Kho từ vựng & Đấu từ vựng (V6.9.5)
+
+**Yêu cầu:** Đấu tiếng Anh cần kho từ vựng riêng; admin cần kho từ vựng Anh + Trung; "plan full mode này".
+**Thay đổi:** `docs/thiet-ke/KHO_TU_VUNG_V695.md` (kế hoạch 1.0, chưa mã). Kho riêng `vocab_entries` (Anh: từ/IPA/nghĩa/loại từ; Trung: chữ Hán/pinyin/Hán Việt), máy sinh câu (EN1–6, ZH1–6) dùng lại 3 loại câu sẵn có, cờ `battle_modes.vocab`, trang `/admin/vocab` nhập Excel xem trước → duyệt, thống kê từ hay sai.
+**Phát hiện:** `battle_questions.question_version_id` NOT NULL + FK, `storage.js` JOIN nội dung từ `question_versions` → câu sinh từ từ vựng cần đường riêng (cách A: snapshot nội dung, cách B: bảng riêng). Chưa có môn Tiếng Trung trong seed.
+**Việc tiếp:** anh Hiếu chốt 6 câu ở mục 10 → giao Codex (backend, cổng migration) + Argon (giao diện) phản biện → GĐ1.
