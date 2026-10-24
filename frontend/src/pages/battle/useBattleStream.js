@@ -65,12 +65,17 @@ export function useBattleStream(url, options = {}) {
     if (!incoming || typeof incoming !== 'object') return;
     const current = metaRef.current;
     const isNewRun = incoming.run_id && incoming.run_id !== current.run_id;
-    const hasHigherVersion =
-      typeof incoming.version === 'number' && incoming.version > current.version;
+    const hasHigherOrEqualVersion =
+      typeof incoming.version === 'number' && incoming.version >= current.version;
     const hasNoVersionTracking =
       incoming.run_id === undefined && incoming.version === undefined;
 
-    if (isNewRun || hasHigherVersion || hasNoVersionTracking || current.run_id === null) {
+    if (
+      isNewRun ||
+      hasHigherOrEqualVersion ||
+      hasNoVersionTracking ||
+      current.run_id === null
+    ) {
       if (incoming.run_id !== undefined) {
         current.run_id = incoming.run_id;
       }
@@ -101,6 +106,7 @@ export function useBattleStream(url, options = {}) {
     let reconnectTimer = null;
     let attemptIndex = 0;
     let hasConnectedOnce = false;
+    let isFirstSnapshotForUrl = true;
 
     const clearTimer = () => {
       if (reconnectTimer !== null) {
@@ -177,11 +183,15 @@ export function useBattleStream(url, options = {}) {
         const isDifferentRun =
           parsed.run_id !== undefined && parsed.run_id !== current.run_id;
         const isNewerVersion =
-          typeof parsed.version === 'number' && parsed.version > current.version;
+          typeof parsed.version === 'number' &&
+          (isFirstSnapshotForUrl
+            ? parsed.version >= current.version
+            : parsed.version > current.version);
         const untrackable =
           parsed.run_id === undefined && parsed.version === undefined;
 
         if (isDifferentRun || isNewerVersion || untrackable || current.run_id === null) {
+          isFirstSnapshotForUrl = false;
           metaRef.current = {
             run_id: parsed.run_id ?? current.run_id,
             version:

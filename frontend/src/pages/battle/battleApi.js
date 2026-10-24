@@ -19,6 +19,27 @@ function buildQuery(params = {}) {
   return qs ? `?${qs}` : '';
 }
 
+export function buildLobbyQuery(params = {}) {
+  if (!params || typeof params !== 'object') return '';
+  const isPositiveIntStr = (v) => {
+    if (v === undefined || v === null || v === '') return false;
+    const s = String(v).trim();
+    if (!/^[1-9]\d*$/.test(s)) return false;
+    const n = Number(s);
+    return Number.isInteger(n) && n >= 1 && n <= 2147483647;
+  };
+  if (!isPositiveIntStr(params.subject_id)) return '';
+  const sp = new URLSearchParams();
+  sp.set('subject_id', String(params.subject_id).trim());
+  if (isPositiveIntStr(params.branch_id)) sp.set('branch_id', String(params.branch_id).trim());
+  if (typeof params.chapter === 'string' && params.chapter.trim().length > 0) {
+    sp.set('chapter', params.chapter.trim().slice(0, 200));
+  }
+  if (isPositiveIntStr(params.topic_id)) sp.set('topic_id', String(params.topic_id).trim());
+  const qs = sp.toString();
+  return qs ? `?${qs}` : '';
+}
+
 export const battleApi = {
   // 1. Tư cách, cờ hệ thống, phòng đang tham gia, hàng chờ, tạm khoá
   getMe() {
@@ -31,8 +52,9 @@ export const battleApi = {
   },
 
   // 3. Ảnh chụp sảnh ban đầu
-  getLobby() {
-    return api.get(`${BASE}/lobby`);
+
+  getLobby(params = {}) {
+    return api.get(`${BASE}/lobby${buildLobbyQuery(params)}`);
   },
 
   // 4. Lịch sử 10 ván đã kết thúc của người dùng

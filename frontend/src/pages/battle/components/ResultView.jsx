@@ -300,7 +300,7 @@ export default function ResultView({ snapshot, roomId }) {
           </h2>
           {me && typeof me.rank === 'number' && (
             <span className="arena-chip arena-chip--amber arena-mono">
-              Em hạng {me.rank}/{me.total || podium.length}
+              Em hạng {me.rank}/{me.participant_count ?? podium.length}
               {typeof me.points === 'number' ? ` · ${me.points} điểm` : ''}
             </span>
           )}

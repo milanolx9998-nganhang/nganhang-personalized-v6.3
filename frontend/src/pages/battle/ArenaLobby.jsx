@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth.js';
-import { battleApi, battleApiFlex, formatRoomCode } from './battleApi.js';
+import { battleApi, battleApiFlex, buildLobbyQuery } from './battleApi.js';
 import { useBattleStream } from './useBattleStream.js';
 
 import ConnectionBanner from './components/ConnectionBanner.jsx';
@@ -10,6 +10,7 @@ import CreateRoomSheet from './components/CreateRoomSheet.jsx';
 import FindMatchSheet from './components/FindMatchSheet.jsx';
 import MatchWaiting from './components/MatchWaiting.jsx';
 import PlayModePicker from './components/PlayModePicker.jsx';
+import ArenaHall from './components/ArenaHall.jsx';
 
 import '../../styles/arena.css';
 
@@ -68,22 +69,25 @@ export default function ArenaLobby() {
   // Sheet / Modal học sinh
   const [showFindMatch, setShowFindMatch] = useState(false);
   const [showCreateRoom, setShowCreateRoom] = useState(false);
+  const [createRoomInitialScope, setCreateRoomInitialScope] = useState(null);
+  const [createRoomDefaultStyle, setCreateRoomDefaultStyle] = useState(null);
   const [showBotModal, setShowBotModal] = useState(false);
   const [botDifficulty, setBotDifficulty] = useState('medium');
   const [busyBotStart, setBusyBotStart] = useState(false);
 
-  // Ô nhập mã phòng 6 số
+  // Ô nhập mã phòng 6 số & thao tác vào phòng / ghép nhanh từ Sảnh V6.9.4
   const [joinCodeInput, setJoinCodeInput] = useState('');
   const [busyJoinCode, setBusyJoinCode] = useState(false);
   const [busyJoinRoomId, setBusyJoinRoomId] = useState(null);
+  const [busyQuickMatch, setBusyQuickMatch] = useState(false);
   const [busyToggleBadge, setBusyToggleBadge] = useState(false);
 
-  // Bộ lọc 1 hàng ở Sảnh
-  const [filterSubject, setFilterSubject] = useState('');
-  const [filterBranch, setFilterBranch] = useState('');
-  const [filterChapterOrTopic, setFilterChapterOrTopic] = useState('');
-  const [filterKind, setFilterKind] = useState('');
-  const [filterHasSlot, setFilterHasSlot] = useState(true);
+  // Bộ lọc query đồng bộ với GET /api/battle/lobby và SSE /api/battle/lobby/stream (V6.9.4)
+  const [lobbyQueryParams, setLobbyQueryParams] = useState({});
+  const lobbyQueryString = useMemo(
+    () => buildLobbyQuery(lobbyQueryParams),
+    [lobbyQueryParams]
+  );
 
   // Dữ liệu dành riêng cho Giáo viên mở phòng lớp (§F)
   const [teacherClasses, setTeacherClasses] = useState([]);
@@ -160,10 +164,12 @@ export default function ArenaLobby() {
     };
   }, [meData]);
 
-  // Kết nối luồng SSE sảnh cho học sinh
+  // Kết nối luồng SSE sảnh cho học sinh (đóng luồng cũ và mở lại URL mới khi đổi bộ lọc query)
   const shouldConnectLobbyStream = Boolean(
     !loadingMe && !isStaff && flags.battle_enabled && (flags.lobby || flags.class || flags.matchmaking)
   );
+
+  const lobbyStreamUrl = `/api/battle/lobby/stream${lobbyQueryString}`;
 
   const {
     snapshot: streamLobby,
@@ -171,7 +177,7 @@ export default function ArenaLobby() {
     stopReason,
     offsetMs,
     applyExternalSnapshot,
-  } = useBattleStream('/api/battle/lobby/stream', {
+  } = useBattleStream(lobbyStreamUrl, {
     enabled: shouldConnectLobbyStream,
     initialSnapshot: initialLobby,
   });
@@ -184,17 +190,7 @@ export default function ArenaLobby() {
     let cancelled = false;
 
     if (!isStaff) {
-      // Học sinh: nạp /lobby, /options, /history, /rank, và /leaderboard (nếu bật)
-      battleApi
-        .getLobby()
-        .then((res) => {
-          if (!cancelled && res) {
-            setInitialLobby(res);
-            applyExternalSnapshot(res);
-          }
-        })
-        .catch(() => {});
-
+      // Học sinh: nạp /options, /history, /rank, và /leaderboard (nếu bật)
       battleApi
         .getOptions({ count: 7 })
         .then((res) => {
@@ -262,7 +258,27 @@ export default function ArenaLobby() {
     return () => {
       cancelled = true;
     };
-  }, [loadingMe, meData, isStaff, flags.leaderboard, applyExternalSnapshot]);
+  }, [loadingMe, meData, isStaff, flags.leaderboard]);
+
+  // 2b. Nạp /api/battle/lobby mỗi khi khởi tạo hoặc đổi bộ lọc query (V6.9.4)
+  useEffect(() => {
+    if (loadingMe || !meData || isStaff) return undefined;
+    let cancelled = false;
+
+    battleApi
+      .getLobby(lobbyQueryParams)
+      .then((res) => {
+        if (!cancelled && res) {
+          setInitialLobby(res);
+          applyExternalSnapshot(res);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loadingMe, meData, isStaff, lobbyQueryString, lobbyQueryParams, applyExternalSnapshot]);
 
   // 3. Tự động điều hướng vào phòng khi ghép trận xong (current_room_id xuất hiện trong luồng sảnh)
   const activeMatchTicket = lobbySnapshot?.match ?? meData?.queue ?? null;
@@ -315,7 +331,7 @@ export default function ArenaLobby() {
     };
   }, [isStaff, selectedClassId, tSubjectId, tQuestionCount]);
 
-  // Đồng hồ đếm ngược Giờ vàng (cập nhật mỗi giây)
+  // Đồng hồ đếm ngược Giờ vàng & thời gian ván đang đấu (cập nhật mỗi giây)
   const [nowTick, setNowTick] = useState(() => Date.now());
   useEffect(() => {
     const timer = setInterval(() => setNowTick(Date.now()), 1000);
@@ -327,7 +343,7 @@ export default function ArenaLobby() {
     return Array.isArray(raw) ? raw : [];
   }, [lobbySnapshot?.golden_hours, meData?.golden_hours]);
 
-  // Phân loại phòng trong sảnh: phòng lớp ghim vs danh sách phòng chờ
+  // Phân loại phòng trong sảnh: phòng lớp ghim (kind === 'class') tách riêng khỏi Sảnh Đấu trường
   const allRooms = useMemo(() => {
     const raw = lobbySnapshot?.rooms || [];
     return Array.isArray(raw) ? raw : [];
@@ -337,52 +353,6 @@ export default function ArenaLobby() {
     () => allRooms.filter((r) => r.kind === 'class'),
     [allRooms]
   );
-
-  const publicWaitingRooms = useMemo(
-    () => allRooms.filter((r) => r.kind !== 'class'),
-    [allRooms]
-  );
-
-  // Lọc danh sách phòng chờ phía máy khách
-  const filteredRooms = useMemo(() => {
-    return publicWaitingRooms.filter((r) => {
-      if (filterKind && r.kind !== filterKind) return false;
-      if (filterHasSlot) {
-        const cap = Number(r.capacity) || 20;
-        const cur = Number(r.players?.length ?? r.players ?? 0);
-        if (cur >= cap) return false;
-      }
-      if (filterSubject) {
-        if (!r.scope || Number(r.scope.subject_id) !== Number(filterSubject)) {
-          return false;
-        }
-      }
-      if (filterBranch) {
-        if (!r.scope || Number(r.scope.branch_id) !== Number(filterBranch)) {
-          return false;
-        }
-      }
-      if (filterChapterOrTopic) {
-        if (!r.scope) return false;
-        if (filterChapterOrTopic.startsWith('ch:')) {
-          const chName = filterChapterOrTopic.slice(3);
-          if (r.scope.chapter !== chName) return false;
-        } else if (filterChapterOrTopic.startsWith('tp:')) {
-          const tpId = Number(filterChapterOrTopic.slice(3));
-          const ids = Array.isArray(r.scope.topic_ids) ? r.scope.topic_ids.map(Number) : [];
-          if (!ids.includes(tpId)) return false;
-        }
-      }
-      return true;
-    });
-  }, [
-    publicWaitingRooms,
-    filterKind,
-    filterHasSlot,
-    filterSubject,
-    filterBranch,
-    filterChapterOrTopic,
-  ]);
 
   // Xử lý Học sinh nhập mã 6 số
   const handleJoinByCodeSubmit = async (e) => {
@@ -418,6 +388,73 @@ export default function ArenaLobby() {
       setBusyJoinRoomId(null);
     }
   };
+
+  // Xử lý Học sinh bấm "⚡ Đấu cùng" hoặc "⚡ Tìm bạn..." từ Sảnh V6.9.4
+  const handleQuickMatchFromHall = useCallback(
+    async (choiceScope = null) => {
+      if (meData?.suspension || busyQuickMatch) return;
+      setBusyQuickMatch(true);
+      setErrorMsg('');
+      try {
+        // Hợp đồng API V6.9.4: hủy vé cũ bằng DELETE /match trước khi đổi lựa chọn mới
+        if (activeMatchTicket) {
+          await battleApi.cancelMatchmaking().catch(() => {});
+        }
+
+        const kinds = ['duel'];
+        if (flags.ffa !== false) kinds.push('ffa');
+
+        const choices = [];
+        if (choiceScope && choiceScope.subject_id) {
+          const cleanScope = { subject_id: Number(choiceScope.subject_id) };
+          if (choiceScope.branch_id !== null && choiceScope.branch_id !== undefined && choiceScope.branch_id !== '') {
+            cleanScope.branch_id = Number(choiceScope.branch_id);
+          }
+          if (Array.isArray(choiceScope.topic_ids) && choiceScope.topic_ids.length > 0) {
+            cleanScope.topic_ids = choiceScope.topic_ids.map(Number);
+          } else if (choiceScope.chapter && String(choiceScope.chapter).trim()) {
+            cleanScope.chapter = String(choiceScope.chapter).trim();
+          }
+          choices.push(cleanScope);
+        }
+
+        const ticket = {
+          kinds,
+          choices,
+          lengths: 'any',
+          flex: 'gradual',
+          ranked: Boolean(flags.ranked),
+          bot_fill: false,
+        };
+
+        const res = await battleApiFlex.startFlexMatch(ticket);
+        if (res?.current_room_id) {
+          navigate(`/practice/battle/rooms/${encodeURIComponent(res.current_room_id)}`);
+          return;
+        }
+        const queueData = res?.queue || ticket;
+        setInitialLobby((prev) => ({
+          ...(prev || {}),
+          match: queueData,
+        }));
+      } catch (err) {
+        setErrorMsg(err?.message || 'Không thể bắt đầu tìm đối thủ lúc này.');
+      } finally {
+        setBusyQuickMatch(false);
+      }
+    },
+    [meData?.suspension, busyQuickMatch, activeMatchTicket, flags.ffa, flags.ranked, navigate]
+  );
+
+  // Mở Sheet tạo phòng từ Sảnh (điền sẵn môn/chương đang chọn và ưu tiên phòng công khai)
+  const handleOpenCreateRoomFromHall = useCallback(
+    (scope = null) => {
+      setCreateRoomInitialScope(scope || null);
+      setCreateRoomDefaultStyle(flags.lobby ? 'public_open' : 'private_code');
+      setShowCreateRoom(true);
+    },
+    [flags.lobby]
+  );
 
   // Xử lý Đấu với máy từ sảnh
   const handleStartBotFromLobby = async () => {
@@ -921,32 +958,10 @@ export default function ArenaLobby() {
     );
   }
 
-  // ===== MÀN HÌNH SẢNH CHO HỌC SINH (§A + V6.9.1/V6.9.2) =====
+  // ===== MÀN HÌNH SẢNH CHO HỌC SINH (§A + V6.9.1/V6.9.2/V6.9.4) =====
   const suspension = meData?.suspension;
   const rating = rankInfo?.rating || null;
   const season = rankInfo?.season || null;
-
-  const filterBranches = (optionsCatalog?.branches || []).filter(
-    (b) => !filterSubject || !b.subject_id || Number(b.subject_id) === Number(filterSubject)
-  );
-  const filterChapters = (optionsCatalog?.chapters || []).filter((ch) => {
-    if (filterSubject && ch.subject_id && Number(ch.subject_id) !== Number(filterSubject)) {
-      return false;
-    }
-    if (filterBranch && ch.branch_id && Number(ch.branch_id) !== Number(filterBranch)) {
-      return false;
-    }
-    return true;
-  });
-  const filterTopics = (optionsCatalog?.topics || []).filter((tp) => {
-    if (filterSubject && tp.subject_id && Number(tp.subject_id) !== Number(filterSubject)) {
-      return false;
-    }
-    if (filterBranch && tp.branch_id && Number(tp.branch_id) !== Number(filterBranch)) {
-      return false;
-    }
-    return true;
-  });
 
   return (
     <div className="arena-page">
@@ -1136,7 +1151,11 @@ export default function ArenaLobby() {
               <button
                 type="button"
                 className="arena-btn arena-btn--ghost-light arena-btn--lg"
-                onClick={() => setShowCreateRoom(true)}
+                onClick={() => {
+                  setCreateRoomInitialScope(null);
+                  setCreateRoomDefaultStyle(null);
+                  setShowCreateRoom(true);
+                }}
                 disabled={Boolean(suspension)}
               >
                 + Tạo phòng
@@ -1197,7 +1216,11 @@ export default function ArenaLobby() {
                       </div>
                       <h2 className="arena-title-md" style={{ color: '#FFFFFF' }}>
                         Phòng của {cRoom.host_name || 'Thầy/Cô'} ·{' '}
-                        <ScopeLabel scope={cRoom.scope} options={optionsCatalog} />
+                        <ScopeLabel
+                          scope={cRoom.scope}
+                          scopeLabel={cRoom.scope_label}
+                          options={optionsCatalog}
+                        />
                       </h2>
                       <p className="arena-subtitle">
                         {cRoom.question_count || 7} câu · {cRoom.seconds || 30} giây/câu
@@ -1293,176 +1316,23 @@ export default function ArenaLobby() {
           </section>
         )}
 
-        {/* DANH SÁCH PHÒNG ĐANG CHỜ + BỘ LỌC 1 HÀNG */}
+        {/* SẢNH ĐẤU TRƯỜNG V6.9.4 (THEO MÔN: PHÒNG CHỜ · ĐANG TÌM · ĐANG ĐẤU) */}
         {flags.lobby && (
-          <section style={{ marginTop: '20px' }}>
-            <div className="arena-row arena-row--between" style={{ marginBottom: '10px' }}>
-              <h2 className="arena-title-md">
-                Phòng đang chờ ({filteredRooms.length})
-              </h2>
-              <span className="arena-subtitle" style={{ margin: 0 }}>
-                Bấm &ldquo;Vào&rdquo; để tham gia ngay một chạm
-              </span>
-            </div>
-
-            {/* Bộ lọc 1 hàng: Môn · Phân môn · Chương/Bài · Kiểu · Còn chỗ */}
-            <div className="arena-filter-bar" role="region" aria-label="Bộ lọc danh sách phòng chờ">
-              <select
-                className="arena-select arena-filter-bar__item"
-                aria-label="Lọc theo môn học"
-                value={filterSubject}
-                onChange={(e) => {
-                  setFilterSubject(e.target.value);
-                  setFilterBranch('');
-                  setFilterChapterOrTopic('');
-                }}
-              >
-                <option value="">Tất cả môn</option>
-                {(optionsCatalog?.subjects || []).map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                className="arena-select arena-filter-bar__item"
-                aria-label="Lọc theo phân môn"
-                value={filterBranch}
-                onChange={(e) => {
-                  setFilterBranch(e.target.value);
-                  setFilterChapterOrTopic('');
-                }}
-              >
-                <option value="">Phân môn</option>
-                {filterBranches.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                className="arena-select arena-filter-bar__item"
-                aria-label="Lọc theo Chương hoặc Bài"
-                value={filterChapterOrTopic}
-                onChange={(e) => setFilterChapterOrTopic(e.target.value)}
-              >
-                <option value="">Chương / Bài</option>
-                {filterChapters.length > 0 && (
-                  <optgroup label="Theo Chương">
-                    {filterChapters.map((ch, idx) => (
-                      <option key={`ch-${idx}`} value={`ch:${ch.name}`}>
-                        {ch.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-                {filterTopics.length > 0 && (
-                  <optgroup label="Theo Bài học">
-                    {filterTopics.map((tp) => (
-                      <option key={`tp-${tp.id}`} value={`tp:${tp.id}`}>
-                        {tp.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-              </select>
-
-              <select
-                className="arena-select arena-filter-bar__item"
-                aria-label="Lọc theo kiểu đấu"
-                value={filterKind}
-                onChange={(e) => setFilterKind(e.target.value)}
-              >
-                <option value="">Mọi kiểu đấu</option>
-                <option value="duel">Đấu đôi</option>
-                <option value="team">Đấu đội</option>
-                <option value="ffa">Nhiều người</option>
-              </select>
-
-              <label className="arena-filter-checkbox">
-                <input
-                  type="checkbox"
-                  checked={filterHasSlot}
-                  onChange={(e) => setFilterHasSlot(e.target.checked)}
-                />
-                <span>Còn chỗ</span>
-              </label>
-            </div>
-
-            {filteredRooms.length === 0 ? (
-              <div className="arena-card arena-card--subtle" style={{ textAlign: 'center', padding: '28px 16px' }}>
-                <p className="arena-title-md">Chưa có phòng mở nào khớp bộ lọc</p>
-                <p className="arena-subtitle" style={{ marginBottom: '14px' }}>
-                  Em có thể bấm &ldquo;Tìm đối thủ&rdquo; hoặc tự tạo phòng mới để rủ bạn cùng vào.
-                </p>
-              </div>
-            ) : (
-              <div className="arena-grid-cards">
-                {filteredRooms.map((r) => {
-                  const pCount = Number(r.players?.length ?? r.players ?? 0);
-                  const cap = Number(r.capacity) || 20;
-                  const isFull = pCount >= cap;
-                  const isUnselectedScope =
-                    !r.scope || r.scope.subject_id === null || r.scope.subject_id === undefined;
-
-                  return (
-                    <article key={r.id} className="arena-card arena-room-card">
-                      <div className="arena-room-card__top">
-                        <div className="arena-row" style={{ gap: '6px' }}>
-                          <span className="arena-chip arena-chip--accent">
-                            {KIND_LABELS[r.kind] || 'Phòng đấu'}
-                          </span>
-                          {r.open_slots && (
-                            <span className="arena-chip arena-chip--amber">
-                              {r.label || 'Nhóm bạn đang tìm thêm người'}
-                            </span>
-                          )}
-                        </div>
-                        <span className="arena-chip arena-mono">
-                          {pCount}/{cap} bạn
-                        </span>
-                      </div>
-
-                      <div className="arena-room-card__body">
-                        <h3 className="arena-room-card__title">
-                          {isUnselectedScope ? (
-                            'Chưa chọn nội dung · cùng chọn khi vào'
-                          ) : (
-                            <ScopeLabel scope={r.scope} options={optionsCatalog} />
-                          )}
-                        </h3>
-                        <p className="arena-subtitle">
-                          Chủ phòng: <strong>{r.host_name || 'Bạn cùng khối'}</strong> ·{' '}
-                          {r.question_count || 7} câu · {r.seconds || 30}s/câu
-                        </p>
-                      </div>
-
-                      <div className="arena-room-card__footer">
-                        <button
-                          type="button"
-                          className="arena-btn arena-btn--primary arena-btn--block"
-                          disabled={
-                            isFull ||
-                            busyJoinRoomId === r.id ||
-                            Boolean(suspension)
-                          }
-                          onClick={() => handleJoinRoomCard(r.id)}
-                        >
-                          {isFull
-                            ? 'Phòng đã đầy'
-                            : busyJoinRoomId === r.id
-                            ? 'Đang vào…'
-                            : 'Vào phòng'}
-                        </button>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            )}
-          </section>
+          <ArenaHall
+            lobbySnapshot={lobbySnapshot}
+            optionsCatalog={optionsCatalog}
+            flags={flags}
+            suspension={suspension}
+            activeMatchTicket={activeMatchTicket}
+            offsetMs={offsetMs}
+            nowTick={nowTick}
+            busyJoinRoomId={busyJoinRoomId}
+            busyQuickMatch={busyQuickMatch}
+            onJoinRoom={handleJoinRoomCard}
+            onQuickMatch={handleQuickMatchFromHall}
+            onOpenCreateRoom={handleOpenCreateRoomFromHall}
+            onFilterQueryChange={setLobbyQueryParams}
+          />
         )}
 
         {/* MỤC "VÁN ĐẤU CỦA EM" TỪ /history */}
@@ -1479,7 +1349,7 @@ export default function ArenaLobby() {
               {historyList.map((item) => {
                 const rankText =
                   item.me && typeof item.me.rank === 'number'
-                    ? `Hạng ${item.me.rank}/${item.me.total || '-'}`
+                    ? `Hạng ${item.me.rank}/${item.me.participant_count ?? '-'}`
                     : null;
 
                 return (
@@ -1492,7 +1362,11 @@ export default function ArenaLobby() {
                             : KIND_LABELS[item.kind] || 'Ván đấu'}
                         </span>
                         <strong className="arena-history-row__scope">
-                          <ScopeLabel scope={item.scope} options={optionsCatalog} />
+                          <ScopeLabel
+                            scope={item.scope}
+                            scopeLabel={item.scope_label}
+                            options={optionsCatalog}
+                          />
                         </strong>
                         {rankText && (
                           <span className="arena-chip arena-chip--amber arena-mono">
@@ -1526,6 +1400,8 @@ export default function ArenaLobby() {
       {showCreateRoom && (
         <CreateRoomSheet
           flags={flags}
+          initialScope={createRoomInitialScope}
+          initialRoomStyleId={createRoomDefaultStyle}
           onClose={() => setShowCreateRoom(false)}
           onCreated={(room) => {
             setShowCreateRoom(false);

@@ -3914,3 +3914,605 @@
   color: var(--muted, #5E5B52);
   margin-top: 4px;
 }
+
+
+/* ===== V6.9.4 — Sảnh Đấu trường theo Môn (ArenaHall) ===== */
+.arena-hall {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  width: 100%;
+}
+
+.arena-hall__top-bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* 1. Dải Chip Môn học có số đếm (cuộn ngang mượt trên mobile, không tràn trang) */
+.arena-hall-subject-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  padding: 4px 2px 8px;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.arena-hall-subject-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1.5px solid var(--line-strong, #CFCABD);
+  background-color: var(--surface, #FFFFFF);
+  color: var(--ink, #1C1B17);
+  font-family: var(--font-sans, 'Lexend', sans-serif);
+  font-size: 0.92rem;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: background-color 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
+}
+
+.arena-hall-subject-chip:hover {
+  border-color: var(--arena-dark);
+  background-color: var(--surface-2, #FAF9F6);
+}
+
+.arena-hall-subject-chip:focus-visible {
+  outline: 3px solid var(--arena-amber);
+  outline-offset: 2px;
+}
+
+.arena-hall-subject-chip--quiet {
+  color: var(--muted, #5E5B52);
+  background-color: var(--surface-2, #FAF9F6);
+}
+
+.arena-hall-subject-chip--active {
+  background-color: var(--arena-dark);
+  color: #FFFFFF;
+  border-color: var(--arena-dark-deep);
+  box-shadow: var(--arena-shadow-sm);
+}
+
+.arena-hall-subject-chip--active:hover {
+  background-color: var(--arena-dark-deep);
+  border-color: var(--arena-dark-deep);
+}
+
+.arena-hall-subject-chip__icon {
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.arena-hall-subject-chip__name {
+  line-height: 1.2;
+}
+
+.arena-hall-subject-chip__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  background-color: var(--surface-3, #EDEBE4);
+  color: var(--muted, #5E5B52);
+}
+
+.arena-hall-subject-chip__count--live {
+  background-color: var(--arena-amber-soft);
+  color: #6E4700;
+}
+
+.arena-hall-subject-chip--active .arena-hall-subject-chip__count {
+  background-color: var(--arena-amber);
+  color: var(--arena-amber-ink);
+}
+
+/* 2. Hàng Tab nhỏ (Tất cả / Phòng chờ / Đang tìm / Đang đấu) + Nút lọc Mobile */
+.arena-hall-controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.arena-hall-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  max-width: 100%;
+  padding: 4px;
+  border-radius: var(--arena-radius-md);
+  background-color: var(--surface-3, #EDEBE4);
+  border: 1px solid var(--line, #E2DFD6);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.arena-hall-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 6px 12px;
+  border-radius: var(--arena-radius-sm);
+  border: 1.5px solid transparent;
+  background: transparent;
+  color: var(--muted, #5E5B52);
+  font-family: var(--font-sans, 'Lexend', sans-serif);
+  font-size: 0.88rem;
+  font-weight: 700;
+  white-space: nowrap;
+  flex: 1 1 auto;
+  cursor: pointer;
+  transition: background-color 0.14s ease, color 0.14s ease, box-shadow 0.14s ease;
+}
+
+.arena-hall-tab:hover {
+  color: var(--ink, #1C1B17);
+}
+
+.arena-hall-tab:focus-visible {
+  outline: 3px solid var(--arena-amber);
+  outline-offset: 2px;
+}
+
+.arena-hall-tab--active {
+  background-color: var(--surface, #FFFFFF);
+  color: var(--arena-dark);
+  border-color: var(--line-strong, #CFCABD);
+  box-shadow: var(--arena-shadow-sm);
+}
+
+.arena-hall-tab__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  background-color: rgba(21, 63, 87, 0.1);
+  color: var(--arena-dark);
+}
+
+.arena-hall-tab--active .arena-hall-tab__badge {
+  background-color: var(--arena-amber-soft);
+  color: #6E4700;
+}
+
+.arena-hall-mobile-filter-btn {
+  display: inline-flex;
+  min-height: 44px;
+}
+
+.arena-hall-filter-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background-color: var(--arena-amber);
+  color: var(--arena-amber-ink);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+/* Bộ lọc Phân môn -> Chương -> Bài trên Desktop */
+.arena-hall-desktop-filters {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .arena-hall-mobile-filter-btn {
+    display: none;
+  }
+
+  .arena-hall-desktop-filters {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+    align-items: center;
+  }
+}
+
+.arena-hall-filter-select {
+  min-width: 0;
+  font-size: 0.88rem;
+  padding: 8px 10px;
+}
+
+.arena-hall-active-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* 3. Danh sách Khối theo Môn (Subject Blocks) */
+.arena-hall-subject-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.arena-hall-subject-block {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border-top: 4px solid var(--arena-dark);
+  padding: 16px;
+  min-width: 0;
+}
+
+.arena-hall-subject-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line, #E2DFD6);
+}
+
+.arena-hall-subject-header__left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.arena-hall-subject-header__icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--arena-radius-sm);
+  background-color: var(--accent-soft, #E3EEF3);
+  display: grid;
+  place-items: center;
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+
+.arena-hall-subject-header__title {
+  margin: 0;
+  font-size: 1.08rem;
+  font-weight: 800;
+  color: var(--ink, #1C1B17);
+  line-height: 1.25;
+}
+
+.arena-hall-subject-header__summary {
+  margin: 2px 0 0;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--muted, #5E5B52);
+}
+
+/* Dải "Đang tìm đối thủ" + Nút ⚡ Đấu cùng */
+.arena-hall-seeking-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.arena-hall-seeking-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--arena-radius-md);
+  background-color: #EBF7F0;
+  border: 1.5px solid #A8DABD;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.arena-hall-seeking-row--any {
+  background: linear-gradient(135deg, #FDF3D7 0%, #EBF7F0 100%);
+  border-color: var(--arena-amber);
+}
+
+.arena-hall-seeking-row__info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1 1 200px;
+}
+
+.arena-hall-seeking-row__text {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 0.92rem;
+  color: var(--ink, #1C1B17);
+  min-width: 0;
+}
+
+.arena-hall-seeking-row__sep {
+  color: var(--muted, #5E5B52);
+  font-weight: 700;
+}
+
+.arena-hall-seeking-row__scope {
+  font-weight: 700;
+  color: var(--arena-dark);
+}
+
+.arena-hall-seeking-row__btn {
+  min-height: 44px;
+}
+
+@media (max-width: 480px) {
+  .arena-hall-seeking-row__btn {
+    width: 100%;
+  }
+}
+
+/* Lưới Thẻ Phòng chờ trong Khối môn */
+.arena-hall-rooms-grid {
+  margin-top: 2px;
+}
+
+.arena-room-card--almost-full {
+  border-color: var(--arena-amber);
+  background-color: #FFFDF8;
+}
+
+.arena-hall-room-topics {
+  margin: 4px 0 0;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--accent-ink, #153F57);
+  overflow-wrap: break-word;
+}
+
+.arena-hall-host-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  background-color: var(--arena-amber-soft);
+  color: #6E4700;
+  border: 1px solid #F2C968;
+}
+
+/* Dải "👀 Đang so tài · Câu x/y" thu gọn 2-3 dòng ở chân khối môn */
+.arena-hall-live-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--arena-radius-md);
+  background-color: var(--surface-2, #FAF9F6);
+  border: 1px solid var(--line, #E2DFD6);
+}
+
+.arena-hall-live-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.arena-hall-live-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--arena-radius-sm);
+  background-color: var(--surface, #FFFFFF);
+  border: 1px solid var(--line, #E2DFD6);
+  font-size: 0.86rem;
+  color: var(--muted, #5E5B52);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.arena-hall-live-row__main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+  flex: 1 1 200px;
+}
+
+.arena-hall-live-row__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background-color: var(--surface-3, #EDEBE4);
+  color: var(--ink, #1C1B17);
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.arena-hall-live-row__scope {
+  font-weight: 700;
+  color: var(--ink, #1C1B17);
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.arena-hall-live-row__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--muted, #5E5B52);
+  white-space: nowrap;
+}
+
+.arena-hall-live-row__time {
+  color: var(--accent-ink, #153F57);
+  font-weight: 700;
+}
+
+.arena-hall-live-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: var(--arena-radius-sm);
+  border: 1px dashed var(--line-strong, #CFCABD);
+  background-color: var(--surface, #FFFFFF);
+  color: var(--accent, #1E5A7A);
+  font-family: var(--font-sans, 'Lexend', sans-serif);
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.arena-hall-live-toggle:hover {
+  background-color: var(--accent-soft, #E3EEF3);
+}
+
+.arena-hall-live-toggle:focus-visible {
+  outline: 3px solid var(--arena-amber);
+  outline-offset: 2px;
+}
+
+/* 4. Trạng thái trống (Empty State) + Gợi ý bài học mở màn */
+.arena-hall-empty {
+  text-align: center;
+  padding: 26px 16px;
+  border: 1.5px dashed var(--line-strong, #CFCABD);
+  background-color: var(--surface, #FFFFFF);
+}
+
+.arena-hall-empty__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background-color: var(--arena-amber-soft);
+  color: #6E4700;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.arena-hall-empty__actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 480px) {
+  .arena-hall-empty__actions > .arena-btn {
+    width: 100%;
+  }
+}
+
+.arena-hall-empty__suggestions {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line, #E2DFD6);
+  text-align: left;
+}
+
+.arena-hall-empty__sug-title {
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: var(--ink, #1C1B17);
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.arena-hall-empty__sug-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+@media (min-width: 680px) {
+  .arena-hall-empty__sug-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.arena-hall-sug-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--arena-radius-md);
+  background-color: var(--surface-2, #FAF9F6);
+  border: 1.5px solid var(--line, #E2DFD6);
+  min-width: 0;
+}
+
+.arena-hall-sug-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.arena-hall-sug-card__subj {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--muted, #5E5B52);
+}
+
+.arena-hall-sug-card__name {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--ink, #1C1B17);
+  line-height: 1.35;
+  overflow-wrap: break-word;
+}
+
+.arena-hall-sug-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.arena-hall-sug-card__actions > .arena-btn {
+  flex: 1 1 auto;
+}

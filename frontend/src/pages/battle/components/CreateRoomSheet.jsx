@@ -25,7 +25,13 @@ const ROOM_STYLE_Presets = [
   },
 ];
 
-export default function CreateRoomSheet({ flags = {}, onClose, onCreated }) {
+export default function CreateRoomSheet({
+  flags = {},
+  initialScope = null,
+  initialRoomStyleId = null,
+  onClose,
+  onCreated,
+}) {
   const availableKinds = useMemo(() => {
     const list = [];
     if (flags.duel_code !== false) list.push({ id: 'duel', label: 'Đấu đôi (1v1)' });
@@ -35,7 +41,12 @@ export default function CreateRoomSheet({ flags = {}, onClose, onCreated }) {
   }, [flags.duel_code, flags.team, flags.ffa]);
 
   const [kind, setKind] = useState(availableKinds[0].id);
-  const [roomStyleId, setRoomStyleId] = useState('private_code');
+  const [roomStyleId, setRoomStyleId] = useState(() => {
+    if (initialRoomStyleId && (flags.lobby || initialRoomStyleId !== 'public_open')) {
+      return initialRoomStyleId;
+    }
+    return 'private_code';
+  });
   const [questionCount, setQuestionCount] = useState(7);
   const [seconds, setSeconds] = useState(30);
   const [contentMode, setContentMode] = useState('fixed'); // 'fixed' | 'vote'
@@ -44,11 +55,23 @@ export default function CreateRoomSheet({ flags = {}, onClose, onCreated }) {
   // Dữ liệu /options?count=<questionCount>
   const [catalog, setCatalog] = useState(null);
   const [loadingCatalog, setLoadingCatalog] = useState(false);
-  const [subjectId, setSubjectId] = useState('');
-  const [branchId, setBranchId] = useState('');
-  const [scopeSubMode, setScopeSubMode] = useState('chapter'); // 'chapter' | 'topics'
-  const [chapter, setChapter] = useState('');
-  const [topicIds, setTopicIds] = useState([]);
+  const [subjectId, setSubjectId] = useState(() =>
+    initialScope?.subject_id ? String(initialScope.subject_id) : ''
+  );
+  const [branchId, setBranchId] = useState(() =>
+    initialScope?.branch_id ? String(initialScope.branch_id) : ''
+  );
+  const [scopeSubMode, setScopeSubMode] = useState(() =>
+    Array.isArray(initialScope?.topic_ids) && initialScope.topic_ids.length > 0
+      ? 'topics'
+      : 'chapter'
+  ); // 'chapter' | 'topics'
+  const [chapter, setChapter] = useState(() =>
+    initialScope?.chapter ? String(initialScope.chapter) : ''
+  );
+  const [topicIds, setTopicIds] = useState(() =>
+    Array.isArray(initialScope?.topic_ids) ? initialScope.topic_ids.map(Number) : []
+  );
 
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
