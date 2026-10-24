@@ -20,6 +20,8 @@ import RevealPanel from './components/RevealPanel.jsx';
 import ResultView from './components/ResultView.jsx';
 import ScopeLabel from './components/ScopeLabel.jsx';
 import SelfPacedPlay from './components/SelfPacedPlay.jsx';
+// Vào thẳng / tải lại phòng không đi qua sảnh: phải tự nạp CSS Đấu.
+import '../../styles/arena.css';
 
 const SUBMIT_RETRY_DELAYS_MS = [1000, 2000, 4000, 4000, 4000];
 

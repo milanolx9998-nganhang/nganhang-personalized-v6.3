@@ -61,6 +61,11 @@ const BATTLE_MODE_ITEMS = [
     title: 'Bảng cao thủ cùng khối',
     desc: 'Hiển thị danh sách tối đa 20 bạn cùng khối đã đồng ý công khai huy hiệu.',
   },
+  {
+    key: 'vocab',
+    title: 'Đấu từ vựng (Anh / Trung)',
+    desc: 'Học sinh đấu bằng ngân hàng từ vựng; hàng chờ riêng, điểm tốc độ, không tính hạng. Quiz lớp chọn được nội dung Từ vựng.',
+  },
 ];
 
 // Giá trị mặc định chuẩn của battle_flex theo hợp đồng

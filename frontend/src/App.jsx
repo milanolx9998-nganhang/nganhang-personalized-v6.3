@@ -15,6 +15,7 @@ const ArenaLobby=lazy(()=>import('./pages/battle/ArenaLobby.jsx'));
 const BattleRoom=lazy(()=>import('./pages/battle/RoomPage.jsx'));
 const BattleProjector=lazy(()=>import('./pages/battle/ProjectorPage.jsx'));
 const AdminBattle=lazy(()=>import('./pages/battle/AdminBattle.jsx'));
+const VocabBank=lazy(()=>import('./pages/vocab/VocabBank.jsx'));
 const Assignments=lazy(()=>import('./pages/practice/Assignments.jsx'));
 const SharedAssignment=lazy(()=>import('./pages/practice/Assignments.jsx').then(m=>({default:m.SharedAssignment})));
 const TeacherDashboard=lazy(()=>import('./pages/practice/Teacher.jsx').then(m=>({default:m.TeacherDashboard})));
@@ -73,6 +74,7 @@ export default function App() {
           <Route path="practice/assignments" element={<Assignments/>}/>
           <Route path="practice/shared/:token" element={<SharedAssignment/>}/>
           <Route path="practice/banks" element={<Banks/>}/>
+          <Route path="practice/vocab" element={<VocabBank/>}/>
           <Route path="practice/import" element={<ImportCenter/>}/>
           <Route path="practice/students" element={<Students/>}/>
           <Route path="practice/portfolio" element={<StudentPortfolio/>}/>

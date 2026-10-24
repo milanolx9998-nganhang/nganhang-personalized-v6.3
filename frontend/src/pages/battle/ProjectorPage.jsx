@@ -10,6 +10,7 @@ import CountdownOverlay from './components/CountdownOverlay.jsx';
 import ScopeLabel from './components/ScopeLabel.jsx';
 import { QuestionSolutionDetail } from './components/RevealPanel.jsx';
 import ProjectorSelfPaced from './components/ProjectorSelfPaced.jsx';
+import '../../styles/arena.css';
 
 const MC_SHAPES = { A: '▲', B: '●', C: '■', D: '◆' };
 const MC_COLOR_CLASSES = {

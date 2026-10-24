@@ -401,3 +401,35 @@ export const battleApiModes = {
     return api.get(`${BASE}/rooms/${encodeURIComponent(roomId)}/projector`);
   },
 };
+
+// V6.9.5 Đấu từ vựng: bộ từ chơi được và hàng chờ riêng (không qua /match của Đấu bài học).
+export const battleApiVocab = {
+  getSets(subjectId) {
+    return api.get(`${BASE}/vocab/sets${buildQuery({ subject_id: subjectId })}`);
+  },
+  joinMatch(payload) {
+    return api.post(`${BASE}/vocab/match`, payload);
+  },
+  getMatch() {
+    return api.get(`${BASE}/vocab/match`);
+  },
+  leaveMatch() {
+    return api.del(`${BASE}/vocab/match`);
+  },
+  toBot(difficulty = 'medium') {
+    return api.post(`${BASE}/vocab/match/bot`, { difficulty });
+  },
+};
+
+// Nhãn dạng câu từ vựng (giáo viên chọn khi tạo Quiz lớp).
+export const VOCAB_KIND_LABELS = {
+  EN1: 'Từ → nghĩa',
+  EN2: 'Nghĩa → từ',
+  EN5: 'Ghép cặp',
+  ZH1: 'Chữ Hán → nghĩa',
+  ZH2: 'Nghĩa → chữ Hán',
+  ZH3: 'Chữ Hán → pinyin',
+  ZH4: 'Pinyin → chữ Hán',
+  ZH6: 'Ghép cặp',
+};
+export const VOCAB_KINDS = { en: ['EN1', 'EN2', 'EN5'], zh: ['ZH1', 'ZH2', 'ZH3', 'ZH4', 'ZH6'] };

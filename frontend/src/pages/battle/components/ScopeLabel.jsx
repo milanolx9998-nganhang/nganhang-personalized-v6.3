@@ -1,6 +1,11 @@
 import React from 'react';
 
 export default function ScopeLabel({ scope, scopeLabel, options }) {
+  // V6.9.5: phòng từ vựng không có Bài — nhãn là tên bộ từ
+  if (scope?.content === 'vocab') {
+    const n = Array.isArray(scope.vocab_set_ids) ? scope.vocab_set_ids.length : 0;
+    return <span>📖 Từ vựng · {scope.vocab_label || (n ? `${n} bộ từ` : 'Ngân hàng từ vựng')}</span>;
+  }
   // Ưu tiên nhãn đã dịch sẵn từ máy chủ theo hợp đồng V6.9.4
   if (scopeLabel && typeof scopeLabel.label === 'string' && scopeLabel.label.trim()) {
     return <span>{scopeLabel.label}</span>;

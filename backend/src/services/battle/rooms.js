@@ -68,7 +68,8 @@ export function createRooms({store,deck,safety,streams,identity,normalizeScope,o
   }
   if(r.vote)candidates.push({at:r.vote.deadline,action:'vote_timeout'});
   else if(r.phase==='countdown')candidates.push({at:r.countdown_at,action:'open'});
-  else if(r.phase==='reveal'&&r.kind!=='class')candidates.push({at:r.reveal_at+20000,action:'advance'});
+  // Đấu từ vựng nhịp nhanh: lời giải 5 giây rồi tự sang câu (Đấu bài học giữ 20 giây để đọc lời giải).
+  else if(r.phase==='reveal'&&r.kind!=='class')candidates.push({at:r.reveal_at+(r.scope?.content==='vocab'?5000:20000),action:'advance'});
   else if(r.phase==='lobby')candidates.push({at:r.auto_start_at??r.activity_at+1800000,action:r.auto_start_at?'auto_start':'idle'});
   const event=candidates.sort((a,b)=>a.at-b.at)[0];if(!event)return;
   const command={...event,index:r.index,schedule_version:r.schedule_version};

@@ -4516,3 +4516,27 @@
 .arena-hall-sug-card__actions > .arena-btn {
   flex: 1 1 auto;
 }
+
+/* ===== V6.9.5 Đấu từ vựng ===== */
+.arena-muted { color: var(--ink-muted, #6B6A63); font-size: 14px; }
+.vocab-set-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-top: 8px; }
+.vocab-set-chip { display: grid; gap: 2px; text-align: left; padding: 10px 12px; border-radius: var(--arena-radius-md); border: 1.5px solid #D9D6CC; background: #FFFFFF; font: inherit; cursor: pointer; color: inherit; }
+.vocab-set-chip:hover:not(:disabled) { border-color: var(--arena-opt-a); }
+.vocab-set-chip.is-on { border-color: var(--arena-opt-a); background: var(--arena-opt-a-soft); box-shadow: 0 0 0 2px rgba(30, 90, 122, 0.15); }
+.vocab-set-chip:disabled { opacity: 0.5; cursor: not-allowed; }
+.vocab-set-chip__name { font-weight: 700; font-size: 14px; }
+.vocab-set-chip__meta { font-size: 12px; color: var(--ink-muted, #6B6A63); }
+.vocab-sheet-footer { flex-wrap: wrap; }
+.arena-hero-actions__vocab { background: #FFFFFF !important; color: var(--arena-dark) !important; border-color: #FFFFFF !important; }
+/* Kết quả: "Từ em sai" */
+.vocab-missed { display: grid; gap: 10px; }
+.vocab-missed__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.vocab-missed__card { border: 1px solid #E8E4D8; border-left: 4px solid var(--arena-opt-b); border-radius: var(--arena-radius-md); padding: 10px 12px; background: #FFFFFF; display: grid; gap: 2px; }
+.vocab-missed__term { font-size: 18px; font-weight: 700; }
+.vocab-missed__term:lang(zh) { font-size: 28px; font-family: 'Noto Sans SC', 'Microsoft YaHei', 'PingFang SC', sans-serif; }
+.vocab-missed__reading { color: var(--arena-opt-a); font-size: 14px; }
+.vocab-missed__meaning { font-weight: 600; }
+.vocab-missed__example { font-size: 13px; color: var(--ink-muted, #6B6A63); }
+.vocab-missed__perfect { padding: 12px; border-radius: var(--arena-radius-md); background: var(--arena-opt-c-soft); color: var(--arena-opt-c); font-weight: 700; }
+/* Chữ Hán trong câu hỏi / phương án đọc rõ hơn */
+.arena-vocab-zh { font-family: 'Noto Sans SC', 'Microsoft YaHei', 'PingFang SC', sans-serif; }

@@ -26,6 +26,8 @@ export default function ResultView({ snapshot, roomId }) {
     [snapshot?.questions]
   );
 
+  const isVocab = snapshot?.scope?.content === 'vocab';
+  const vocabMissed = Array.isArray(snapshot?.vocab_missed) ? snapshot.vocab_missed : [];
   const reviewItems = useMemo(() => {
     const rawReview = Array.isArray(snapshot?.review) ? snapshot.review : [];
     if (rawReview.length > 0) {
@@ -214,7 +216,40 @@ export default function ResultView({ snapshot, roomId }) {
         <ResultScoreSummary me={me} scoring={snapshot.scoring} />
       )}
 
+      {/* (1a) VÁN TỪ VỰNG: "Từ em sai" thay cho luyện lại câu (ván từ vựng không tạo bài tự luyện) */}
+      {isVocab && (
+        <section className="arena-card arena-result-section vocab-missed">
+          <div className="arena-finish-strip" style={{ marginBottom: '14px' }} aria-hidden="true" />
+          <div className="arena-row arena-row--between" style={{ flexWrap: 'wrap', gap: '8px' }}>
+            <div>
+              <h1 className="arena-title-lg">Từ em sai</h1>
+              <p className="arena-subtitle">Đọc lại nghĩa và cách đọc rồi đấu ván mới để nhớ lâu hơn.</p>
+            </div>
+            <span className="arena-chip arena-chip--warn arena-mono">{vocabMissed.length} từ</span>
+          </div>
+          {vocabMissed.length === 0 ? (
+            <div className="vocab-missed__perfect">🎉 Em đúng hết các từ trong ván này!</div>
+          ) : (
+            <div className="vocab-missed__grid">
+              {vocabMissed.map((v) => {
+                const zh = /[㐀-鿿]/.test(v.term || '');
+                return (
+                  <article key={v.entry_id} className="vocab-missed__card">
+                    <span className="vocab-missed__term" lang={zh ? 'zh' : 'en'}>{v.term}</span>
+                    {v.reading && <span className="vocab-missed__reading">{zh ? v.reading : `/${String(v.reading).replace(/^\/|\/$/g, '')}/`}</span>}
+                    {v.han_viet && <span className="vocab-missed__example">Hán Việt: {v.han_viet}</span>}
+                    <span className="vocab-missed__meaning">{v.meaning_vi}</span>
+                    {v.example && <span className="vocab-missed__example">Ví dụ: {v.example}</span>}
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
+
       {/* (1) KHỐI 1: CÂU EM CẦN XEM LẠI + NÚT CHÍNH LUYỆN LẠI CÁC CÂU VỪA SAI */}
+      {!isVocab && (
       <section className="arena-card arena-result-section">
         <div className="arena-finish-strip" style={{ marginBottom: '14px' }} aria-hidden="true" />
         <div className="arena-row arena-row--between" style={{ marginBottom: '12px' }}>
@@ -258,11 +293,12 @@ export default function ResultView({ snapshot, roomId }) {
           </div>
         )}
       </section>
+      )}
 
       {/* (2) KHỐI 2: KẾT QUẢ CÁC CÂU TRONG VÁN THEO BÀI */}
       <section className="arena-card arena-result-section" style={{ marginTop: '16px' }}>
         <h2 className="arena-title-md" style={{ marginBottom: '12px' }}>
-          Kết quả các câu trong ván theo Bài ({questions.length} câu)
+          {isVocab ? 'Các câu trong ván' : 'Kết quả các câu trong ván theo Bài'} ({questions.length} câu)
         </h2>
 
         {groupedByTopic.length === 0 ? (

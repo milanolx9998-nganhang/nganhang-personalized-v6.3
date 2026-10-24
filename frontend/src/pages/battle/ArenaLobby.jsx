@@ -9,6 +9,7 @@ import ScopeLabel from './components/ScopeLabel.jsx';
 import CreateRoomSheet from './components/CreateRoomSheet.jsx';
 import FindMatchSheet from './components/FindMatchSheet.jsx';
 import MatchWaiting from './components/MatchWaiting.jsx';
+import { VocabBattleSheet, VocabWaiting, VocabQuizPicker } from './components/VocabBattle.jsx';
 import PlayModePicker from './components/PlayModePicker.jsx';
 import ArenaHall from './components/ArenaHall.jsx';
 
@@ -84,6 +85,10 @@ export default function ArenaLobby() {
   const waitingRef = useRef(null);
   const [revealWaiting, setRevealWaiting] = useState(0);
   const revealedRef = useRef(0);
+  // V6.9.5 Đấu từ vựng: hàng chờ riêng, khung chờ riêng
+  const [showVocab, setShowVocab] = useState(false);
+  const [vocabQueue, setVocabQueue] = useState(undefined);
+  const vocabWaitingRef = useRef(null);
   const [busyToggleBadge, setBusyToggleBadge] = useState(false);
 
   // Bộ lọc query đồng bộ với GET /api/battle/lobby và SSE /api/battle/lobby/stream (V6.9.4)
@@ -102,6 +107,9 @@ export default function ArenaLobby() {
   const [tScopeMode, setTScopeMode] = useState('chapter'); // 'chapter' | 'topics'
   const [tChapter, setTChapter] = useState('');
   const [tTopicIds, setTTopicIds] = useState([]);
+  // V6.9.5 Quiz lớp: nội dung câu hỏi bài học hay ngân hàng từ vựng
+  const [tContent, setTContent] = useState('bank');
+  const [tVocab, setTVocab] = useState({ subjectId: null, setIds: [], kinds: [] });
   const [tQuestionCount, setTQuestionCount] = useState(10);
   const [tSeconds, setTSeconds] = useState(30);
   const [tPlayMode, setTPlayMode] = useState({
@@ -165,6 +173,7 @@ export default function ArenaLobby() {
       bot: Boolean(rawModes.bot ?? meData?.bot_enabled ?? true),
       self_paced: Boolean(rawModes.self_paced ?? false),
       speed_scoring: Boolean(rawModes.speed_scoring ?? false),
+      vocab: Boolean(rawModes.vocab ?? false),
     };
   }, [meData]);
 
@@ -286,6 +295,22 @@ export default function ArenaLobby() {
 
   // 3. Tự động điều hướng vào phòng khi ghép trận xong (current_room_id xuất hiện trong luồng sảnh)
   const activeMatchTicket = lobbySnapshot?.match ?? meData?.queue ?? null;
+  const activeVocabTicket = vocabQueue === undefined ? meData?.vocab_queue ?? null : vocabQueue;
+  const openRoomPage = useCallback(
+    (roomId) => roomId && navigate(`/practice/battle/rooms/${encodeURIComponent(roomId)}`),
+    [navigate]
+  );
+  const clearVocabTicket = useCallback(() => {
+    setVocabQueue(null);
+  }, []);
+  // Vừa vào hàng chờ từ vựng (do em bấm) → cuộn tới khung chờ, như khung chờ Đấu bài học.
+  useEffect(() => {
+    const el = vocabWaitingRef.current;
+    if (!vocabQueue || !el) return;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+    el.focus({ preventScroll: true });
+  }, [vocabQueue]);
   const streamCurrentRoomId = lobbySnapshot?.current_room_id ?? null;
 
   useEffect(() => {
@@ -520,24 +545,39 @@ export default function ArenaLobby() {
   // Xử lý Giáo viên bấm "Mở phòng cho lớp"
   const handleTeacherOpenClassRoom = async (e) => {
     e.preventDefault();
-    if (!selectedClassId || !tSubjectId || busyCreateClassRoom) return;
+    const vocabQuiz = tContent === 'vocab';
+    if (!selectedClassId || (!vocabQuiz && !tSubjectId) || busyCreateClassRoom) return;
 
-    const scope = { subject_id: Number(tSubjectId) };
-    if (tBranchId) {
-      scope.branch_id = Number(tBranchId);
-    }
-    if (tScopeMode === 'chapter') {
-      if (!tChapter) {
-        setErrorMsg('Thầy cô vui lòng chọn một Chương.');
+    let scope;
+    if (vocabQuiz) {
+      if (!tVocab.subjectId || tVocab.setIds.length === 0) {
+        setErrorMsg('Thầy cô vui lòng chọn ít nhất một bộ từ vựng.');
         return;
       }
-      scope.chapter = tChapter;
-    } else if (tScopeMode === 'topics') {
-      if (tTopicIds.length === 0) {
-        setErrorMsg('Thầy cô vui lòng chọn ít nhất một Bài học.');
-        return;
+      scope = {
+        content: 'vocab',
+        subject_id: tVocab.subjectId,
+        vocab_set_ids: tVocab.setIds,
+        ...(tVocab.kinds.length ? { vocab_kinds: tVocab.kinds } : {}),
+      };
+    } else {
+      scope = { subject_id: Number(tSubjectId) };
+      if (tBranchId) {
+        scope.branch_id = Number(tBranchId);
       }
-      scope.topic_ids = tTopicIds;
+      if (tScopeMode === 'chapter') {
+        if (!tChapter) {
+          setErrorMsg('Thầy cô vui lòng chọn một Chương.');
+          return;
+        }
+        scope.chapter = tChapter;
+      } else if (tScopeMode === 'topics') {
+        if (tTopicIds.length === 0) {
+          setErrorMsg('Thầy cô vui lòng chọn ít nhất một Bài học.');
+          return;
+        }
+        scope.topic_ids = tTopicIds;
+      }
     }
 
     const clampedSeconds = Math.min(180, Math.max(20, Number(tSeconds) || 30));
@@ -661,6 +701,24 @@ export default function ArenaLobby() {
             </h2>
 
             <form onSubmit={handleTeacherOpenClassRoom} className="arena-teacher-form">
+              {flags.vocab && (
+                <div style={{ marginBottom: '14px' }}>
+                  <span className="arena-field-label">Nội dung</span>
+                  <div className="arena-row" style={{ gap: '8px', flexWrap: 'wrap' }}>
+                    {[['bank', '📚 Câu hỏi bài học'], ['vocab', '📖 Từ vựng (Anh / Trung)']].map(([key, label]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        aria-pressed={tContent === key}
+                        className={`arena-btn arena-btn--sm ${tContent === key ? 'arena-btn--primary' : 'arena-btn--secondary'}`}
+                        onClick={() => setTContent(key)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="arena-grid-2">
                 {/* Chọn lớp */}
                 <div>
@@ -705,6 +763,8 @@ export default function ArenaLobby() {
                   )}
                 </div>
 
+                {tContent !== 'vocab' && (
+                <>
                 {/* Chọn môn */}
                 <div>
                   <label htmlFor="teacher-subject-select" className="arena-field-label">
@@ -731,8 +791,14 @@ export default function ArenaLobby() {
                     ))}
                   </select>
                 </div>
+                </>
+                )}
               </div>
 
+              {tContent === 'vocab' ? (
+                <VocabQuizPicker value={tVocab} onChange={setTVocab} />
+              ) : (
+              <>
               {/* Chọn Phân môn & Cách giới hạn phạm vi */}
               <div className="arena-grid-2" style={{ marginTop: '14px' }}>
                 <div>
@@ -848,6 +914,9 @@ export default function ArenaLobby() {
                   </div>
                 )}
               </div>
+
+              </>
+              )}
 
               {/* Số câu & Thời gian mỗi câu (20 - 180 giây) */}
               <div className="arena-grid-2" style={{ marginTop: '14px' }}>
@@ -1187,6 +1256,17 @@ export default function ArenaLobby() {
                 🤖 Luyện đấu với máy
               </button>
             )}
+
+            {flags.battle_enabled && flags.vocab && (
+              <button
+                type="button"
+                className="arena-btn arena-btn--ghost-light arena-btn--lg arena-hero-actions__vocab"
+                onClick={() => setShowVocab(true)}
+                disabled={Boolean(suspension) || Boolean(activeVocabTicket) || Boolean(activeMatchTicket)}
+              >
+                📖 Đấu từ vựng
+              </button>
+            )}
           </div>
         </section>
 
@@ -1207,6 +1287,23 @@ export default function ArenaLobby() {
               onCancelled={() => {
                 fetchMe();
               }}
+              onError={(msg) => setErrorMsg(msg)}
+            />
+          </section>
+        )}
+
+        {/* KHUNG CHỜ ĐẤU TỪ VỰNG (hàng chờ riêng, không lẫn vé Đấu bài học) */}
+        {activeVocabTicket && (
+          <section
+            ref={vocabWaitingRef}
+            tabIndex={-1}
+            style={{ marginTop: '16px', scrollMarginTop: '72px', outline: 'none' }}
+          >
+            <VocabWaiting
+              queue={activeVocabTicket}
+              flags={flags}
+              onMatched={openRoomPage}
+              onCancelled={clearVocabTicket}
               onError={(msg) => setErrorMsg(msg)}
             />
           </section>
@@ -1432,6 +1529,21 @@ export default function ArenaLobby() {
       )}
 
       {/* SHEET TÌM ĐỐI THỦ LINH HOẠT */}
+      {showVocab && (
+        <VocabBattleSheet
+          flags={flags}
+          onClose={() => setShowVocab(false)}
+          onQueued={(queue) => {
+            setShowVocab(false);
+            setVocabQueue(queue);
+          }}
+          onRoomCreated={(roomId) => {
+            setShowVocab(false);
+            openRoomPage(roomId);
+          }}
+        />
+      )}
+
       {showFindMatch && (
         <FindMatchSheet
           flags={flags}
